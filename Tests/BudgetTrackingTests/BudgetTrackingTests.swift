@@ -83,10 +83,38 @@ final class DateHelpersTests: XCTestCase {
 }
 
 final class RuleLearnerTests: XCTestCase {
-    func testExtractKeywords() {
-        let keywords = RuleLearner.extractKeywords(from: "WHOLE FOODS MARKET #1234")
-        XCTAssertFalse(keywords.isEmpty)
-        // Should contain progressively shorter candidates
-        XCTAssertTrue(keywords.count >= 2)
+    func testExtractMerchantFromAppleCardFormat() {
+        // Apple Card: "STORE NAME ADDRESS CITY ZIP STATE USA"
+        let m1 = RuleLearner.extractMerchantName(
+            from: "TRADER JOE S #670 2902 W 86TH ST INDIANAPOLIS 46268 IN USA"
+        )
+        XCTAssertEqual(m1, "TRADER JOE S")
+
+        let m2 = RuleLearner.extractMerchantName(
+            from: "WHOLEFDS CRL 10404 14598 CLAY TERRACE BLVD CARMEL 46032 IN USA"
+        )
+        XCTAssertEqual(m2, "WHOLEFDS CRL 10404")
+
+        let m3 = RuleLearner.extractMerchantName(
+            from: "STARBUCKS 8007827282 2401 UTAH AVE S SEATTLE 98134 WA USA"
+        )
+        XCTAssertEqual(m3, "STARBUCKS")
+
+        let m4 = RuleLearner.extractMerchantName(
+            from: "BUYER'S MARKET KOKOMO 3754 S. REED ROAD (US31) KOKOMO 46902 IN USA"
+        )
+        XCTAssertEqual(m4, "BUYER'S MARKET KOKOMO")
+    }
+
+    func testExtractMerchantStripsReturn() {
+        let m = RuleLearner.extractMerchantName(
+            from: "MENARDS CARMEL IN 2150 E GREYHOUND PASS CARMEL 46033 IN USA (RETURN)"
+        )
+        XCTAssertEqual(m, "MENARDS CARMEL IN")
+    }
+
+    func testExtractMerchantSimple() {
+        let m = RuleLearner.extractMerchantName(from: "NETFLIX")
+        XCTAssertEqual(m, "NETFLIX")
     }
 }

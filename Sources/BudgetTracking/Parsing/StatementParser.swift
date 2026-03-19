@@ -4,12 +4,23 @@ struct ParsedRow {
     var date: Date?
     var description: String?
     var amount: Double?
+    var merchant: String?       // Clean merchant name (e.g., from Apple Card "Merchant" column)
+    var sourceCategory: String? // Category from the bank (e.g., Apple Card "Category" column)
     var rawColumns: [String: String]
 
-    init(date: Date? = nil, description: String? = nil, amount: Double? = nil, rawColumns: [String: String] = [:]) {
+    init(
+        date: Date? = nil,
+        description: String? = nil,
+        amount: Double? = nil,
+        merchant: String? = nil,
+        sourceCategory: String? = nil,
+        rawColumns: [String: String] = [:]
+    ) {
         self.date = date
         self.description = description
         self.amount = amount
+        self.merchant = merchant
+        self.sourceCategory = sourceCategory
         self.rawColumns = rawColumns
     }
 }

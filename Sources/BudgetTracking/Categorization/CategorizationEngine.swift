@@ -4,11 +4,21 @@ struct CategorizationEngine {
     let rules: [CategorizationRule]
     let categories: [BudgetCategory]
 
-    func categorize(description: String) -> CategorizationRule? {
-        let upper = description.uppercased()
-        // Rules are already sorted by priority descending
+    /// Match against description and optionally a clean merchant name.
+    /// Tries merchant first (more precise), then falls back to description.
+    func categorize(description: String, merchant: String? = nil) -> CategorizationRule? {
+        // Try matching against merchant name first (if available)
+        if let merchant, !merchant.isEmpty {
+            let upperMerchant = merchant.uppercased()
+            if let match = rules.first(where: { upperMerchant.contains($0.keyword.uppercased()) }) {
+                return match
+            }
+        }
+
+        // Fall back to description matching
+        let upperDesc = description.uppercased()
         return rules.first { rule in
-            upper.contains(rule.keyword.uppercased())
+            upperDesc.contains(rule.keyword.uppercased())
         }
     }
 

@@ -82,7 +82,6 @@ private struct TransactionTableContent: View {
                     categoryName: viewModel.categoryName(for: txn.categoryId),
                     onCategoryChange: { newId in
                         viewModel.updateCategory(for: txn.id, to: newId)
-                        RuleLearner.learnFromOverride(transaction: txn, newCategoryId: newId)
                     }
                 )
             }

@@ -5,6 +5,7 @@ struct Transaction: Identifiable, Codable, Equatable {
     var id: UUID
     var date: Date
     var description: String
+    var merchant: String?
     var amount: Double
     var categoryId: UUID?
     var isManuallyCategorized: Bool
@@ -16,6 +17,7 @@ struct Transaction: Identifiable, Codable, Equatable {
         id: UUID = UUID(),
         date: Date,
         description: String,
+        merchant: String? = nil,
         amount: Double,
         categoryId: UUID? = nil,
         isManuallyCategorized: Bool = false,
@@ -26,6 +28,7 @@ struct Transaction: Identifiable, Codable, Equatable {
         self.id = id
         self.date = date
         self.description = description
+        self.merchant = merchant
         self.amount = amount
         self.categoryId = categoryId
         self.isManuallyCategorized = isManuallyCategorized
@@ -39,7 +42,7 @@ extension Transaction: FetchableRecord, PersistableRecord {
     static let databaseTableName = "transaction"
 
     enum Columns: String, ColumnExpression {
-        case id, date, description, amount, categoryId
+        case id, date, description, merchant, amount, categoryId
         case isManuallyCategorized, month, importedFileId, importedAt
     }
 }

@@ -158,11 +158,24 @@ final class ImportViewModel {
                 var txn = Transaction(
                     date: date,
                     description: row.description ?? "Unknown",
+                    merchant: row.merchant,
                     amount: amount,
                     month: month,
                     importedFileId: importedFile.id
                 )
-                if let match = engine.categorize(description: txn.description) {
+                // 1. Try source category from the bank (e.g., Apple Card "Category" column)
+                if let sourceCategory = row.sourceCategory,
+                   let catId = SourceCategoryMapper.mapToCategory(
+                       sourceCategory: sourceCategory, categories: categories
+                   )
+                {
+                    txn.categoryId = catId
+                }
+                // 2. Fall back to keyword rules
+                else if let match = engine.categorize(
+                    description: txn.description,
+                    merchant: row.merchant
+                ) {
                     txn.categoryId = match.categoryId
                     try DatabaseManager.shared.incrementRuleMatchCount(match.id)
                 }

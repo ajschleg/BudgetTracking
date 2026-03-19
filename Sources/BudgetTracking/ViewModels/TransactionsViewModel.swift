@@ -7,6 +7,9 @@ final class TransactionsViewModel {
     var searchText: String = ""
     var selectedCategoryFilter: UUID?
     var errorMessage: String?
+    var lastBulkUpdateCount: Int = 0
+
+    private var currentMonth: String = ""
 
     var filteredTransactions: [Transaction] {
         var result = transactions
@@ -22,6 +25,7 @@ final class TransactionsViewModel {
     }
 
     func load(month: String) {
+        currentMonth = month
         do {
             transactions = try DatabaseManager.shared.fetchTransactions(forMonth: month)
             categories = try DatabaseManager.shared.fetchCategories()
@@ -36,11 +40,20 @@ final class TransactionsViewModel {
             try DatabaseManager.shared.updateTransactionCategory(
                 transactionId, categoryId: categoryId, isManual: true
             )
-            // Update local state
-            if let idx = transactions.firstIndex(where: { $0.id == transactionId }) {
-                transactions[idx].categoryId = categoryId
-                transactions[idx].isManuallyCategorized = true
+
+            // Find the transaction to learn from
+            guard let transaction = transactions.first(where: { $0.id == transactionId }) else {
+                return
             }
+
+            // Learn rule and bulk-update all similar transactions
+            let bulkCount = RuleLearner.learnFromOverride(
+                transaction: transaction, newCategoryId: categoryId
+            )
+            lastBulkUpdateCount = bulkCount
+
+            // Reload all transactions to reflect bulk changes
+            load(month: currentMonth)
         } catch {
             errorMessage = error.localizedDescription
         }

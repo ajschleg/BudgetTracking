@@ -15,15 +15,19 @@ struct ColumnMapping {
     var amountIndex: Int?
     var debitIndex: Int?
     var creditIndex: Int?
+    var merchantIndex: Int?
+    var sourceCategoryIndex: Int?
     var detectedDateFormat: String?
 }
 
 enum ColumnMapper {
     private static let dateKeywords = ["date", "posted", "transaction date", "posting date", "trans date"]
-    private static let descriptionKeywords = ["description", "memo", "payee", "name", "merchant", "details", "transaction"]
+    private static let descriptionKeywords = ["description", "memo", "payee", "name", "details"]
     private static let amountKeywords = ["amount", "total"]
     private static let debitKeywords = ["debit", "withdrawal", "charge"]
     private static let creditKeywords = ["credit", "deposit", "payment"]
+    private static let merchantKeywords = ["merchant", "vendor", "store"]
+    private static let categoryKeywords = ["category", "type"]
 
     static func detectColumns(headers: [String], sampleRows: [[String]]) -> ColumnMapping {
         var mapping = ColumnMapping()
@@ -41,6 +45,13 @@ enum ColumnMapper {
                 mapping.debitIndex = i
             } else if mapping.creditIndex == nil && creditKeywords.contains(where: { header.contains($0) }) {
                 mapping.creditIndex = i
+            }
+            // These are detected separately so they don't compete with description
+            if mapping.merchantIndex == nil && merchantKeywords.contains(where: { header.contains($0) }) {
+                mapping.merchantIndex = i
+            }
+            if mapping.sourceCategoryIndex == nil && categoryKeywords.contains(where: { header.contains($0) }) {
+                mapping.sourceCategoryIndex = i
             }
         }
 

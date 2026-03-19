@@ -102,6 +102,12 @@ final class DatabaseManager {
             try db.create(index: "importedFile_month", on: "importedFile", columns: ["month"])
         }
 
+        migrator.registerMigration("v2_addMerchantColumn") { db in
+            try db.alter(table: "transaction") { t in
+                t.add(column: "merchant", .text)
+            }
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -158,6 +164,9 @@ final class DatabaseManager {
                 ("HARRIS TEETER", groceries, 10),
                 ("GIANT EAGLE", groceries, 10),
                 ("STOP & SHOP", groceries, 10),
+                ("WHOLEFDS", groceries, 10),
+                ("YAMI.COM", groceries, 10),
+                ("BUYER'S MARKET", groceries, 10),
 
                 // Dining Out
                 ("STARBUCKS", dining, 10),
@@ -176,6 +185,10 @@ final class DatabaseManager {
                 ("DOORDASH", dining, 10),
                 ("UBER EATS", dining, 10),
                 ("POSTMATES", dining, 10),
+                ("IN-N-OUT", dining, 10),
+                ("BEN'S PRETZELS", dining, 10),
+                ("CA DARIO", dining, 10),
+                ("FIRST CLASS CONCESSION", dining, 10),
 
                 // Gas
                 ("SHELL", gas, 10),
@@ -192,6 +205,8 @@ final class DatabaseManager {
                 ("MARATHON", gas, 5),
                 ("CITGO", gas, 10),
                 ("VALERO", gas, 10),
+                ("MAPCO", gas, 10),
+                ("AMOCO", gas, 10),
 
                 // Utilities
                 ("ELECTRIC", utilities, 5),
@@ -216,6 +231,7 @@ final class DatabaseManager {
                 ("YOUTUBE PREMIUM", entertainment, 10),
                 ("AMAZON PRIME", entertainment, 10),
                 ("AMC THEATRE", entertainment, 10),
+                ("AMC ", entertainment, 10),
                 ("REGAL CINEMA", entertainment, 10),
                 ("XBOX", entertainment, 10),
                 ("PLAYSTATION", entertainment, 10),
@@ -240,6 +256,10 @@ final class DatabaseManager {
                 ("GAP", shopping, 5),
                 ("NIKE", shopping, 10),
                 ("ETSY", shopping, 10),
+                ("ANTHROPOLOGIE", shopping, 10),
+                ("FREE PEOPLE", shopping, 10),
+                ("GOODWILL", shopping, 10),
+                ("MENARDS", shopping, 10),
 
                 // Transportation
                 ("UBER ", transportation, 10),
@@ -248,6 +268,9 @@ final class DatabaseManager {
                 ("TOLL", transportation, 5),
                 ("TRANSIT", transportation, 5),
                 ("METRO", transportation, 5),
+                ("NATIONAL CAR RENTAL", transportation, 10),
+                ("HERTZ", transportation, 10),
+                ("ENTERPRISE", transportation, 5),
 
                 // Health
                 ("CVS", health, 5),
@@ -260,6 +283,7 @@ final class DatabaseManager {
                 ("URGENT CARE", health, 10),
                 ("QUEST DIAG", health, 10),
                 ("LABCORP", health, 10),
+                ("DENTAL", health, 10),
             ]
 
             for (keyword, categoryId, priority) in defaults {
@@ -330,6 +354,29 @@ final class DatabaseManager {
                 transaction.isManuallyCategorized = isManual
                 try transaction.update(db)
             }
+        }
+    }
+
+    /// Update all transactions in a month whose description or merchant contains the keyword
+    /// (case-insensitive). Returns the number of rows updated.
+    @discardableResult
+    func bulkUpdateCategory(
+        matching keyword: String,
+        inMonth month: String,
+        toCategoryId: UUID,
+        excludingTransactionId: UUID
+    ) throws -> Int {
+        try dbQueue.write { db in
+            let pattern = "%\(keyword)%"
+            try db.execute(sql: """
+                UPDATE "transaction"
+                SET categoryId = ?, isManuallyCategorized = 1
+                WHERE month = ?
+                  AND (UPPER(description) LIKE UPPER(?)
+                       OR UPPER(merchant) LIKE UPPER(?))
+                  AND id != ?
+                """, arguments: [toCategoryId, month, pattern, pattern, excludingTransactionId])
+            return db.changesCount
         }
     }
 

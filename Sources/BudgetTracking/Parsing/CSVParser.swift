@@ -68,7 +68,23 @@ struct CSVStatementParser: StatementParser {
                 }
             }
 
-            return ParsedRow(date: date, description: description, amount: amount, rawColumns: rawCols)
+            var merchant: String?
+            if let merchantIdx = mapping.merchantIndex, merchantIdx < row.count {
+                let val = row[merchantIdx].trimmingCharacters(in: .whitespaces)
+                if !val.isEmpty { merchant = val }
+            }
+
+            var sourceCategory: String?
+            if let catIdx = mapping.sourceCategoryIndex, catIdx < row.count {
+                let val = row[catIdx].trimmingCharacters(in: .whitespaces)
+                if !val.isEmpty { sourceCategory = val }
+            }
+
+            return ParsedRow(
+                date: date, description: description, amount: amount,
+                merchant: merchant, sourceCategory: sourceCategory,
+                rawColumns: rawCols
+            )
         }
     }
 
