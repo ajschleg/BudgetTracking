@@ -33,8 +33,6 @@ final class ImportViewModel {
     /// When a multi-month file is imported, contains the months and counts.
     var importedMonthBreakdown: [(month: String, count: Int)] = []
 
-    /// Flag to prevent reset() when month auto-detection changes the selected month.
-    var isAutoSwitchingMonth = false
 
     // Column mapping state
     var dateColumnIndex: Int?
