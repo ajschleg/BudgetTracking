@@ -8,7 +8,11 @@ struct CategoryEditorView: View {
 
     @State private var name: String = ""
     @State private var budgetText: String = ""
-    @State private var selectedColor: Color = .green
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case name, budget
+    }
 
     private let colorOptions: [(String, Color)] = [
         ("#4CAF50", .green),
@@ -44,33 +48,41 @@ struct CategoryEditorView: View {
 
             TextField("Category Name", text: $name)
                 .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: .name)
 
             TextField("Monthly Budget", text: $budgetText)
                 .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: .budget)
 
             // Color picker
             HStack(spacing: 8) {
                 Text("Color:")
                 ForEach(colorOptions, id: \.0) { hex, color in
-                    Circle()
-                        .fill(color)
-                        .frame(width: 24, height: 24)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.primary, lineWidth: selectedColorHex == hex ? 2 : 0)
-                        )
-                        .onTapGesture { selectedColorHex = hex }
+                    Button {
+                        selectedColorHex = hex
+                    } label: {
+                        Circle()
+                            .fill(color)
+                            .frame(width: 24, height: 24)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.primary, lineWidth: selectedColorHex == hex ? 2 : 0)
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
 
             HStack {
                 Button("Cancel") { onCancel() }
+                    .keyboardShortcut(.cancelAction)
                     .buttonStyle(.bordered)
                 Spacer()
                 Button("Save") {
                     let budget = Double(budgetText) ?? 0
                     onSave(name, budget, selectedColorHex)
                 }
+                .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
                 .disabled(name.isEmpty)
             }
@@ -83,6 +95,9 @@ struct CategoryEditorView: View {
                 budgetText = String(format: "%.0f", cat.monthlyBudget)
                 selectedColorHex = cat.colorHex
             }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                focusedField = .name
+            }
         }
     }
 }
@@ -94,6 +109,7 @@ struct AddRuleView: View {
 
     @State private var keyword: String = ""
     @State private var selectedCategoryId: UUID?
+    @FocusState private var isKeywordFocused: Bool
 
     var body: some View {
         VStack(spacing: 16) {
@@ -103,6 +119,7 @@ struct AddRuleView: View {
 
             TextField("Keyword (e.g., WHOLE FOODS)", text: $keyword)
                 .textFieldStyle(.roundedBorder)
+                .focused($isKeywordFocused)
 
             Picker("Category", selection: $selectedCategoryId) {
                 Text("Select...").tag(nil as UUID?)
@@ -113,6 +130,7 @@ struct AddRuleView: View {
 
             HStack {
                 Button("Cancel") { onCancel() }
+                    .keyboardShortcut(.cancelAction)
                     .buttonStyle(.bordered)
                 Spacer()
                 Button("Add Rule") {
@@ -120,11 +138,17 @@ struct AddRuleView: View {
                         onSave(keyword, catId)
                     }
                 }
+                .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
                 .disabled(keyword.isEmpty || selectedCategoryId == nil)
             }
         }
         .padding(24)
         .frame(width: 400)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                isKeywordFocused = true
+            }
+        }
     }
 }
