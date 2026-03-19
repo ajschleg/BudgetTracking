@@ -5,15 +5,18 @@ struct ImportedFile: Identifiable, Codable, Equatable {
     var id: UUID
     var fileName: String
     var fileSize: Int64
-    var month: String // "2026-03"
+    var month: String? // "2026-03" for single-month files, nil for multi-month
     var transactionCount: Int
     var importedAt: Date
+
+    /// True when the file contains transactions spanning multiple months.
+    var isMultiMonth: Bool { month == nil }
 
     init(
         id: UUID = UUID(),
         fileName: String,
         fileSize: Int64,
-        month: String,
+        month: String? = nil,
         transactionCount: Int = 0,
         importedAt: Date = Date()
     ) {

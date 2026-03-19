@@ -30,7 +30,9 @@ struct ImportView: View {
             viewModel.reset()
         }
         .onChange(of: viewModel.detectedMonth) { _, detected in
-            if let detected, detected != selectedMonth {
+            // Only auto-switch month for single-month files
+            if let detected, detected != selectedMonth,
+               viewModel.importedMonthBreakdown.isEmpty {
                 selectedMonth = detected
                 viewModel.loadImportedFiles(month: detected)
             }
@@ -59,7 +61,11 @@ struct ImportView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             if let file = fileToDelete {
-                Text("This will remove \"\(file.fileName)\" and its \(file.transactionCount) transactions from your budget.")
+                if file.isMultiMonth {
+                    Text("This will remove \"\(file.fileName)\" and all \(file.transactionCount) transactions across all months from your budget.")
+                } else {
+                    Text("This will remove \"\(file.fileName)\" and its \(file.transactionCount) transactions from your budget.")
+                }
             }
         }
     }
@@ -135,6 +141,29 @@ struct ImportView: View {
                     .foregroundStyle(.green)
                 Text("Successfully imported \(count) transactions!")
                     .font(.headline)
+
+                if !viewModel.importedMonthBreakdown.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Transactions by month:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        ForEach(viewModel.importedMonthBreakdown, id: \.month) { entry in
+                            HStack {
+                                Text(DateHelpers.displayMonth(entry.month))
+                                    .font(.subheadline)
+                                Spacer()
+                                Text("\(entry.count) transactions")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .cornerRadius(8)
+                    .frame(maxWidth: 300)
+                }
+
                 Button("Import Another") { viewModel.reset() }
                     .buttonStyle(.bordered)
             }
@@ -212,10 +241,21 @@ struct ImportView: View {
                 List {
                     ForEach(viewModel.importedFiles) { file in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(file.fileName)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
+                            HStack {
+                                Text(file.fileName)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .lineLimit(1)
+                                if file.isMultiMonth {
+                                    Text("Multi-month")
+                                        .font(.caption2)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1)
+                                        .background(Color.blue.opacity(0.15))
+                                        .foregroundStyle(.blue)
+                                        .cornerRadius(4)
+                                }
+                            }
 
                             HStack {
                                 Text("\(file.transactionCount) transactions")

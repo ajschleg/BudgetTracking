@@ -108,6 +108,30 @@ final class DatabaseManager {
             }
         }
 
+        migrator.registerMigration("v3_optionalImportedFileMonth") { db in
+            // Recreate importedFile table with nullable month column
+            // to support multi-month files (e.g. yearly Chase activity exports).
+            try db.execute(sql: "PRAGMA foreign_keys = OFF")
+
+            try db.create(table: "importedFile_new") { t in
+                t.column("id", .text).primaryKey()
+                t.column("fileName", .text).notNull()
+                t.column("fileSize", .integer).notNull()
+                t.column("month", .text) // now nullable for multi-month files
+                t.column("transactionCount", .integer).notNull().defaults(to: 0)
+                t.column("importedAt", .datetime).notNull()
+            }
+
+            try db.execute(sql: "INSERT INTO importedFile_new SELECT * FROM importedFile")
+            try db.drop(table: "importedFile")
+            try db.rename(table: "importedFile_new", to: "importedFile")
+            try db.create(
+                index: "importedFile_month", on: "importedFile", columns: ["month"]
+            )
+
+            try db.execute(sql: "PRAGMA foreign_keys = ON")
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -399,10 +423,16 @@ final class DatabaseManager {
 
     func fetchImportedFiles(forMonth month: String) throws -> [ImportedFile] {
         try dbQueue.read { db in
-            try ImportedFile
-                .filter(ImportedFile.Columns.month == month)
-                .order(ImportedFile.Columns.importedAt.desc)
-                .fetchAll(db)
+            // Fetch single-month files for this month, plus any multi-month files
+            // that have transactions in this month.
+            try ImportedFile.fetchAll(db, sql: """
+                SELECT DISTINCT f.*
+                FROM importedFile f
+                LEFT JOIN "transaction" t ON t.importedFileId = f.id
+                WHERE f.month = ?
+                   OR (f.month IS NULL AND t.month = ?)
+                ORDER BY f.importedAt DESC
+                """, arguments: [month, month])
         }
     }
 
@@ -419,13 +449,27 @@ final class DatabaseManager {
         }
     }
 
-    func findDuplicateFile(name: String, size: Int64, month: String) throws -> ImportedFile? {
+    func findDuplicateFile(name: String, size: Int64, month: String?) throws -> ImportedFile? {
         try dbQueue.read { db in
-            try ImportedFile
+            var query = ImportedFile
                 .filter(ImportedFile.Columns.fileName == name)
                 .filter(ImportedFile.Columns.fileSize == size)
-                .filter(ImportedFile.Columns.month == month)
-                .fetchOne(db)
+            if let month {
+                query = query.filter(ImportedFile.Columns.month == month)
+            } else {
+                query = query.filter(ImportedFile.Columns.month == nil)
+            }
+            return try query.fetchOne(db)
+        }
+    }
+
+    /// Returns the number of transactions from a specific file that belong to a given month.
+    func transactionCount(forFile fileId: UUID, inMonth month: String) throws -> Int {
+        try dbQueue.read { db in
+            try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM "transaction"
+                WHERE importedFileId = ? AND month = ?
+                """, arguments: [fileId, month]) ?? 0
         }
     }
 

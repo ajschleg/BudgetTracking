@@ -30,6 +30,9 @@ final class ImportViewModel {
     /// The view should observe this and update the month selector.
     var detectedMonth: String?
 
+    /// When a multi-month file is imported, contains the months and counts.
+    var importedMonthBreakdown: [(month: String, count: Int)] = []
+
     // Column mapping state
     var dateColumnIndex: Int?
     var descriptionColumnIndex: Int?
@@ -58,11 +61,14 @@ final class ImportViewModel {
         let fileName = url.lastPathComponent
         let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
 
-        // Check for duplicate
+        // Check for duplicate — check both the selected month and multi-month (nil)
         do {
-            if let existing = try DatabaseManager.shared.findDuplicateFile(
+            let existing = try DatabaseManager.shared.findDuplicateFile(
                 name: fileName, size: fileSize, month: month
-            ) {
+            ) ?? DatabaseManager.shared.findDuplicateFile(
+                name: fileName, size: fileSize, month: nil
+            )
+            if let existing {
                 duplicateFile = existing
                 pendingFileURL = url
                 showDuplicateAlert = true
@@ -154,10 +160,22 @@ final class ImportViewModel {
             let rules = try DatabaseManager.shared.fetchRules()
             let engine = CategorizationEngine(rules: rules, categories: categories)
 
+            // Determine if this file spans multiple months
+            var monthCounts: [String: Int] = [:]
+            for row in rows {
+                if let date = row.date {
+                    let m = DateHelpers.monthString(from: date)
+                    monthCounts[m, default: 0] += 1
+                }
+            }
+
+            let isMultiMonth = monthCounts.count > 1
+            let fileMonth: String? = isMultiMonth ? nil : (monthCounts.keys.first ?? month)
+
             let importedFile = ImportedFile(
                 fileName: fileName,
                 fileSize: fileSize,
-                month: month,
+                month: fileMonth,
                 transactionCount: rows.count
             )
             try DatabaseManager.shared.saveImportedFile(importedFile)
@@ -167,12 +185,14 @@ final class ImportViewModel {
                 guard let date = row.date, let rawAmount = row.amount else { continue }
                 // Normalize: internally negative = money spent, positive = money received
                 let amount = positiveIsSpending ? -rawAmount : rawAmount
+                // Derive month from the transaction's own date
+                let txnMonth = DateHelpers.monthString(from: date)
                 var txn = Transaction(
                     date: date,
                     description: row.description ?? "Unknown",
                     merchant: row.merchant,
                     amount: amount,
-                    month: month,
+                    month: txnMonth,
                     importedFileId: importedFile.id
                 )
                 // 1. Try source category from the bank (e.g., Apple Card "Category" column)
@@ -195,6 +215,15 @@ final class ImportViewModel {
             }
 
             try DatabaseManager.shared.saveTransactions(transactions)
+
+            if isMultiMonth {
+                importedMonthBreakdown = monthCounts
+                    .sorted { $0.key < $1.key }
+                    .map { (month: $0.key, count: $0.value) }
+            } else {
+                importedMonthBreakdown = []
+            }
+
             loadImportedFiles(month: month)
             state = .done(count: transactions.count)
         } catch {
@@ -218,5 +247,6 @@ final class ImportViewModel {
         amountColumnIndex = nil
         positiveIsSpending = false
         detectedMonth = nil
+        importedMonthBreakdown = []
     }
 }
