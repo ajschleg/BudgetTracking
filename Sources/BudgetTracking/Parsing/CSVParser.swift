@@ -10,12 +10,15 @@ struct CSVStatementParser: StatementParser {
         }
         defer { fileURL.stopAccessingSecurityScopedResource() }
 
-        // Read file content and strip trailing commas/whitespace from each line.
+        // Read file content and strip trailing commas from each line.
         // Some exports (e.g. Chase yearly activity) have trailing commas that
         // create extra fields, causing a header/field count mismatch.
+        // Normalize \r\n → \n first, then split, to avoid creating empty lines.
         let rawContent = try String(contentsOf: fileURL, encoding: .utf8)
         let cleanedContent = rawContent
-            .components(separatedBy: .newlines)
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .split(separator: "\n", omittingEmptySubsequences: true)
             .map { $0.replacingOccurrences(of: #",+\s*$"#, with: "", options: .regularExpression) }
             .joined(separator: "\n")
 
