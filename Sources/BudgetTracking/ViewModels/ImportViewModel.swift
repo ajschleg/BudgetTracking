@@ -1,0 +1,196 @@
+import Foundation
+import UniformTypeIdentifiers
+
+enum ImportState {
+    case idle
+    case parsing
+    case preview(rows: [ParsedRow], fileName: String, fileSize: Int64)
+    case columnMapping(rows: [ParsedRow], columns: [String], fileName: String, fileSize: Int64)
+    case importing
+    case done(count: Int)
+    case error(String)
+}
+
+enum DuplicateAction {
+    case importAnyway
+    case replace
+    case cancel
+}
+
+@Observable
+final class ImportViewModel {
+    var state: ImportState = .idle
+    var importedFiles: [ImportedFile] = []
+    var showDuplicateAlert = false
+    var duplicateFile: ImportedFile?
+    var pendingFileURL: URL?
+    var errorMessage: String?
+
+    // Column mapping state
+    var dateColumnIndex: Int?
+    var descriptionColumnIndex: Int?
+    var amountColumnIndex: Int?
+    var selectedDateFormat: String = "MM/dd/yyyy"
+
+    // Sign convention: when true, positive amounts = money spent (e.g., Apple Card)
+    var positiveIsSpending: Bool = false
+
+    func loadImportedFiles(month: String) {
+        do {
+            importedFiles = try DatabaseManager.shared.fetchImportedFiles(forMonth: month)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func handleFileDrop(urls: [URL], month: String) {
+        guard let url = urls.first else { return }
+        processFile(url: url, month: month)
+    }
+
+    func processFile(url: URL, month: String) {
+        state = .parsing
+
+        let fileName = url.lastPathComponent
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
+
+        // Check for duplicate
+        do {
+            if let existing = try DatabaseManager.shared.findDuplicateFile(
+                name: fileName, size: fileSize, month: month
+            ) {
+                duplicateFile = existing
+                pendingFileURL = url
+                showDuplicateAlert = true
+                state = .idle
+                return
+            }
+        } catch {
+            state = .error(error.localizedDescription)
+            return
+        }
+
+        parseFile(url: url, fileName: fileName, fileSize: fileSize)
+    }
+
+    func handleDuplicateAction(_ action: DuplicateAction, month: String) {
+        guard let url = pendingFileURL else { return }
+        let fileName = url.lastPathComponent
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
+
+        switch action {
+        case .importAnyway:
+            parseFile(url: url, fileName: fileName, fileSize: fileSize)
+        case .replace:
+            if let existing = duplicateFile {
+                do {
+                    try DatabaseManager.shared.deleteImportedFile(existing)
+                    loadImportedFiles(month: month)
+                } catch {
+                    state = .error(error.localizedDescription)
+                    return
+                }
+            }
+            parseFile(url: url, fileName: fileName, fileSize: fileSize)
+        case .cancel:
+            state = .idle
+        }
+        duplicateFile = nil
+        pendingFileURL = nil
+    }
+
+    private func parseFile(url: URL, fileName: String, fileSize: Int64) {
+        do {
+            let parser = try StatementParserFactory.parser(for: url)
+            let rows = try parser.parse(fileURL: url, bankProfile: nil)
+
+            if rows.isEmpty {
+                state = .error("No transactions found in file")
+                return
+            }
+
+            // Auto-detect sign convention: if most amounts are positive, likely "positive = spending"
+            let amounts = rows.compactMap(\.amount)
+            let positiveCount = amounts.filter({ $0 > 0 }).count
+            if amounts.count > 0 && Double(positiveCount) / Double(amounts.count) > 0.7 {
+                positiveIsSpending = true
+            } else {
+                positiveIsSpending = false
+            }
+
+            // Check if columns are auto-detected
+            let firstRow = rows[0]
+            if firstRow.date != nil && firstRow.amount != nil {
+                state = .preview(rows: rows, fileName: fileName, fileSize: fileSize)
+            } else {
+                let columns = Array(firstRow.rawColumns.keys.sorted())
+                state = .columnMapping(
+                    rows: rows, columns: columns,
+                    fileName: fileName, fileSize: fileSize
+                )
+            }
+        } catch {
+            state = .error("Failed to parse file: \(error.localizedDescription)")
+        }
+    }
+
+    func confirmImport(rows: [ParsedRow], fileName: String, fileSize: Int64, month: String) {
+        state = .importing
+
+        do {
+            let categories = try DatabaseManager.shared.fetchCategories()
+            let rules = try DatabaseManager.shared.fetchRules()
+            let engine = CategorizationEngine(rules: rules, categories: categories)
+
+            let importedFile = ImportedFile(
+                fileName: fileName,
+                fileSize: fileSize,
+                month: month,
+                transactionCount: rows.count
+            )
+            try DatabaseManager.shared.saveImportedFile(importedFile)
+
+            var transactions: [Transaction] = []
+            for row in rows {
+                guard let date = row.date, let rawAmount = row.amount else { continue }
+                // Normalize: internally negative = money spent, positive = money received
+                let amount = positiveIsSpending ? -rawAmount : rawAmount
+                var txn = Transaction(
+                    date: date,
+                    description: row.description ?? "Unknown",
+                    amount: amount,
+                    month: month,
+                    importedFileId: importedFile.id
+                )
+                if let match = engine.categorize(description: txn.description) {
+                    txn.categoryId = match.categoryId
+                    try DatabaseManager.shared.incrementRuleMatchCount(match.id)
+                }
+                transactions.append(txn)
+            }
+
+            try DatabaseManager.shared.saveTransactions(transactions)
+            loadImportedFiles(month: month)
+            state = .done(count: transactions.count)
+        } catch {
+            state = .error("Import failed: \(error.localizedDescription)")
+        }
+    }
+
+    func deleteImportedFile(_ file: ImportedFile, month: String) {
+        do {
+            try DatabaseManager.shared.deleteImportedFile(file)
+            loadImportedFiles(month: month)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func reset() {
+        state = .idle
+        dateColumnIndex = nil
+        descriptionColumnIndex = nil
+        amountColumnIndex = nil
+        positiveIsSpending = false
+    }
+}

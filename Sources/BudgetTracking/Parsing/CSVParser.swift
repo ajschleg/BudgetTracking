@@ -1,0 +1,95 @@
+import Foundation
+import CodableCSV
+
+struct CSVStatementParser: StatementParser {
+    let delimiter: String
+
+    func parse(fileURL: URL, bankProfile: BankProfile?) throws -> [ParsedRow] {
+        guard fileURL.startAccessingSecurityScopedResource() || true else {
+            throw ParserError.parseFailure("Cannot access file")
+        }
+        defer { fileURL.stopAccessingSecurityScopedResource() }
+
+        let reader = try CSVReader(input: fileURL) {
+            $0.delimiters.field = delimiter == "\t" ? "\t" : ","
+            $0.headerStrategy = .firstLine
+        }
+
+        let headers = reader.headers
+
+        // Read all rows
+        var rawRows: [[String]] = []
+        while let row = try reader.readRow() {
+            rawRows.append(row)
+        }
+
+        guard !rawRows.isEmpty, !headers.isEmpty else {
+            throw ParserError.noData
+        }
+
+        // Use bank profile or auto-detect columns
+        let mapping: ColumnMapping
+        if let profile = bankProfile {
+            mapping = mappingFromProfile(profile, headers: headers)
+        } else {
+            let sampleRows = Array(rawRows.prefix(10))
+            mapping = ColumnMapper.detectColumns(headers: headers, sampleRows: sampleRows)
+        }
+
+        let dateFormat = mapping.detectedDateFormat ?? bankProfile?.dateFormat ?? "MM/dd/yyyy"
+
+        // Parse rows
+        return rawRows.compactMap { row -> ParsedRow? in
+            var rawCols: [String: String] = [:]
+            for (i, header) in headers.enumerated() where i < row.count {
+                rawCols[header] = row[i]
+            }
+
+            var date: Date?
+            if let dateIdx = mapping.dateIndex, dateIdx < row.count {
+                date = DateHelpers.parseDate(row[dateIdx].trimmingCharacters(in: .whitespaces), format: dateFormat)
+            }
+
+            var description: String?
+            if let descIdx = mapping.descriptionIndex, descIdx < row.count {
+                description = row[descIdx].trimmingCharacters(in: .whitespaces)
+            }
+
+            var amount: Double?
+            if let amtIdx = mapping.amountIndex, amtIdx < row.count {
+                amount = ColumnMapper.parseAmount(row[amtIdx])
+            } else if let debitIdx = mapping.debitIndex, let creditIdx = mapping.creditIndex {
+                let debit = debitIdx < row.count ? ColumnMapper.parseAmount(row[debitIdx]) : nil
+                let credit = creditIdx < row.count ? ColumnMapper.parseAmount(row[creditIdx]) : nil
+                if let d = debit, d != 0 {
+                    amount = -abs(d)
+                } else if let c = credit, c != 0 {
+                    amount = abs(c)
+                }
+            }
+
+            return ParsedRow(date: date, description: description, amount: amount, rawColumns: rawCols)
+        }
+    }
+
+    private func mappingFromProfile(_ profile: BankProfile, headers: [String]) -> ColumnMapping {
+        var mapping = ColumnMapping()
+        if let col = profile.dateColumn, let idx = headers.firstIndex(of: col) {
+            mapping.dateIndex = idx
+        }
+        if let col = profile.descriptionColumn, let idx = headers.firstIndex(of: col) {
+            mapping.descriptionIndex = idx
+        }
+        if let col = profile.amountColumn, let idx = headers.firstIndex(of: col) {
+            mapping.amountIndex = idx
+        }
+        if let col = profile.debitColumn, let idx = headers.firstIndex(of: col) {
+            mapping.debitIndex = idx
+        }
+        if let col = profile.creditColumn, let idx = headers.firstIndex(of: col) {
+            mapping.creditIndex = idx
+        }
+        mapping.detectedDateFormat = profile.dateFormat
+        return mapping
+    }
+}
