@@ -283,7 +283,14 @@ final class DatabaseManager {
                 ("URGENT CARE", health, 10),
                 ("QUEST DIAG", health, 10),
                 ("LABCORP", health, 10),
-                ("DENTAL", health, 10),
+                ("LA FITNESS", health, 10),
+
+                // Utilities / Insurance
+                ("PROGRESSIVE", utilities, 10),
+                ("NATIONAL GENERAL", utilities, 10),
+                ("STATE FARM", utilities, 10),
+                ("GEICO", utilities, 10),
+                ("ALLSTATE", utilities, 10),
             ]
 
             for (keyword, categoryId, priority) in defaults {

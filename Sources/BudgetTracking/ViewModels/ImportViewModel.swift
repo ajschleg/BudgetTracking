@@ -26,6 +26,10 @@ final class ImportViewModel {
     var pendingFileURL: URL?
     var errorMessage: String?
 
+    /// Set by the import flow when a month is auto-detected from file contents/name.
+    /// The view should observe this and update the month selector.
+    var detectedMonth: String?
+
     // Column mapping state
     var dateColumnIndex: Int?
     var descriptionColumnIndex: Int?
@@ -118,6 +122,9 @@ final class ImportViewModel {
                 positiveIsSpending = false
             }
 
+            // Auto-detect the target month from transaction dates or filename
+            detectedMonth = MonthDetector.detectMonth(from: rows, fileName: fileName)
+
             // Check if columns are auto-detected
             let firstRow = rows[0]
             if firstRow.date != nil && firstRow.amount != nil {
@@ -205,5 +212,6 @@ final class ImportViewModel {
         descriptionColumnIndex = nil
         amountColumnIndex = nil
         positiveIsSpending = false
+        detectedMonth = nil
     }
 }

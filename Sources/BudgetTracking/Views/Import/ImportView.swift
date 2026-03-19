@@ -29,6 +29,12 @@ struct ImportView: View {
             viewModel.loadImportedFiles(month: newMonth)
             viewModel.reset()
         }
+        .onChange(of: viewModel.detectedMonth) { _, detected in
+            if let detected, detected != selectedMonth {
+                selectedMonth = detected
+                viewModel.loadImportedFiles(month: detected)
+            }
+        }
         .alert("Duplicate File Detected", isPresented: $viewModel.showDuplicateAlert) {
             Button("Import Anyway") {
                 viewModel.handleDuplicateAction(.importAnyway, month: selectedMonth)
