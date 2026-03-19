@@ -1,0 +1,50 @@
+name: BudgetTracking
+options:
+  bundleIdPrefix: com.schlegel
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16"
+
+packages:
+  GRDB.swift:
+    url: https://github.com/groue/GRDB.swift.git
+    from: "7.0.0"
+  CoreXLSX:
+    url: https://github.com/CoreOffice/CoreXLSX.git
+    from: "0.14.0"
+  CodableCSV:
+    url: https://github.com/dehesa/CodableCSV.git
+    from: "0.6.0"
+
+targets:
+  BudgetTracking:
+    type: application
+    platform: macOS
+    sources: [Sources/BudgetTracking]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.schlegel.BudgetTracking
+        CODE_SIGN_ENTITLEMENTS: BudgetTracking.entitlements
+        DEVELOPMENT_TEAM: 98AUV869NF
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.finance
+        INFOPLIST_KEY_CFBundleDisplayName: Budget Tracking
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.10"
+    dependencies:
+      - package: GRDB.swift
+        product: GRDB
+      - package: CoreXLSX
+      - package: CodableCSV
+
+  BudgetTrackingTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/BudgetTrackingTests]
+    settings:
+      base:
+        SWIFT_VERSION: "5.10"
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: BudgetTracking

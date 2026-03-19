@@ -1,5 +1,12 @@
 .build/
 .swiftpm/
 *.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
 DerivedData/
 .DS_Store
+
+# Duplicate Xcode project created manually (not used)
+BudgetTracking/BudgetTracking.xcodeproj/
+BudgetTracking/BudgetTracking/
+BudgetTracking/BudgetTrackingTests/
+BudgetTracking/BudgetTrackingUITests/

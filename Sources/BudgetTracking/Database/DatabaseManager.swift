@@ -146,11 +146,18 @@ final class DatabaseManager {
             ]
             for table in tables {
                 try db.alter(table: table) { t in
-                    t.add(column: "lastModifiedAt", .datetime).defaults(sql: "CURRENT_TIMESTAMP")
+                    t.add(column: "lastModifiedAt", .datetime)
                     t.add(column: "cloudKitRecordName", .text)
                     t.add(column: "cloudKitSystemFields", .blob)
                     t.add(column: "isDeleted", .boolean).defaults(to: false)
                 }
+
+                // Backfill lastModifiedAt for existing rows
+                try db.execute(sql: """
+                    UPDATE "\(table)" SET lastModifiedAt = CURRENT_TIMESTAMP
+                    WHERE lastModifiedAt IS NULL
+                    """)
+
                 try db.create(
                     index: "idx_\(table)_lastModified",
                     on: table,

@@ -1,0 +1,763 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00949753B9E96D5C7EF05C84 /* BudgetCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BEA30480C1E86191A7C17DD /* BudgetCategory.swift */; };
+		0753534F76448F6943A73BC8 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C441C5CCF6F0938AECC87B47 /* DashboardView.swift */; };
+		0A095A6B4194BDCF8CEAF4DD /* ImportedFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */; };
+		1A383ED322BCD4A92BCD1358 /* QIFParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBD04A6FF6BEF85B534BDDB5 /* QIFParser.swift */; };
+		1C536B9A9FBAC5B6EEDB408C /* DatabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500C712221C092D00861F3F1 /* DatabaseManager.swift */; };
+		21EE1C948FB25E41AFA9438B /* CategoriesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */; };
+		2262254EC1D204794A7FAE5B /* CategorizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0B30CCE20155199B5F3641 /* CategorizationEngine.swift */; };
+		272104B2FC3606FBEFCC7A82 /* CategoryBudgetBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D71603A8E67893664EA891E2 /* CategoryBudgetBar.swift */; };
+		2B70053E1B6A89926C5B35B3 /* MonthlySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7619A21E784D3733842F06AB /* MonthlySnapshot.swift */; };
+		31B61674E829E73409C0C28B /* RuleLearner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65A3B7896DEB2A0E6AEC65D1 /* RuleLearner.swift */; };
+		4B65D18E316BD2F56ED01E1A /* BudgetTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20DF0EA465BF47A908DCDB65 /* BudgetTrackingTests.swift */; };
+		4D8B02F05E5A562078C9C534 /* OverallBudgetBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC763A3C4CF46175AE1AC828 /* OverallBudgetBar.swift */; };
+		512FFF288B12EF51E36DBB8A /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850E4467CF4D66BED7921C21 /* HistoryViewModel.swift */; };
+		6288FC30C05B0F0D344B0761 /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 450EE9D75CEFA6800800FD74 /* SyncEngine.swift */; };
+		6FB1CC56DA9F81D74E2EF69E /* ColorThresholds.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483034A4379587D3D92B9DE4 /* ColorThresholds.swift */; };
+		71414C7F4B6DC0EFDA2E9634 /* BankProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 526F8721F1A64F0D88D2C518 /* BankProfile.swift */; };
+		74AA6D546426CF8564F34E3D /* ShareManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C7C8113ED1B9E2730EAAEA /* ShareManager.swift */; };
+		78EF18856F7D9F0257AF4283 /* ParsePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C223CDC9EF1CB212EB74994 /* ParsePreviewView.swift */; };
+		7A580A066A36B2FB74E0918C /* SyncConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C4DB933183AAE503F2BDA58 /* SyncConstants.swift */; };
+		911EBF67095502AE2A1B187B /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = B1DB69D28DCA99819C197986 /* GRDB */; };
+		94A5A04BEECF42B2B47C0C0B /* RecordConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D003AE1329BA1C9FCD924629 /* RecordConverter.swift */; };
+		975CAB7903971BC772DD9F63 /* CoreXLSX in Frameworks */ = {isa = PBXBuildFile; productRef = C55AFD4D6FAF2DF78710AD63 /* CoreXLSX */; };
+		9E5B026BFA80B5B95CBBEF1A /* TransactionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E057CC4BC6FDC268C283743D /* TransactionsListView.swift */; };
+		AAB0D77A318B158439549FAD /* ImportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 814237725B108CA6C713DE5B /* ImportViewModel.swift */; };
+		AC9DEFC24754618C7AD10C3D /* ChaseCSVParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59EF97C6FF89940BA0975677 /* ChaseCSVParsingTests.swift */; };
+		ACB2FE6DD3AD75F0E535C0A9 /* SyncSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */; };
+		B50381A1372095880CBFC715 /* OFXParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A01F52CACF433AE1C260BB /* OFXParser.swift */; };
+		BC63EA54D93D3ACD9B197092 /* SyncStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47794CD4CE264DCABF650F6F /* SyncStateStore.swift */; };
+		BCD801CD70883317A41748C3 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69A036733184969414358E31 /* DashboardViewModel.swift */; };
+		C313D96517FED3F0274A363B /* CSVParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = D01542F21F15F5E6C42F6502 /* CSVParser.swift */; };
+		C344302C539ED66CC5915F73 /* StatementParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FEE41143CE4140161D4EE80 /* StatementParser.swift */; };
+		C6797B86584D712551F603C8 /* TransactionsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CB5F4483BD61BDCE9951D67 /* TransactionsViewModel.swift */; };
+		C78825698FF367F2006F7595 /* CodableCSV in Frameworks */ = {isa = PBXBuildFile; productRef = DD869BDA975681D696B702FC /* CodableCSV */; };
+		C877E5C5F34AC7349C7085CC /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE43370741368E79590623F /* Transaction.swift */; };
+		C94186A645D7A1E496FF99AA /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0822C2937DCC5ED599DAD1B9 /* HistoryView.swift */; };
+		CA548684785642DD4902FEA3 /* DateHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C7E858423BCB8EA18EE19F /* DateHelpers.swift */; };
+		CC2887DC361193375756E47A /* ColumnMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36204743D3191FAC9750A1EF /* ColumnMapper.swift */; };
+		D3B7601F67FB4CA699F1AC32 /* XLSXParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75259CAB67C26E053906C004 /* XLSXParser.swift */; };
+		D3C509DBC43307381F8393FE /* ConflictResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F647A3AD0CF01EECA79DAE /* ConflictResolver.swift */; };
+		D7008F01D23AE7B946581A0B /* SourceCategoryMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA78E2AB21723326275631B /* SourceCategoryMapper.swift */; };
+		D8D8C67951908DB67031EF63 /* CategoriesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F8FA4860B574D29B070358 /* CategoriesViewModel.swift */; };
+		DB6896C55F6286E95A606730 /* ColumnMappingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 094A531E2A0D314BB48D3607 /* ColumnMappingView.swift */; };
+		DBA41401FE97452A03932280 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 307BCBEDFB636BDB931C5D56 /* ContentView.swift */; };
+		DF168A103E0FB8679B34F4B0 /* MonthDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2296F730746DD13BF04875B5 /* MonthDetector.swift */; };
+		E0CEB5468DA58916BB7030D9 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ADAAEEDA6767ED5825AFB5 /* CurrencyFormatter.swift */; };
+		E53470827328467C88573F4C /* CategorizationRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371D0746A64876D4E554C092 /* CategorizationRule.swift */; };
+		E6D708D14B960CFB3793275A /* PDFParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11DFF79231E859813B37A16 /* PDFParser.swift */; };
+		EC3EEAA146801B8DDC992AB8 /* CategoryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA86F8F7A4922668F97DE78D /* CategoryEditorView.swift */; };
+		EC80E2DF1D3F334069C8EE2E /* BudgetTrackingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A789E73759CED466B7C73C35 /* BudgetTrackingApp.swift */; };
+		F1E746C9970C092EFD2C848F /* ImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA1511E4B898F9C603AC8FA7 /* ImportView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B8C57CE27AD2A1E8163A6729 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0773E8AC4BD841796A02C49B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C440523054A59E092B6E6505;
+			remoteInfo = BudgetTracking;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0822C2937DCC5ED599DAD1B9 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		094A531E2A0D314BB48D3607 /* ColumnMappingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnMappingView.swift; sourceTree = "<group>"; };
+		0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesSettingsView.swift; sourceTree = "<group>"; };
+		10C54DA96FF7472D61E1A3FC /* BudgetTracking.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BudgetTracking.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		13ADAAEEDA6767ED5825AFB5 /* CurrencyFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyFormatter.swift; sourceTree = "<group>"; };
+		1C4DB933183AAE503F2BDA58 /* SyncConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConstants.swift; sourceTree = "<group>"; };
+		1CA78E2AB21723326275631B /* SourceCategoryMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceCategoryMapper.swift; sourceTree = "<group>"; };
+		20DF0EA465BF47A908DCDB65 /* BudgetTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTrackingTests.swift; sourceTree = "<group>"; };
+		2296F730746DD13BF04875B5 /* MonthDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthDetector.swift; sourceTree = "<group>"; };
+		307BCBEDFB636BDB931C5D56 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		32F647A3AD0CF01EECA79DAE /* ConflictResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolver.swift; sourceTree = "<group>"; };
+		36204743D3191FAC9750A1EF /* ColumnMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnMapper.swift; sourceTree = "<group>"; };
+		371D0746A64876D4E554C092 /* CategorizationRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategorizationRule.swift; sourceTree = "<group>"; };
+		450EE9D75CEFA6800800FD74 /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
+		46BBD54B27602B78383814BC /* BudgetTrackingTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BudgetTrackingTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		47794CD4CE264DCABF650F6F /* SyncStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStateStore.swift; sourceTree = "<group>"; };
+		483034A4379587D3D92B9DE4 /* ColorThresholds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorThresholds.swift; sourceTree = "<group>"; };
+		500C712221C092D00861F3F1 /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
+		526F8721F1A64F0D88D2C518 /* BankProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankProfile.swift; sourceTree = "<group>"; };
+		59EF97C6FF89940BA0975677 /* ChaseCSVParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaseCSVParsingTests.swift; sourceTree = "<group>"; };
+		5FEE41143CE4140161D4EE80 /* StatementParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatementParser.swift; sourceTree = "<group>"; };
+		60C7C8113ED1B9E2730EAAEA /* ShareManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareManager.swift; sourceTree = "<group>"; };
+		65A3B7896DEB2A0E6AEC65D1 /* RuleLearner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleLearner.swift; sourceTree = "<group>"; };
+		69A036733184969414358E31 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
+		6C223CDC9EF1CB212EB74994 /* ParsePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsePreviewView.swift; sourceTree = "<group>"; };
+		6CB5F4483BD61BDCE9951D67 /* TransactionsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsViewModel.swift; sourceTree = "<group>"; };
+		75259CAB67C26E053906C004 /* XLSXParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XLSXParser.swift; sourceTree = "<group>"; };
+		7619A21E784D3733842F06AB /* MonthlySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlySnapshot.swift; sourceTree = "<group>"; };
+		814237725B108CA6C713DE5B /* ImportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportViewModel.swift; sourceTree = "<group>"; };
+		850E4467CF4D66BED7921C21 /* HistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewModel.swift; sourceTree = "<group>"; };
+		8DE43370741368E79590623F /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
+		8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedFile.swift; sourceTree = "<group>"; };
+		9BEA30480C1E86191A7C17DD /* BudgetCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetCategory.swift; sourceTree = "<group>"; };
+		A789E73759CED466B7C73C35 /* BudgetTrackingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTrackingApp.swift; sourceTree = "<group>"; };
+		AC763A3C4CF46175AE1AC828 /* OverallBudgetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverallBudgetBar.swift; sourceTree = "<group>"; };
+		AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSettingsView.swift; sourceTree = "<group>"; };
+		B1F8FA4860B574D29B070358 /* CategoriesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesViewModel.swift; sourceTree = "<group>"; };
+		C441C5CCF6F0938AECC87B47 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		D003AE1329BA1C9FCD924629 /* RecordConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordConverter.swift; sourceTree = "<group>"; };
+		D01542F21F15F5E6C42F6502 /* CSVParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVParser.swift; sourceTree = "<group>"; };
+		D71603A8E67893664EA891E2 /* CategoryBudgetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryBudgetBar.swift; sourceTree = "<group>"; };
+		D9C7E858423BCB8EA18EE19F /* DateHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateHelpers.swift; sourceTree = "<group>"; };
+		E057CC4BC6FDC268C283743D /* TransactionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsListView.swift; sourceTree = "<group>"; };
+		E1A01F52CACF433AE1C260BB /* OFXParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OFXParser.swift; sourceTree = "<group>"; };
+		EA1511E4B898F9C603AC8FA7 /* ImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportView.swift; sourceTree = "<group>"; };
+		EA86F8F7A4922668F97DE78D /* CategoryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryEditorView.swift; sourceTree = "<group>"; };
+		F11DFF79231E859813B37A16 /* PDFParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFParser.swift; sourceTree = "<group>"; };
+		FBD04A6FF6BEF85B534BDDB5 /* QIFParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QIFParser.swift; sourceTree = "<group>"; };
+		FE0B30CCE20155199B5F3641 /* CategorizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategorizationEngine.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FE55D480B1EA988A60CAC12A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				911EBF67095502AE2A1B187B /* GRDB in Frameworks */,
+				975CAB7903971BC772DD9F63 /* CoreXLSX in Frameworks */,
+				C78825698FF367F2006F7595 /* CodableCSV in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0178EC38A4796ACCE44A4CD0 /* Database */ = {
+			isa = PBXGroup;
+			children = (
+				500C712221C092D00861F3F1 /* DatabaseManager.swift */,
+			);
+			path = Database;
+			sourceTree = "<group>";
+		};
+		16069F73CB364B8677A15226 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				B1F8FA4860B574D29B070358 /* CategoriesViewModel.swift */,
+				69A036733184969414358E31 /* DashboardViewModel.swift */,
+				850E4467CF4D66BED7921C21 /* HistoryViewModel.swift */,
+				814237725B108CA6C713DE5B /* ImportViewModel.swift */,
+				6CB5F4483BD61BDCE9951D67 /* TransactionsViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		204DB649345B45CD1FCEA2A5 = {
+			isa = PBXGroup;
+			children = (
+				9983E59C0C02407AAF9DE856 /* BudgetTracking */,
+				AA28EEEA91018666CDB959F7 /* BudgetTrackingTests */,
+				6B9E56EA8B00DC307F31E55D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		50FFDC941B04DD627C9F4F11 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				D71603A8E67893664EA891E2 /* CategoryBudgetBar.swift */,
+				C441C5CCF6F0938AECC87B47 /* DashboardView.swift */,
+				AC763A3C4CF46175AE1AC828 /* OverallBudgetBar.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		6B9E56EA8B00DC307F31E55D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				10C54DA96FF7472D61E1A3FC /* BudgetTracking.app */,
+				46BBD54B27602B78383814BC /* BudgetTrackingTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6D6CC1085EA6F7479DA64F5D /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		6E3ED7D1737E604EE89141DD /* Import */ = {
+			isa = PBXGroup;
+			children = (
+				094A531E2A0D314BB48D3607 /* ColumnMappingView.swift */,
+				EA1511E4B898F9C603AC8FA7 /* ImportView.swift */,
+				6C223CDC9EF1CB212EB74994 /* ParsePreviewView.swift */,
+			);
+			path = Import;
+			sourceTree = "<group>";
+		};
+		7786A8392DB1F4F2BC71DA99 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				526F8721F1A64F0D88D2C518 /* BankProfile.swift */,
+				9BEA30480C1E86191A7C17DD /* BudgetCategory.swift */,
+				371D0746A64876D4E554C092 /* CategorizationRule.swift */,
+				8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */,
+				7619A21E784D3733842F06AB /* MonthlySnapshot.swift */,
+				8DE43370741368E79590623F /* Transaction.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		8782EFBBD3C5B11948F3840C /* Transactions */ = {
+			isa = PBXGroup;
+			children = (
+				E057CC4BC6FDC268C283743D /* TransactionsListView.swift */,
+			);
+			path = Transactions;
+			sourceTree = "<group>";
+		};
+		8AD95BBB06A7702115F03891 /* Categorization */ = {
+			isa = PBXGroup;
+			children = (
+				FE0B30CCE20155199B5F3641 /* CategorizationEngine.swift */,
+				65A3B7896DEB2A0E6AEC65D1 /* RuleLearner.swift */,
+				1CA78E2AB21723326275631B /* SourceCategoryMapper.swift */,
+			);
+			path = Categorization;
+			sourceTree = "<group>";
+		};
+		8BCB7FB4374A267F76E55C69 /* Parsing */ = {
+			isa = PBXGroup;
+			children = (
+				36204743D3191FAC9750A1EF /* ColumnMapper.swift */,
+				D01542F21F15F5E6C42F6502 /* CSVParser.swift */,
+				E1A01F52CACF433AE1C260BB /* OFXParser.swift */,
+				F11DFF79231E859813B37A16 /* PDFParser.swift */,
+				FBD04A6FF6BEF85B534BDDB5 /* QIFParser.swift */,
+				5FEE41143CE4140161D4EE80 /* StatementParser.swift */,
+				75259CAB67C26E053906C004 /* XLSXParser.swift */,
+			);
+			path = Parsing;
+			sourceTree = "<group>";
+		};
+		9983E59C0C02407AAF9DE856 /* BudgetTracking */ = {
+			isa = PBXGroup;
+			children = (
+				A789E73759CED466B7C73C35 /* BudgetTrackingApp.swift */,
+				307BCBEDFB636BDB931C5D56 /* ContentView.swift */,
+				8AD95BBB06A7702115F03891 /* Categorization */,
+				0178EC38A4796ACCE44A4CD0 /* Database */,
+				7786A8392DB1F4F2BC71DA99 /* Models */,
+				8BCB7FB4374A267F76E55C69 /* Parsing */,
+				EAA99397AB5D282A93359D08 /* Sync */,
+				FEC6481ADF380D4AC1264664 /* Utilities */,
+				16069F73CB364B8677A15226 /* ViewModels */,
+				C74EBA8995F9C78AE52A3F83 /* Views */,
+			);
+			name = BudgetTracking;
+			path = Sources/BudgetTracking;
+			sourceTree = "<group>";
+		};
+		AA28EEEA91018666CDB959F7 /* BudgetTrackingTests */ = {
+			isa = PBXGroup;
+			children = (
+				20DF0EA465BF47A908DCDB65 /* BudgetTrackingTests.swift */,
+				59EF97C6FF89940BA0975677 /* ChaseCSVParsingTests.swift */,
+			);
+			name = BudgetTrackingTests;
+			path = Tests/BudgetTrackingTests;
+			sourceTree = "<group>";
+		};
+		C74EBA8995F9C78AE52A3F83 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				CBDBD11D1B167B2D16640DE9 /* Categories */,
+				50FFDC941B04DD627C9F4F11 /* Dashboard */,
+				DF89480F8E83603CA222F55F /* History */,
+				6E3ED7D1737E604EE89141DD /* Import */,
+				6D6CC1085EA6F7479DA64F5D /* Settings */,
+				8782EFBBD3C5B11948F3840C /* Transactions */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		CBDBD11D1B167B2D16640DE9 /* Categories */ = {
+			isa = PBXGroup;
+			children = (
+				0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */,
+				EA86F8F7A4922668F97DE78D /* CategoryEditorView.swift */,
+			);
+			path = Categories;
+			sourceTree = "<group>";
+		};
+		DF89480F8E83603CA222F55F /* History */ = {
+			isa = PBXGroup;
+			children = (
+				0822C2937DCC5ED599DAD1B9 /* HistoryView.swift */,
+			);
+			path = History;
+			sourceTree = "<group>";
+		};
+		EAA99397AB5D282A93359D08 /* Sync */ = {
+			isa = PBXGroup;
+			children = (
+				32F647A3AD0CF01EECA79DAE /* ConflictResolver.swift */,
+				D003AE1329BA1C9FCD924629 /* RecordConverter.swift */,
+				60C7C8113ED1B9E2730EAAEA /* ShareManager.swift */,
+				1C4DB933183AAE503F2BDA58 /* SyncConstants.swift */,
+				450EE9D75CEFA6800800FD74 /* SyncEngine.swift */,
+				47794CD4CE264DCABF650F6F /* SyncStateStore.swift */,
+			);
+			path = Sync;
+			sourceTree = "<group>";
+		};
+		FEC6481ADF380D4AC1264664 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				483034A4379587D3D92B9DE4 /* ColorThresholds.swift */,
+				13ADAAEEDA6767ED5825AFB5 /* CurrencyFormatter.swift */,
+				D9C7E858423BCB8EA18EE19F /* DateHelpers.swift */,
+				2296F730746DD13BF04875B5 /* MonthDetector.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		66E543502C042942D584FB60 /* BudgetTrackingTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0DB2F2A8EBD588B7ED1ACA06 /* Build configuration list for PBXNativeTarget "BudgetTrackingTests" */;
+			buildPhases = (
+				63CAE3D7DE23EBC092B1FE1A /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3E8FD1E04186A2D85855E8CE /* PBXTargetDependency */,
+			);
+			name = BudgetTrackingTests;
+			packageProductDependencies = (
+			);
+			productName = BudgetTrackingTests;
+			productReference = 46BBD54B27602B78383814BC /* BudgetTrackingTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		C440523054A59E092B6E6505 /* BudgetTracking */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3A71E4504438446C921041B0 /* Build configuration list for PBXNativeTarget "BudgetTracking" */;
+			buildPhases = (
+				32988E60830242F7921B6A62 /* Sources */,
+				FE55D480B1EA988A60CAC12A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BudgetTracking;
+			packageProductDependencies = (
+				B1DB69D28DCA99819C197986 /* GRDB */,
+				C55AFD4D6FAF2DF78710AD63 /* CoreXLSX */,
+				DD869BDA975681D696B702FC /* CodableCSV */,
+			);
+			productName = BudgetTracking;
+			productReference = 10C54DA96FF7472D61E1A3FC /* BudgetTracking.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0773E8AC4BD841796A02C49B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					C440523054A59E092B6E6505 = {
+						DevelopmentTeam = 98AUV869NF;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = A9C8DDF3C691FB72F7BF07E5 /* Build configuration list for PBXProject "BudgetTracking" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 204DB649345B45CD1FCEA2A5;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				17ADE87D515CC87A706D73E2 /* XCRemoteSwiftPackageReference "CodableCSV" */,
+				CA453ABA0CA26393CABA3633 /* XCRemoteSwiftPackageReference "CoreXLSX" */,
+				E9B856CB804DF1EE81FEF2C7 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 6B9E56EA8B00DC307F31E55D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C440523054A59E092B6E6505 /* BudgetTracking */,
+				66E543502C042942D584FB60 /* BudgetTrackingTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		32988E60830242F7921B6A62 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71414C7F4B6DC0EFDA2E9634 /* BankProfile.swift in Sources */,
+				00949753B9E96D5C7EF05C84 /* BudgetCategory.swift in Sources */,
+				EC80E2DF1D3F334069C8EE2E /* BudgetTrackingApp.swift in Sources */,
+				C313D96517FED3F0274A363B /* CSVParser.swift in Sources */,
+				21EE1C948FB25E41AFA9438B /* CategoriesSettingsView.swift in Sources */,
+				D8D8C67951908DB67031EF63 /* CategoriesViewModel.swift in Sources */,
+				2262254EC1D204794A7FAE5B /* CategorizationEngine.swift in Sources */,
+				E53470827328467C88573F4C /* CategorizationRule.swift in Sources */,
+				272104B2FC3606FBEFCC7A82 /* CategoryBudgetBar.swift in Sources */,
+				EC3EEAA146801B8DDC992AB8 /* CategoryEditorView.swift in Sources */,
+				6FB1CC56DA9F81D74E2EF69E /* ColorThresholds.swift in Sources */,
+				CC2887DC361193375756E47A /* ColumnMapper.swift in Sources */,
+				DB6896C55F6286E95A606730 /* ColumnMappingView.swift in Sources */,
+				D3C509DBC43307381F8393FE /* ConflictResolver.swift in Sources */,
+				DBA41401FE97452A03932280 /* ContentView.swift in Sources */,
+				E0CEB5468DA58916BB7030D9 /* CurrencyFormatter.swift in Sources */,
+				0753534F76448F6943A73BC8 /* DashboardView.swift in Sources */,
+				BCD801CD70883317A41748C3 /* DashboardViewModel.swift in Sources */,
+				1C536B9A9FBAC5B6EEDB408C /* DatabaseManager.swift in Sources */,
+				CA548684785642DD4902FEA3 /* DateHelpers.swift in Sources */,
+				C94186A645D7A1E496FF99AA /* HistoryView.swift in Sources */,
+				512FFF288B12EF51E36DBB8A /* HistoryViewModel.swift in Sources */,
+				F1E746C9970C092EFD2C848F /* ImportView.swift in Sources */,
+				AAB0D77A318B158439549FAD /* ImportViewModel.swift in Sources */,
+				0A095A6B4194BDCF8CEAF4DD /* ImportedFile.swift in Sources */,
+				DF168A103E0FB8679B34F4B0 /* MonthDetector.swift in Sources */,
+				2B70053E1B6A89926C5B35B3 /* MonthlySnapshot.swift in Sources */,
+				B50381A1372095880CBFC715 /* OFXParser.swift in Sources */,
+				4D8B02F05E5A562078C9C534 /* OverallBudgetBar.swift in Sources */,
+				E6D708D14B960CFB3793275A /* PDFParser.swift in Sources */,
+				78EF18856F7D9F0257AF4283 /* ParsePreviewView.swift in Sources */,
+				1A383ED322BCD4A92BCD1358 /* QIFParser.swift in Sources */,
+				94A5A04BEECF42B2B47C0C0B /* RecordConverter.swift in Sources */,
+				31B61674E829E73409C0C28B /* RuleLearner.swift in Sources */,
+				74AA6D546426CF8564F34E3D /* ShareManager.swift in Sources */,
+				D7008F01D23AE7B946581A0B /* SourceCategoryMapper.swift in Sources */,
+				C344302C539ED66CC5915F73 /* StatementParser.swift in Sources */,
+				7A580A066A36B2FB74E0918C /* SyncConstants.swift in Sources */,
+				6288FC30C05B0F0D344B0761 /* SyncEngine.swift in Sources */,
+				ACB2FE6DD3AD75F0E535C0A9 /* SyncSettingsView.swift in Sources */,
+				BC63EA54D93D3ACD9B197092 /* SyncStateStore.swift in Sources */,
+				C877E5C5F34AC7349C7085CC /* Transaction.swift in Sources */,
+				9E5B026BFA80B5B95CBBEF1A /* TransactionsListView.swift in Sources */,
+				C6797B86584D712551F603C8 /* TransactionsViewModel.swift in Sources */,
+				D3B7601F67FB4CA699F1AC32 /* XLSXParser.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		63CAE3D7DE23EBC092B1FE1A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4B65D18E316BD2F56ED01E1A /* BudgetTrackingTests.swift in Sources */,
+				AC9DEFC24754618C7AD10C3D /* ChaseCSVParsingTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		3E8FD1E04186A2D85855E8CE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C440523054A59E092B6E6505 /* BudgetTracking */;
+			targetProxy = B8C57CE27AD2A1E8163A6729 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		05BC32E17FDDBCE13C51DAF2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.schlegel.BudgetTrackingTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.10;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BudgetTracking.app/Contents/MacOS/BudgetTracking";
+			};
+			name = Release;
+		};
+		773295EC64A543157181088C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A18225F0ABB10BE23EBBBFEA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = BudgetTracking.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 98AUV869NF;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Budget Tracking";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.schlegel.BudgetTracking;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+		ADC0AD346F954C195562407C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = BudgetTracking.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 98AUV869NF;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Budget Tracking";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.schlegel.BudgetTracking;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		D475DA14FABAEAA642AD84A0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.schlegel.BudgetTrackingTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.10;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BudgetTracking.app/Contents/MacOS/BudgetTracking";
+			};
+			name = Debug;
+		};
+		F3D718AD68CD2F8416E74F58 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0DB2F2A8EBD588B7ED1ACA06 /* Build configuration list for PBXNativeTarget "BudgetTrackingTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D475DA14FABAEAA642AD84A0 /* Debug */,
+				05BC32E17FDDBCE13C51DAF2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3A71E4504438446C921041B0 /* Build configuration list for PBXNativeTarget "BudgetTracking" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A18225F0ABB10BE23EBBBFEA /* Debug */,
+				ADC0AD346F954C195562407C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A9C8DDF3C691FB72F7BF07E5 /* Build configuration list for PBXProject "BudgetTracking" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F3D718AD68CD2F8416E74F58 /* Debug */,
+				773295EC64A543157181088C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		17ADE87D515CC87A706D73E2 /* XCRemoteSwiftPackageReference "CodableCSV" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/dehesa/CodableCSV.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.6.0;
+			};
+		};
+		CA453ABA0CA26393CABA3633 /* XCRemoteSwiftPackageReference "CoreXLSX" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/CoreOffice/CoreXLSX.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.14.0;
+			};
+		};
+		E9B856CB804DF1EE81FEF2C7 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B1DB69D28DCA99819C197986 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9B856CB804DF1EE81FEF2C7 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			productName = GRDB;
+		};
+		C55AFD4D6FAF2DF78710AD63 /* CoreXLSX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CA453ABA0CA26393CABA3633 /* XCRemoteSwiftPackageReference "CoreXLSX" */;
+			productName = CoreXLSX;
+		};
+		DD869BDA975681D696B702FC /* CodableCSV */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 17ADE87D515CC87A706D73E2 /* XCRemoteSwiftPackageReference "CodableCSV" */;
+			productName = CodableCSV;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 0773E8AC4BD841796A02C49B /* Project object */;
+}
