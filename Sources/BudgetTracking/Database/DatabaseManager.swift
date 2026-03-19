@@ -411,6 +411,17 @@ final class DatabaseManager {
         }
     }
 
+    func fetchTransactions(forMonth month: String, categoryId: UUID) throws -> [Transaction] {
+        try dbQueue.read { db in
+            try Transaction
+                .filter(Transaction.Columns.month == month)
+                .filter(Transaction.Columns.categoryId == categoryId)
+                .filter(Transaction.Columns.amount < 0) // only spending
+                .order(Transaction.Columns.date.desc)
+                .fetchAll(db)
+        }
+    }
+
     func deleteTransactionsForFile(_ fileId: UUID) throws {
         try dbQueue.write { db in
             try Transaction

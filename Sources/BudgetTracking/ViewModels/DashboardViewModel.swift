@@ -9,15 +9,47 @@ final class DashboardViewModel {
     var totalBudget: Double = 0
     var errorMessage: String?
 
+    /// The currently expanded category (nil = none expanded).
+    var expandedCategoryId: UUID?
+
+    /// Transactions for the currently expanded category.
+    var expandedTransactions: [Transaction] = []
+
+    private var currentMonth: String = ""
+
     func load(month: String) {
+        currentMonth = month
         do {
             categories = try DatabaseManager.shared.fetchCategories()
             spendingByCategory = try DatabaseManager.shared.fetchSpendingByCategory(forMonth: month)
             totalSpent = try DatabaseManager.shared.fetchTotalSpending(forMonth: month)
             totalBudget = categories.reduce(0) { $0 + $1.monthlyBudget }
             errorMessage = nil
+
+            // Refresh expanded transactions if a category is still expanded
+            if let expandedId = expandedCategoryId {
+                expandedTransactions = try DatabaseManager.shared.fetchTransactions(
+                    forMonth: month, categoryId: expandedId
+                )
+            }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func toggleCategory(_ categoryId: UUID) {
+        if expandedCategoryId == categoryId {
+            expandedCategoryId = nil
+            expandedTransactions = []
+        } else {
+            expandedCategoryId = categoryId
+            do {
+                expandedTransactions = try DatabaseManager.shared.fetchTransactions(
+                    forMonth: currentMonth, categoryId: categoryId
+                )
+            } catch {
+                expandedTransactions = []
+            }
         }
     }
 

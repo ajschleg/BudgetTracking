@@ -34,7 +34,11 @@ struct DashboardView: View {
                             CategoryBudgetBar(
                                 category: category,
                                 spent: viewModel.spending(for: category),
-                                percentage: viewModel.percentage(for: category)
+                                percentage: viewModel.percentage(for: category),
+                                isExpanded: viewModel.expandedCategoryId == category.id,
+                                transactions: viewModel.expandedCategoryId == category.id
+                                    ? viewModel.expandedTransactions : [],
+                                onTap: { viewModel.toggleCategory(category.id) }
                             )
                         }
                     }
