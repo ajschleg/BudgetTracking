@@ -33,7 +33,33 @@ enum ColumnMapper {
         var mapping = ColumnMapping()
         let lowerHeaders = headers.map { $0.lowercased().trimmingCharacters(in: .whitespaces) }
 
-        // Try header-based detection
+        // Pass 1: Exact header matches (higher priority).
+        // This ensures "Description" (exact) wins over "Details" (substring).
+        for (i, header) in lowerHeaders.enumerated() {
+            if mapping.dateIndex == nil && dateKeywords.contains(header) {
+                mapping.dateIndex = i
+            }
+            if mapping.descriptionIndex == nil && descriptionKeywords.contains(header) {
+                mapping.descriptionIndex = i
+            }
+            if mapping.amountIndex == nil && amountKeywords.contains(header) {
+                mapping.amountIndex = i
+            }
+            if mapping.debitIndex == nil && debitKeywords.contains(header) {
+                mapping.debitIndex = i
+            }
+            if mapping.creditIndex == nil && creditKeywords.contains(header) {
+                mapping.creditIndex = i
+            }
+            if mapping.merchantIndex == nil && merchantKeywords.contains(header) {
+                mapping.merchantIndex = i
+            }
+            if mapping.sourceCategoryIndex == nil && categoryKeywords.contains(header) {
+                mapping.sourceCategoryIndex = i
+            }
+        }
+
+        // Pass 2: Substring matches for any columns not yet detected.
         for (i, header) in lowerHeaders.enumerated() {
             if mapping.dateIndex == nil && dateKeywords.contains(where: { header.contains($0) }) {
                 mapping.dateIndex = i
@@ -46,7 +72,6 @@ enum ColumnMapper {
             } else if mapping.creditIndex == nil && creditKeywords.contains(where: { header.contains($0) }) {
                 mapping.creditIndex = i
             }
-            // These are detected separately so they don't compete with description
             if mapping.merchantIndex == nil && merchantKeywords.contains(where: { header.contains($0) }) {
                 mapping.merchantIndex = i
             }

@@ -10,7 +10,16 @@ struct CSVStatementParser: StatementParser {
         }
         defer { fileURL.stopAccessingSecurityScopedResource() }
 
-        let reader = try CSVReader(input: fileURL) {
+        // Read file content and strip trailing commas/whitespace from each line.
+        // Some exports (e.g. Chase yearly activity) have trailing commas that
+        // create extra fields, causing a header/field count mismatch.
+        let rawContent = try String(contentsOf: fileURL, encoding: .utf8)
+        let cleanedContent = rawContent
+            .components(separatedBy: .newlines)
+            .map { $0.replacingOccurrences(of: #",+\s*$"#, with: "", options: .regularExpression) }
+            .joined(separator: "\n")
+
+        let reader = try CSVReader(input: cleanedContent) {
             $0.delimiters.field = delimiter == "\t" ? "\t" : ","
             $0.headerStrategy = .firstLine
         }
