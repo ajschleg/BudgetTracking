@@ -19,7 +19,16 @@ struct CSVStatementParser: StatementParser {
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
             .split(separator: "\n", omittingEmptySubsequences: true)
-            .map { $0.replacingOccurrences(of: #",+\s*$"#, with: "", options: .regularExpression) }
+            .map { line -> String in
+                // Strip at most one trailing comma (with optional whitespace) per line.
+                // Chase exports add one extra trailing comma to every data row.
+                guard line.hasSuffix(",") || line.hasSuffix(", ") else { return String(line) }
+                var s = String(line)
+                // Remove trailing whitespace then one comma
+                while s.last?.isWhitespace == true { s.removeLast() }
+                if s.last == "," { s.removeLast() }
+                return s
+            }
             .joined(separator: "\n")
 
         let reader = try CSVReader(input: cleanedContent) {
