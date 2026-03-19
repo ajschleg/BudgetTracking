@@ -13,6 +13,12 @@ struct Transaction: Identifiable, Codable, Equatable {
     var importedFileId: UUID
     var importedAt: Date
 
+    // Sync fields
+    var lastModifiedAt: Date
+    var cloudKitRecordName: String?
+    var cloudKitSystemFields: Data?
+    var isDeleted: Bool
+
     init(
         id: UUID = UUID(),
         date: Date,
@@ -23,7 +29,11 @@ struct Transaction: Identifiable, Codable, Equatable {
         isManuallyCategorized: Bool = false,
         month: String,
         importedFileId: UUID,
-        importedAt: Date = Date()
+        importedAt: Date = Date(),
+        lastModifiedAt: Date = Date(),
+        cloudKitRecordName: String? = nil,
+        cloudKitSystemFields: Data? = nil,
+        isDeleted: Bool = false
     ) {
         self.id = id
         self.date = date
@@ -35,6 +45,10 @@ struct Transaction: Identifiable, Codable, Equatable {
         self.month = month
         self.importedFileId = importedFileId
         self.importedAt = importedAt
+        self.lastModifiedAt = lastModifiedAt
+        self.cloudKitRecordName = cloudKitRecordName
+        self.cloudKitSystemFields = cloudKitSystemFields
+        self.isDeleted = isDeleted
     }
 }
 
@@ -44,5 +58,6 @@ extension Transaction: FetchableRecord, PersistableRecord {
     enum Columns: String, ColumnExpression {
         case id, date, description, merchant, amount, categoryId
         case isManuallyCategorized, month, importedFileId, importedAt
+        case lastModifiedAt, cloudKitRecordName, cloudKitSystemFields, isDeleted
     }
 }

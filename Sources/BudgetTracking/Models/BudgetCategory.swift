@@ -9,13 +9,23 @@ struct BudgetCategory: Identifiable, Codable, Equatable {
     var sortOrder: Int
     var isArchived: Bool
 
+    // Sync fields
+    var lastModifiedAt: Date
+    var cloudKitRecordName: String?
+    var cloudKitSystemFields: Data?
+    var isDeleted: Bool
+
     init(
         id: UUID = UUID(),
         name: String,
         monthlyBudget: Double,
         colorHex: String = "#4CAF50",
         sortOrder: Int = 0,
-        isArchived: Bool = false
+        isArchived: Bool = false,
+        lastModifiedAt: Date = Date(),
+        cloudKitRecordName: String? = nil,
+        cloudKitSystemFields: Data? = nil,
+        isDeleted: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -23,6 +33,10 @@ struct BudgetCategory: Identifiable, Codable, Equatable {
         self.colorHex = colorHex
         self.sortOrder = sortOrder
         self.isArchived = isArchived
+        self.lastModifiedAt = lastModifiedAt
+        self.cloudKitRecordName = cloudKitRecordName
+        self.cloudKitSystemFields = cloudKitSystemFields
+        self.isDeleted = isDeleted
     }
 
     static let defaultCategories: [BudgetCategory] = [
@@ -43,5 +57,6 @@ extension BudgetCategory: FetchableRecord, PersistableRecord {
 
     enum Columns: String, ColumnExpression {
         case id, name, monthlyBudget, colorHex, sortOrder, isArchived
+        case lastModifiedAt, cloudKitRecordName, cloudKitSystemFields, isDeleted
     }
 }

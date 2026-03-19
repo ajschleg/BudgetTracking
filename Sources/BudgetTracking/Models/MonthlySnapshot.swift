@@ -9,13 +9,23 @@ struct MonthlySnapshot: Identifiable, Codable, Equatable {
     var categoryBreakdownData: Data // JSON-encoded [CategorySummary]
     var snapshotDate: Date
 
+    // Sync fields
+    var lastModifiedAt: Date
+    var cloudKitRecordName: String?
+    var cloudKitSystemFields: Data?
+    var isDeleted: Bool
+
     init(
         id: UUID = UUID(),
         month: String,
         totalBudget: Double,
         totalSpent: Double,
         categoryBreakdown: [CategorySummary],
-        snapshotDate: Date = Date()
+        snapshotDate: Date = Date(),
+        lastModifiedAt: Date = Date(),
+        cloudKitRecordName: String? = nil,
+        cloudKitSystemFields: Data? = nil,
+        isDeleted: Bool = false
     ) {
         self.id = id
         self.month = month
@@ -23,6 +33,10 @@ struct MonthlySnapshot: Identifiable, Codable, Equatable {
         self.totalSpent = totalSpent
         self.categoryBreakdownData = (try? JSONEncoder().encode(categoryBreakdown)) ?? Data()
         self.snapshotDate = snapshotDate
+        self.lastModifiedAt = lastModifiedAt
+        self.cloudKitRecordName = cloudKitRecordName
+        self.cloudKitSystemFields = cloudKitSystemFields
+        self.isDeleted = isDeleted
     }
 
     var categoryBreakdown: [CategorySummary] {
@@ -48,5 +62,6 @@ extension MonthlySnapshot: FetchableRecord, PersistableRecord {
 
     enum Columns: String, ColumnExpression {
         case id, month, totalBudget, totalSpent, categoryBreakdownData, snapshotDate
+        case lastModifiedAt, cloudKitRecordName, cloudKitSystemFields, isDeleted
     }
 }

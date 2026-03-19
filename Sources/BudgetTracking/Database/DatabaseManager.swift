@@ -6,6 +6,13 @@ final class DatabaseManager {
 
     let dbQueue: DatabaseQueue
 
+    /// Notify the sync engine that local data has changed.
+    private func notifyDataChanged() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .localDataDidChange, object: nil)
+        }
+    }
+
     private init() {
         do {
             let appSupportURL = FileManager.default.urls(
@@ -130,6 +137,31 @@ final class DatabaseManager {
             )
 
             try db.execute(sql: "PRAGMA foreign_keys = ON")
+        }
+
+        migrator.registerMigration("v4_addSyncColumns") { db in
+            let tables = [
+                "budgetCategory", "transaction", "importedFile",
+                "categorizationRule", "monthlySnapshot", "bankProfile"
+            ]
+            for table in tables {
+                try db.alter(table: table) { t in
+                    t.add(column: "lastModifiedAt", .datetime).defaults(sql: "CURRENT_TIMESTAMP")
+                    t.add(column: "cloudKitRecordName", .text)
+                    t.add(column: "cloudKitSystemFields", .blob)
+                    t.add(column: "isDeleted", .boolean).defaults(to: false)
+                }
+                try db.create(
+                    index: "idx_\(table)_lastModified",
+                    on: table,
+                    columns: ["lastModifiedAt"]
+                )
+            }
+
+            // Set cloudKitRecordName to id for all existing rows
+            for table in tables {
+                try db.execute(sql: "UPDATE \"\(table)\" SET cloudKitRecordName = id")
+            }
         }
 
         try migrator.migrate(dbQueue)
@@ -336,6 +368,7 @@ final class DatabaseManager {
         try dbQueue.read { db in
             try BudgetCategory
                 .filter(BudgetCategory.Columns.isArchived == false)
+                .filter(BudgetCategory.Columns.isDeleted == false)
                 .order(BudgetCategory.Columns.sortOrder)
                 .fetchAll(db)
         }
@@ -343,16 +376,23 @@ final class DatabaseManager {
 
     func saveCategory(_ category: BudgetCategory) throws {
         try dbQueue.write { db in
-            try category.save(db)
+            var record = category
+            record.lastModifiedAt = Date()
+            record.cloudKitRecordName = record.cloudKitRecordName ?? record.id.uuidString
+            try record.save(db)
         }
+        notifyDataChanged()
     }
 
     func deleteCategory(_ category: BudgetCategory) throws {
         try dbQueue.write { db in
             var archived = category
             archived.isArchived = true
+            archived.isDeleted = true
+            archived.lastModifiedAt = Date()
             try archived.update(db)
         }
+        notifyDataChanged()
     }
 
     // MARK: - Transaction Queries
@@ -361,6 +401,7 @@ final class DatabaseManager {
         try dbQueue.read { db in
             try Transaction
                 .filter(Transaction.Columns.month == month)
+                .filter(Transaction.Columns.isDeleted == false)
                 .order(Transaction.Columns.date.desc)
                 .fetchAll(db)
         }
@@ -368,10 +409,13 @@ final class DatabaseManager {
 
     func saveTransactions(_ transactions: [Transaction]) throws {
         try dbQueue.write { db in
-            for transaction in transactions {
+            for var transaction in transactions {
+                transaction.lastModifiedAt = Date()
+                transaction.cloudKitRecordName = transaction.cloudKitRecordName ?? transaction.id.uuidString
                 try transaction.save(db)
             }
         }
+        notifyDataChanged()
     }
 
     func updateTransactionCategory(
@@ -383,9 +427,11 @@ final class DatabaseManager {
             ) {
                 transaction.categoryId = categoryId
                 transaction.isManuallyCategorized = isManual
+                transaction.lastModifiedAt = Date()
                 try transaction.update(db)
             }
         }
+        notifyDataChanged()
     }
 
     /// Update all transactions in a month whose description or merchant contains the keyword
@@ -397,18 +443,21 @@ final class DatabaseManager {
         toCategoryId: UUID,
         excludingTransactionId: UUID
     ) throws -> Int {
-        try dbQueue.write { db in
+        let count = try dbQueue.write { db in
             let pattern = "%\(keyword)%"
             try db.execute(sql: """
                 UPDATE "transaction"
-                SET categoryId = ?, isManuallyCategorized = 1
+                SET categoryId = ?, isManuallyCategorized = 1, lastModifiedAt = ?
                 WHERE month = ?
+                  AND isDeleted = 0
                   AND (UPPER(description) LIKE UPPER(?)
                        OR UPPER(merchant) LIKE UPPER(?))
                   AND id != ?
-                """, arguments: [toCategoryId, month, pattern, pattern, excludingTransactionId])
+                """, arguments: [toCategoryId, Date(), month, pattern, pattern, excludingTransactionId])
             return db.changesCount
         }
+        if count > 0 { notifyDataChanged() }
+        return count
     }
 
     func fetchTransactions(forMonth month: String, categoryId: UUID) throws -> [Transaction] {
@@ -417,6 +466,7 @@ final class DatabaseManager {
                 .filter(Transaction.Columns.month == month)
                 .filter(Transaction.Columns.categoryId == categoryId)
                 .filter(Transaction.Columns.amount < 0) // only spending
+                .filter(Transaction.Columns.isDeleted == false)
                 .order(Transaction.Columns.date.desc)
                 .fetchAll(db)
         }
@@ -424,10 +474,14 @@ final class DatabaseManager {
 
     func deleteTransactionsForFile(_ fileId: UUID) throws {
         try dbQueue.write { db in
-            try Transaction
-                .filter(Transaction.Columns.importedFileId == fileId)
-                .deleteAll(db)
+            // Soft-delete transactions instead of hard delete
+            try db.execute(sql: """
+                UPDATE "transaction"
+                SET isDeleted = 1, lastModifiedAt = ?
+                WHERE importedFileId = ?
+                """, arguments: [Date(), fileId])
         }
+        notifyDataChanged()
     }
 
     // MARK: - Imported File Queries
@@ -439,9 +493,10 @@ final class DatabaseManager {
             try ImportedFile.fetchAll(db, sql: """
                 SELECT DISTINCT f.*
                 FROM importedFile f
-                LEFT JOIN "transaction" t ON t.importedFileId = f.id
-                WHERE f.month = ?
-                   OR (f.month IS NULL AND t.month = ?)
+                LEFT JOIN "transaction" t ON t.importedFileId = f.id AND t.isDeleted = 0
+                WHERE f.isDeleted = 0
+                  AND (f.month = ?
+                       OR (f.month IS NULL AND t.month = ?))
                 ORDER BY f.importedAt DESC
                 """, arguments: [month, month])
         }
@@ -449,15 +504,29 @@ final class DatabaseManager {
 
     func saveImportedFile(_ file: ImportedFile) throws {
         try dbQueue.write { db in
-            try file.save(db)
+            var record = file
+            record.lastModifiedAt = Date()
+            record.cloudKitRecordName = record.cloudKitRecordName ?? record.id.uuidString
+            try record.save(db)
         }
+        notifyDataChanged()
     }
 
     func deleteImportedFile(_ file: ImportedFile) throws {
-        // Transactions are cascade-deleted via FK
         try dbQueue.write { db in
-            try file.delete(db)
+            // Soft-delete the file and its transactions
+            try db.execute(sql: """
+                UPDATE "transaction"
+                SET isDeleted = 1, lastModifiedAt = ?
+                WHERE importedFileId = ?
+                """, arguments: [Date(), file.id])
+
+            var record = file
+            record.isDeleted = true
+            record.lastModifiedAt = Date()
+            try record.update(db)
         }
+        notifyDataChanged()
     }
 
     func findDuplicateFile(name: String, size: Int64, month: String?) throws -> ImportedFile? {
@@ -465,6 +534,7 @@ final class DatabaseManager {
             var query = ImportedFile
                 .filter(ImportedFile.Columns.fileName == name)
                 .filter(ImportedFile.Columns.fileSize == size)
+                .filter(ImportedFile.Columns.isDeleted == false)
             if let month {
                 query = query.filter(ImportedFile.Columns.month == month)
             } else {
@@ -479,7 +549,7 @@ final class DatabaseManager {
         try dbQueue.read { db in
             try Int.fetchOne(db, sql: """
                 SELECT COUNT(*) FROM "transaction"
-                WHERE importedFileId = ? AND month = ?
+                WHERE importedFileId = ? AND month = ? AND isDeleted = 0
                 """, arguments: [fileId, month]) ?? 0
         }
     }
@@ -491,7 +561,7 @@ final class DatabaseManager {
             let rows = try Row.fetchAll(db, sql: """
                 SELECT categoryId, SUM(amount) as total
                 FROM "transaction"
-                WHERE month = ? AND amount < 0
+                WHERE month = ? AND amount < 0 AND isDeleted = 0
                 GROUP BY categoryId
                 """, arguments: [month])
 
@@ -509,7 +579,7 @@ final class DatabaseManager {
         try dbQueue.read { db in
             let total = try Double.fetchOne(db, sql: """
                 SELECT SUM(amount) FROM "transaction"
-                WHERE month = ? AND amount < 0
+                WHERE month = ? AND amount < 0 AND isDeleted = 0
                 """, arguments: [month])
             return abs(total ?? 0.0)
         }
@@ -520,6 +590,7 @@ final class DatabaseManager {
     func fetchRules() throws -> [CategorizationRule] {
         try dbQueue.read { db in
             try CategorizationRule
+                .filter(CategorizationRule.Columns.isDeleted == false)
                 .order(CategorizationRule.Columns.priority.desc)
                 .fetchAll(db)
         }
@@ -527,23 +598,32 @@ final class DatabaseManager {
 
     func saveRule(_ rule: CategorizationRule) throws {
         try dbQueue.write { db in
-            try rule.save(db)
+            var record = rule
+            record.lastModifiedAt = Date()
+            record.cloudKitRecordName = record.cloudKitRecordName ?? record.id.uuidString
+            try record.save(db)
         }
+        notifyDataChanged()
     }
 
     func deleteRule(_ rule: CategorizationRule) throws {
         try dbQueue.write { db in
-            try rule.delete(db)
+            var record = rule
+            record.isDeleted = true
+            record.lastModifiedAt = Date()
+            try record.update(db)
         }
+        notifyDataChanged()
     }
 
     func incrementRuleMatchCount(_ ruleId: UUID) throws {
         try dbQueue.write { db in
             try db.execute(sql: """
-                UPDATE categorizationRule SET matchCount = matchCount + 1
+                UPDATE categorizationRule SET matchCount = matchCount + 1, lastModifiedAt = ?
                 WHERE id = ?
-                """, arguments: [ruleId])
+                """, arguments: [Date(), ruleId])
         }
+        notifyDataChanged()
     }
 
     // MARK: - Bank Profiles
@@ -556,8 +636,12 @@ final class DatabaseManager {
 
     func saveBankProfile(_ profile: BankProfile) throws {
         try dbQueue.write { db in
-            try profile.save(db)
+            var record = profile
+            record.lastModifiedAt = Date()
+            record.cloudKitRecordName = record.cloudKitRecordName ?? record.id.uuidString
+            try record.save(db)
         }
+        notifyDataChanged()
     }
 
     // MARK: - Monthly Snapshots
@@ -566,26 +650,86 @@ final class DatabaseManager {
         try dbQueue.read { db in
             try MonthlySnapshot
                 .filter(MonthlySnapshot.Columns.month == month)
+                .filter(MonthlySnapshot.Columns.isDeleted == false)
                 .fetchOne(db)
         }
     }
 
     func saveSnapshot(_ snapshot: MonthlySnapshot) throws {
         try dbQueue.write { db in
-            // Upsert: delete old snapshot for this month, insert new
-            try MonthlySnapshot
-                .filter(MonthlySnapshot.Columns.month == snapshot.month)
-                .deleteAll(db)
-            try snapshot.insert(db)
+            // Upsert: soft-delete old snapshot for this month, insert new
+            try db.execute(sql: """
+                UPDATE monthlySnapshot
+                SET isDeleted = 1, lastModifiedAt = ?
+                WHERE month = ?
+                """, arguments: [Date(), snapshot.month])
+            var record = snapshot
+            record.lastModifiedAt = Date()
+            record.cloudKitRecordName = record.cloudKitRecordName ?? record.id.uuidString
+            try record.insert(db)
         }
+        notifyDataChanged()
     }
 
     func fetchAllSnapshotMonths() throws -> [String] {
         try dbQueue.read { db in
             try String.fetchAll(db, sql: """
                 SELECT DISTINCT month FROM "transaction"
+                WHERE isDeleted = 0
                 ORDER BY month DESC
                 """)
+        }
+    }
+
+    // MARK: - Sync Queries
+
+    /// Fetch all records of a given table that have been modified since a date.
+    func fetchPendingChanges<T: FetchableRecord & TableRecord>(
+        type: T.Type, since: Date
+    ) throws -> [T] {
+        try dbQueue.read { db in
+            try T.filter(sql: "lastModifiedAt > ?", arguments: [since]).fetchAll(db)
+        }
+    }
+
+    /// Fetch all soft-deleted records of a given table.
+    func fetchSoftDeleted<T: FetchableRecord & TableRecord>(
+        type: T.Type
+    ) throws -> [T] {
+        try dbQueue.read { db in
+            try T.filter(sql: "isDeleted = 1").fetchAll(db)
+        }
+    }
+
+    /// Upsert a record received from CloudKit (insert or replace).
+    func upsertFromCloud<T: PersistableRecord>(_ record: T) throws {
+        try dbQueue.write { db in
+            try record.save(db)
+        }
+    }
+
+    /// Hard-delete a record after confirming the deletion has been synced.
+    func hardDelete(table: String, recordName: String) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: """
+                DELETE FROM "\(table)" WHERE cloudKitRecordName = ?
+                """, arguments: [recordName])
+        }
+    }
+
+    /// Purge soft-deleted records older than a given date (after sync confirmation).
+    func purgeDeletedRecords(olderThan date: Date) throws {
+        let tables = [
+            "budgetCategory", "transaction", "importedFile",
+            "categorizationRule", "monthlySnapshot", "bankProfile"
+        ]
+        try dbQueue.write { db in
+            for table in tables {
+                try db.execute(sql: """
+                    DELETE FROM "\(table)"
+                    WHERE isDeleted = 1 AND lastModifiedAt < ?
+                    """, arguments: [date])
+            }
         }
     }
 }

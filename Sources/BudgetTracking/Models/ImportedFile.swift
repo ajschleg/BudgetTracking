@@ -9,6 +9,12 @@ struct ImportedFile: Identifiable, Codable, Equatable {
     var transactionCount: Int
     var importedAt: Date
 
+    // Sync fields
+    var lastModifiedAt: Date
+    var cloudKitRecordName: String?
+    var cloudKitSystemFields: Data?
+    var isDeleted: Bool
+
     /// True when the file contains transactions spanning multiple months.
     var isMultiMonth: Bool { month == nil }
 
@@ -18,7 +24,11 @@ struct ImportedFile: Identifiable, Codable, Equatable {
         fileSize: Int64,
         month: String? = nil,
         transactionCount: Int = 0,
-        importedAt: Date = Date()
+        importedAt: Date = Date(),
+        lastModifiedAt: Date = Date(),
+        cloudKitRecordName: String? = nil,
+        cloudKitSystemFields: Data? = nil,
+        isDeleted: Bool = false
     ) {
         self.id = id
         self.fileName = fileName
@@ -26,6 +36,10 @@ struct ImportedFile: Identifiable, Codable, Equatable {
         self.month = month
         self.transactionCount = transactionCount
         self.importedAt = importedAt
+        self.lastModifiedAt = lastModifiedAt
+        self.cloudKitRecordName = cloudKitRecordName
+        self.cloudKitSystemFields = cloudKitSystemFields
+        self.isDeleted = isDeleted
     }
 }
 
@@ -34,5 +48,6 @@ extension ImportedFile: FetchableRecord, PersistableRecord {
 
     enum Columns: String, ColumnExpression {
         case id, fileName, fileSize, month, transactionCount, importedAt
+        case lastModifiedAt, cloudKitRecordName, cloudKitSystemFields, isDeleted
     }
 }

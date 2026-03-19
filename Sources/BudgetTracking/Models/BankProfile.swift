@@ -19,6 +19,12 @@ struct BankProfile: Identifiable, Codable, Equatable {
         case positiveIsDebit // Some banks flip the sign
     }
 
+    // Sync fields
+    var lastModifiedAt: Date
+    var cloudKitRecordName: String?
+    var cloudKitSystemFields: Data?
+    var isDeleted: Bool
+
     init(
         id: UUID = UUID(),
         name: String,
@@ -30,7 +36,11 @@ struct BankProfile: Identifiable, Codable, Equatable {
         creditColumn: String? = nil,
         dateFormat: String = "MM/dd/yyyy",
         headerRowIndex: Int = 0,
-        amountSignConvention: AmountSignConvention = .negativeIsDebit
+        amountSignConvention: AmountSignConvention = .negativeIsDebit,
+        lastModifiedAt: Date = Date(),
+        cloudKitRecordName: String? = nil,
+        cloudKitSystemFields: Data? = nil,
+        isDeleted: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -43,6 +53,10 @@ struct BankProfile: Identifiable, Codable, Equatable {
         self.dateFormat = dateFormat
         self.headerRowIndex = headerRowIndex
         self.amountSignConvention = amountSignConvention
+        self.lastModifiedAt = lastModifiedAt
+        self.cloudKitRecordName = cloudKitRecordName
+        self.cloudKitSystemFields = cloudKitSystemFields
+        self.isDeleted = isDeleted
     }
 }
 
@@ -53,5 +67,6 @@ extension BankProfile: FetchableRecord, PersistableRecord {
         case id, name, fileType, dateColumn, descriptionColumn
         case amountColumn, debitColumn, creditColumn
         case dateFormat, headerRowIndex, amountSignConvention
+        case lastModifiedAt, cloudKitRecordName, cloudKitSystemFields, isDeleted
     }
 }
