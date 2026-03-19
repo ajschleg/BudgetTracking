@@ -125,12 +125,17 @@ final class ImportViewModel {
             // Auto-detect the target month from transaction dates or filename
             detectedMonth = MonthDetector.detectMonth(from: rows, fileName: fileName)
 
-            // Check if columns are auto-detected
-            let firstRow = rows[0]
-            if firstRow.date != nil && firstRow.amount != nil {
+            // Check if most rows have auto-detected date and amount.
+            // For PDFs and structured formats, go straight to preview.
+            let ext = url.pathExtension.lowercased()
+            let nonCsvFormats = ["pdf", "ofx", "qfx", "qif"]
+            let detectedCount = rows.filter({ $0.date != nil && $0.amount != nil }).count
+
+            if nonCsvFormats.contains(ext) || detectedCount > rows.count / 2 {
+                // Enough data auto-detected — show preview
                 state = .preview(rows: rows, fileName: fileName, fileSize: fileSize)
             } else {
-                let columns = Array(firstRow.rawColumns.keys.sorted())
+                let columns = Array(rows[0].rawColumns.keys.sorted())
                 state = .columnMapping(
                     rows: rows, columns: columns,
                     fileName: fileName, fileSize: fileSize
