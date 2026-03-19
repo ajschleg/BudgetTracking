@@ -27,14 +27,18 @@ struct ImportView: View {
         .onAppear { viewModel.loadImportedFiles(month: selectedMonth) }
         .onChange(of: selectedMonth) { _, newMonth in
             viewModel.loadImportedFiles(month: newMonth)
-            viewModel.reset()
+            // Only reset the import state when the user manually changes month,
+            // not when auto-detection changes it (which would destroy the preview).
+            if !viewModel.isAutoSwitchingMonth {
+                viewModel.reset()
+            }
         }
         .onChange(of: viewModel.detectedMonth) { _, detected in
-            // Only auto-switch month for single-month files
-            if let detected, detected != selectedMonth,
-               viewModel.importedMonthBreakdown.isEmpty {
+            if let detected, detected != selectedMonth {
+                viewModel.isAutoSwitchingMonth = true
                 selectedMonth = detected
                 viewModel.loadImportedFiles(month: detected)
+                viewModel.isAutoSwitchingMonth = false
             }
         }
         .alert("Duplicate File Detected", isPresented: $viewModel.showDuplicateAlert) {

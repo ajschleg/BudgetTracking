@@ -33,31 +33,16 @@ enum ColumnMapper {
         var mapping = ColumnMapping()
         let lowerHeaders = headers.map { $0.lowercased().trimmingCharacters(in: .whitespaces) }
 
-        // Pass 1: Exact header matches (higher priority).
-        // This ensures "Description" (exact) wins over "Details" (substring).
-        for (i, header) in lowerHeaders.enumerated() {
-            if mapping.dateIndex == nil && dateKeywords.contains(header) {
-                mapping.dateIndex = i
-            }
-            if mapping.descriptionIndex == nil && descriptionKeywords.contains(header) {
-                mapping.descriptionIndex = i
-            }
-            if mapping.amountIndex == nil && amountKeywords.contains(header) {
-                mapping.amountIndex = i
-            }
-            if mapping.debitIndex == nil && debitKeywords.contains(header) {
-                mapping.debitIndex = i
-            }
-            if mapping.creditIndex == nil && creditKeywords.contains(header) {
-                mapping.creditIndex = i
-            }
-            if mapping.merchantIndex == nil && merchantKeywords.contains(header) {
-                mapping.merchantIndex = i
-            }
-            if mapping.sourceCategoryIndex == nil && categoryKeywords.contains(header) {
-                mapping.sourceCategoryIndex = i
-            }
-        }
+        // Pass 1: Exact header matches, checked in keyword priority order.
+        // Keywords are ordered most-specific first (e.g., "description" before "details")
+        // so that the best match wins when multiple headers qualify.
+        matchFirst(keywords: dateKeywords, headers: lowerHeaders, into: &mapping.dateIndex)
+        matchFirst(keywords: descriptionKeywords, headers: lowerHeaders, into: &mapping.descriptionIndex)
+        matchFirst(keywords: amountKeywords, headers: lowerHeaders, into: &mapping.amountIndex)
+        matchFirst(keywords: debitKeywords, headers: lowerHeaders, into: &mapping.debitIndex)
+        matchFirst(keywords: creditKeywords, headers: lowerHeaders, into: &mapping.creditIndex)
+        matchFirst(keywords: merchantKeywords, headers: lowerHeaders, into: &mapping.merchantIndex)
+        matchFirst(keywords: categoryKeywords, headers: lowerHeaders, into: &mapping.sourceCategoryIndex)
 
         // Pass 2: Substring matches for any columns not yet detected.
         for (i, header) in lowerHeaders.enumerated() {
@@ -160,6 +145,17 @@ enum ColumnMapper {
             }
         }
         return nil
+    }
+
+    /// Find the first header that exactly matches a keyword (checked in keyword priority order).
+    private static func matchFirst(keywords: [String], headers: [String], into index: inout Int?) {
+        guard index == nil else { return }
+        for keyword in keywords {
+            if let i = headers.firstIndex(of: keyword) {
+                index = i
+                return
+            }
+        }
     }
 
     static func parseAmount(_ string: String) -> Double? {
