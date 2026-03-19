@@ -26,7 +26,17 @@ struct CategoriesSettingsView: View {
                         CategoryRow(
                             category: category,
                             onEdit: { editingCategory = category },
-                            onDelete: { viewModel.deleteCategory(category) }
+                            onDelete: { viewModel.deleteCategory(category) },
+                            onUpdateBudget: { newBudget in
+                                var updated = category
+                                updated.monthlyBudget = newBudget
+                                viewModel.updateCategory(updated)
+                            },
+                            onUpdateName: { newName in
+                                var updated = category
+                                updated.name = newName
+                                viewModel.updateCategory(updated)
+                            }
                         )
                     }
                 }
@@ -134,6 +144,16 @@ struct CategoryRow: View {
     let category: BudgetCategory
     let onEdit: () -> Void
     let onDelete: () -> Void
+    let onUpdateBudget: (Double) -> Void
+    let onUpdateName: (String) -> Void
+
+    @State private var isEditingBudget = false
+    @State private var budgetText = ""
+    @FocusState private var budgetFieldFocused: Bool
+
+    @State private var isEditingName = false
+    @State private var nameText = ""
+    @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
         HStack {
@@ -141,14 +161,62 @@ struct CategoryRow: View {
                 .fill(ColorThresholds.colorFromHex(category.colorHex))
                 .frame(width: 14, height: 14)
 
-            Text(category.name)
-                .font(.headline)
+            if isEditingName {
+                TextField("Name", text: $nameText)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+                    .font(.headline)
+                    .focused($nameFieldFocused)
+                    .onSubmit {
+                        commitNameEdit()
+                    }
+                    .onExitCommand {
+                        cancelNameEdit()
+                    }
+                    .onChange(of: nameFieldFocused) { _, focused in
+                        if !focused {
+                            cancelNameEdit()
+                        }
+                    }
+            } else {
+                Text(category.name)
+                    .font(.headline)
+                    .onTapGesture(count: 2) {
+                        nameText = category.name
+                        isEditingName = true
+                        nameFieldFocused = true
+                    }
+            }
 
             Spacer()
 
-            Text(CurrencyFormatter.format(category.monthlyBudget))
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+            if isEditingBudget {
+                TextField("Budget", text: $budgetText)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 100)
+                    .monospacedDigit()
+                    .focused($budgetFieldFocused)
+                    .onSubmit {
+                        commitBudgetEdit()
+                    }
+                    .onExitCommand {
+                        cancelBudgetEdit()
+                    }
+                    .onChange(of: budgetFieldFocused) { _, focused in
+                        if !focused {
+                            cancelBudgetEdit()
+                        }
+                    }
+            } else {
+                Text(CurrencyFormatter.format(category.monthlyBudget))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .onTapGesture(count: 2) {
+                        budgetText = String(format: "%.2f", category.monthlyBudget)
+                        isEditingBudget = true
+                        budgetFieldFocused = true
+                    }
+            }
 
             Button(action: onEdit) {
                 Image(systemName: "pencil")
@@ -164,5 +232,28 @@ struct CategoryRow: View {
         .padding()
         .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(8)
+    }
+
+    private func commitBudgetEdit() {
+        if let newBudget = Double(budgetText), newBudget >= 0 {
+            onUpdateBudget(newBudget)
+        }
+        isEditingBudget = false
+    }
+
+    private func cancelBudgetEdit() {
+        isEditingBudget = false
+    }
+
+    private func commitNameEdit() {
+        let trimmed = nameText.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty {
+            onUpdateName(trimmed)
+        }
+        isEditingName = false
+    }
+
+    private func cancelNameEdit() {
+        isEditingName = false
     }
 }
