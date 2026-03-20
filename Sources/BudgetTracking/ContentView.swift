@@ -28,6 +28,7 @@ struct ContentView: View {
 
     let syncEngine: SyncEngine
     let shareManager: ShareManager
+    let lanSyncEngine: LANSyncEngine
 
     var body: some View {
         NavigationSplitView {
@@ -38,13 +39,21 @@ struct ContentView: View {
             .navigationSplitViewColumnWidth(min: 180, ideal: 200)
             .listStyle(.sidebar)
 
-            // Sync status indicator at bottom of sidebar
+            // Sync status indicators at bottom of sidebar
             Spacer()
-            HStack(spacing: 6) {
-                syncStatusDot
-                Text(syncStatusLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    cloudSyncStatusDot
+                    Text(cloudSyncStatusLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 6) {
+                    lanSyncStatusDot
+                    Text(lanSyncStatusLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
@@ -61,7 +70,7 @@ struct ContentView: View {
             case .history:
                 HistoryView(selectedMonth: $selectedMonth)
             case .sync:
-                SyncSettingsView(syncEngine: syncEngine, shareManager: shareManager)
+                SyncSettingsView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine)
             case nil:
                 Text("Select an item from the sidebar")
                     .foregroundStyle(.secondary)
@@ -69,33 +78,72 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Cloud Sync Status
+
     @ViewBuilder
-    private var syncStatusDot: some View {
+    private var cloudSyncStatusDot: some View {
         switch syncEngine.status {
         case .idle:
-            Circle()
-                .fill(.green)
-                .frame(width: 8, height: 8)
+            Image(systemName: "icloud.fill")
+                .font(.system(size: 10))
+                .foregroundStyle(.green)
         case .syncing:
             ProgressView()
                 .controlSize(.mini)
         case .error:
-            Circle()
-                .fill(.red)
-                .frame(width: 8, height: 8)
+            Image(systemName: "icloud.slash")
+                .font(.system(size: 10))
+                .foregroundStyle(.red)
         case .noAccount:
-            Circle()
-                .fill(.secondary)
-                .frame(width: 8, height: 8)
+            Image(systemName: "icloud.slash")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
         }
     }
 
-    private var syncStatusLabel: String {
+    private var cloudSyncStatusLabel: String {
         switch syncEngine.status {
-        case .idle: return "Synced"
-        case .syncing: return "Syncing..."
-        case .error: return "Sync error"
+        case .idle: return "iCloud synced"
+        case .syncing: return "iCloud syncing..."
+        case .error: return "iCloud error"
         case .noAccount: return "No iCloud"
+        }
+    }
+
+    // MARK: - LAN Sync Status
+
+    @ViewBuilder
+    private var lanSyncStatusDot: some View {
+        switch lanSyncEngine.status {
+        case .disabled:
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+        case .searching:
+            Image(systemName: "wifi")
+                .font(.system(size: 10))
+                .foregroundStyle(.orange)
+        case .connected:
+            Image(systemName: "wifi")
+                .font(.system(size: 10))
+                .foregroundStyle(.green)
+        case .syncing:
+            ProgressView()
+                .controlSize(.mini)
+        case .error:
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 10))
+                .foregroundStyle(.red)
+        }
+    }
+
+    private var lanSyncStatusLabel: String {
+        switch lanSyncEngine.status {
+        case .disabled: return "LAN sync off"
+        case .searching: return "Searching..."
+        case .connected(let name): return "LAN: \(name)"
+        case .syncing(let name): return "LAN syncing with \(name)..."
+        case .error(let msg): return "LAN: \(msg)"
         }
     }
 }

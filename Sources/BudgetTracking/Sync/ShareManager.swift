@@ -15,6 +15,7 @@ final class ShareManager {
 
     private(set) var shareStatus: ShareStatus = .notShared
     private(set) var share: CKShare?
+    private(set) var participantNames: [String] = []
 
     private let container: CKContainer
     private let logger = Logger(subsystem: "BudgetTracking", category: "Share")
@@ -26,7 +27,7 @@ final class ShareManager {
 
     // MARK: - Check Existing Share
 
-    private func checkExistingShare() async {
+    func checkExistingShare() async {
         do {
             let zones = try await container.privateCloudDatabase.allRecordZones()
             guard zones.contains(where: { $0.zoneID == SyncConstants.zoneID }) else {
@@ -34,14 +35,19 @@ final class ShareManager {
                 return
             }
 
-            // Look for an existing share in our zone
             let fetchedShare = try await fetchShare()
             if let fetchedShare {
                 await MainActor.run {
                     share = fetchedShare
-                    let participantCount = fetchedShare.participants.count
-                    shareStatus = participantCount > 1
-                        ? .shared(participantCount: participantCount)
+                    let participants = fetchedShare.participants
+                    participantNames = participants.compactMap {
+                        if $0.role == .owner { return nil }
+                        return $0.userIdentity.nameComponents.flatMap {
+                            PersonNameComponentsFormatter().string(from: $0)
+                        } ?? $0.userIdentity.lookupInfo?.emailAddress ?? "Unknown"
+                    }
+                    shareStatus = participants.count > 1
+                        ? .shared(participantCount: participants.count)
                         : .notShared
                 }
             }
@@ -51,7 +57,6 @@ final class ShareManager {
     }
 
     private func fetchShare() async throws -> CKShare? {
-        // Fetch the zone's share
         let zone = CKRecordZone(zoneID: SyncConstants.zoneID)
         let results = try await container.privateCloudDatabase.recordZones(
             for: [zone.zoneID]
@@ -59,7 +64,6 @@ final class ShareManager {
         guard let zoneResult = results[zone.zoneID] else { return nil }
         let fetchedZone = try zoneResult.get()
 
-        // Check if zone has a share
         guard let shareRef = fetchedZone.share else { return nil }
         let shareRecord = try await container.privateCloudDatabase.record(
             for: shareRef.recordID
@@ -67,47 +71,73 @@ final class ShareManager {
         return shareRecord as? CKShare
     }
 
-    // MARK: - Create Share
+    // MARK: - Create Share and Invite by Email
 
-    /// Creates a zone-wide share for the budget data.
-    /// Returns the CKShare for presenting to the user via sharing UI.
-    func createShare() async throws -> CKShare {
+    /// Creates a zone-wide share and invites a participant by email address.
+    func shareWithEmail(_ email: String) async throws {
         await MainActor.run { shareStatus = .sharing }
 
-        // Create a zone-wide share
-        let zone = CKRecordZone(zoneID: SyncConstants.zoneID)
-        let newShare = CKShare(recordZoneID: zone.zoneID)
-        newShare[CKShare.SystemFieldKey.title] = "Budget Tracking"
-        newShare.publicPermission = .none // Only invited participants
-
-        let operation = CKModifyRecordsOperation(
-            recordsToSave: [newShare],
-            recordIDsToDelete: nil
-        )
-
-        return try await withCheckedThrowingContinuation { continuation in
-            operation.modifyRecordsResultBlock = { result in
-                switch result {
-                case .success:
-                    Task { @MainActor in
-                        self.share = newShare
-                        self.shareStatus = .shared(participantCount: newShare.participants.count)
-                    }
-                    continuation.resume(returning: newShare)
-                case .failure(let error):
-                    Task { @MainActor in
-                        self.shareStatus = .error(error.localizedDescription)
-                    }
-                    continuation.resume(throwing: error)
-                }
+        do {
+            // Get or create the share
+            var ckShare: CKShare
+            if let existingShare = try await fetchShare() {
+                ckShare = existingShare
+            } else {
+                ckShare = CKShare(recordZoneID: SyncConstants.zoneID)
+                ckShare[CKShare.SystemFieldKey.title] = "Budget Tracking"
+                ckShare.publicPermission = .none
             }
-            container.privateCloudDatabase.add(operation)
+
+            // Look up the participant by email
+            let participant = try await container.shareParticipant(
+                forEmailAddress: email
+            )
+            participant.permission = .readWrite
+
+            ckShare.addParticipant(participant)
+
+            // Save the share
+            let operation = CKModifyRecordsOperation(
+                recordsToSave: [ckShare],
+                recordIDsToDelete: nil
+            )
+
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                operation.modifyRecordsResultBlock = { result in
+                    switch result {
+                    case .success:
+                        continuation.resume()
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+                self.container.privateCloudDatabase.add(operation)
+            }
+
+            await MainActor.run {
+                share = ckShare
+                shareStatus = .shared(participantCount: ckShare.participants.count)
+            }
+            await checkExistingShare()
+
+            logger.info("Successfully shared with \(email)")
+        } catch {
+            logger.error("Failed to share with \(email): \(error)")
+            await MainActor.run {
+                shareStatus = .error(error.localizedDescription)
+            }
+            throw error
         }
+    }
+
+    // MARK: - Reset Status
+
+    func resetStatus() {
+        shareStatus = .notShared
     }
 
     // MARK: - Accept Share
 
-    /// Accept a share invitation metadata.
     func acceptShare(_ metadata: CKShare.Metadata) async throws {
         try await container.accept(metadata)
         await checkExistingShare()
@@ -130,6 +160,7 @@ final class ShareManager {
                     Task { @MainActor in
                         self.share = nil
                         self.shareStatus = .notShared
+                        self.participantNames = []
                     }
                     continuation.resume()
                 case .failure(let error):

@@ -690,12 +690,13 @@ final class DatabaseManager {
 
     // MARK: - Sync Queries
 
-    /// Fetch all records of a given table that have been modified since a date.
+    /// Fetch all records of a given table that have been modified since a date
+    /// OR have never been synced to CloudKit (cloudKitRecordName IS NULL).
     func fetchPendingChanges<T: FetchableRecord & TableRecord>(
         type: T.Type, since: Date
     ) throws -> [T] {
         try dbQueue.read { db in
-            try T.filter(sql: "lastModifiedAt > ?", arguments: [since]).fetchAll(db)
+            try T.filter(sql: "lastModifiedAt > ? OR cloudKitRecordName IS NULL", arguments: [since]).fetchAll(db)
         }
     }
 
@@ -721,6 +722,58 @@ final class DatabaseManager {
             try db.execute(sql: """
                 DELETE FROM "\(table)" WHERE cloudKitRecordName = ?
                 """, arguments: [recordName])
+        }
+    }
+
+    // MARK: - LAN Sync Queries
+
+    /// Fetch all records modified since a given date (including soft-deleted ones for sync).
+    func fetchAllRecords<T: FetchableRecord & TableRecord>(
+        type: T.Type, since: Date
+    ) throws -> [T] {
+        try dbQueue.read { db in
+            try T.filter(sql: "lastModifiedAt > ?", arguments: [since]).fetchAll(db)
+        }
+    }
+
+    /// Upsert a record received from a LAN peer with conflict-aware merge.
+    /// Returns true if the record was actually applied (incoming was newer).
+    @discardableResult
+    func upsertFromPeer<T: PersistableRecord & FetchableRecord & Identifiable & Codable>(
+        _ incoming: T
+    ) throws -> Bool where T.ID == UUID {
+        try dbQueue.write { db in
+            // Check if record already exists
+            if let existing = try T.fetchOne(db, key: incoming.id) {
+                // Compare lastModifiedAt — only apply if incoming is newer
+                let mirror = Mirror(reflecting: existing)
+                let existingModified = mirror.children.first(where: { $0.label == "lastModifiedAt" })?.value as? Date ?? .distantPast
+                let incomingMirror = Mirror(reflecting: incoming)
+                let incomingModified = incomingMirror.children.first(where: { $0.label == "lastModifiedAt" })?.value as? Date ?? .distantPast
+
+                guard incomingModified > existingModified else {
+                    return false // Local version is newer or same, skip
+                }
+
+                // Special handling for Transaction: prefer manually categorized version
+                if let existingTxn = existing as? Transaction,
+                   let incomingTxn = incoming as? Transaction {
+                    if existingTxn.isManuallyCategorized && !incomingTxn.isManuallyCategorized {
+                        return false // Keep the manually categorized version
+                    }
+                }
+            }
+
+            // Strip CloudKit-specific fields for LAN sync
+            var record = incoming
+            let incomingMirror = Mirror(reflecting: record)
+            // Clear cloudKitSystemFields since they're CK-specific
+            if var mutableRecord = record as? any MutablePersistableRecord {
+                try mutableRecord.save(db)
+                return true
+            }
+            try record.save(db)
+            return true
         }
     }
 

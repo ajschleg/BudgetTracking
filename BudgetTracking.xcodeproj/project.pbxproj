@@ -17,15 +17,18 @@
 		272104B2FC3606FBEFCC7A82 /* CategoryBudgetBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D71603A8E67893664EA891E2 /* CategoryBudgetBar.swift */; };
 		2B70053E1B6A89926C5B35B3 /* MonthlySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7619A21E784D3733842F06AB /* MonthlySnapshot.swift */; };
 		31B61674E829E73409C0C28B /* RuleLearner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65A3B7896DEB2A0E6AEC65D1 /* RuleLearner.swift */; };
+		34B5F561DA5DF8F30DA3B425 /* LANSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BA7808B805B4F38D7302BAE /* LANSyncEngine.swift */; };
 		4B65D18E316BD2F56ED01E1A /* BudgetTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20DF0EA465BF47A908DCDB65 /* BudgetTrackingTests.swift */; };
 		4D8B02F05E5A562078C9C534 /* OverallBudgetBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC763A3C4CF46175AE1AC828 /* OverallBudgetBar.swift */; };
 		512FFF288B12EF51E36DBB8A /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850E4467CF4D66BED7921C21 /* HistoryViewModel.swift */; };
+		578E34AA65E5FD5F944BD4AD /* LANSyncStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50183D2237253558FB109BCF /* LANSyncStateStore.swift */; };
 		6288FC30C05B0F0D344B0761 /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 450EE9D75CEFA6800800FD74 /* SyncEngine.swift */; };
 		6FB1CC56DA9F81D74E2EF69E /* ColorThresholds.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483034A4379587D3D92B9DE4 /* ColorThresholds.swift */; };
 		71414C7F4B6DC0EFDA2E9634 /* BankProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 526F8721F1A64F0D88D2C518 /* BankProfile.swift */; };
 		74AA6D546426CF8564F34E3D /* ShareManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C7C8113ED1B9E2730EAAEA /* ShareManager.swift */; };
 		78EF18856F7D9F0257AF4283 /* ParsePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C223CDC9EF1CB212EB74994 /* ParsePreviewView.swift */; };
 		7A580A066A36B2FB74E0918C /* SyncConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C4DB933183AAE503F2BDA58 /* SyncConstants.swift */; };
+		8D62D571E3AAB5C7C52B7708 /* LANSyncProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CCE676CAB667CD64540FCB0 /* LANSyncProtocol.swift */; };
 		911EBF67095502AE2A1B187B /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = B1DB69D28DCA99819C197986 /* GRDB */; };
 		94A5A04BEECF42B2B47C0C0B /* RecordConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D003AE1329BA1C9FCD924629 /* RecordConverter.swift */; };
 		975CAB7903971BC772DD9F63 /* CoreXLSX in Frameworks */ = {isa = PBXBuildFile; productRef = C55AFD4D6FAF2DF78710AD63 /* CoreXLSX */; };
@@ -75,10 +78,12 @@
 		0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesSettingsView.swift; sourceTree = "<group>"; };
 		10C54DA96FF7472D61E1A3FC /* BudgetTracking.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BudgetTracking.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13ADAAEEDA6767ED5825AFB5 /* CurrencyFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyFormatter.swift; sourceTree = "<group>"; };
+		1BA7808B805B4F38D7302BAE /* LANSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LANSyncEngine.swift; sourceTree = "<group>"; };
 		1C4DB933183AAE503F2BDA58 /* SyncConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConstants.swift; sourceTree = "<group>"; };
 		1CA78E2AB21723326275631B /* SourceCategoryMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceCategoryMapper.swift; sourceTree = "<group>"; };
 		20DF0EA465BF47A908DCDB65 /* BudgetTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTrackingTests.swift; sourceTree = "<group>"; };
 		2296F730746DD13BF04875B5 /* MonthDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthDetector.swift; sourceTree = "<group>"; };
+		2CCE676CAB667CD64540FCB0 /* LANSyncProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LANSyncProtocol.swift; sourceTree = "<group>"; };
 		307BCBEDFB636BDB931C5D56 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		32F647A3AD0CF01EECA79DAE /* ConflictResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolver.swift; sourceTree = "<group>"; };
 		36204743D3191FAC9750A1EF /* ColumnMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnMapper.swift; sourceTree = "<group>"; };
@@ -88,6 +93,7 @@
 		47794CD4CE264DCABF650F6F /* SyncStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStateStore.swift; sourceTree = "<group>"; };
 		483034A4379587D3D92B9DE4 /* ColorThresholds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorThresholds.swift; sourceTree = "<group>"; };
 		500C712221C092D00861F3F1 /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
+		50183D2237253558FB109BCF /* LANSyncStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LANSyncStateStore.swift; sourceTree = "<group>"; };
 		526F8721F1A64F0D88D2C518 /* BankProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankProfile.swift; sourceTree = "<group>"; };
 		59EF97C6FF89940BA0975677 /* ChaseCSVParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaseCSVParsingTests.swift; sourceTree = "<group>"; };
 		5FEE41143CE4140161D4EE80 /* StatementParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatementParser.swift; sourceTree = "<group>"; };
@@ -308,6 +314,9 @@
 			isa = PBXGroup;
 			children = (
 				32F647A3AD0CF01EECA79DAE /* ConflictResolver.swift */,
+				1BA7808B805B4F38D7302BAE /* LANSyncEngine.swift */,
+				2CCE676CAB667CD64540FCB0 /* LANSyncProtocol.swift */,
+				50183D2237253558FB109BCF /* LANSyncStateStore.swift */,
 				D003AE1329BA1C9FCD924629 /* RecordConverter.swift */,
 				60C7C8113ED1B9E2730EAAEA /* ShareManager.swift */,
 				1C4DB933183AAE503F2BDA58 /* SyncConstants.swift */,
@@ -440,6 +449,9 @@
 				F1E746C9970C092EFD2C848F /* ImportView.swift in Sources */,
 				AAB0D77A318B158439549FAD /* ImportViewModel.swift in Sources */,
 				0A095A6B4194BDCF8CEAF4DD /* ImportedFile.swift in Sources */,
+				34B5F561DA5DF8F30DA3B425 /* LANSyncEngine.swift in Sources */,
+				8D62D571E3AAB5C7C52B7708 /* LANSyncProtocol.swift in Sources */,
+				578E34AA65E5FD5F944BD4AD /* LANSyncStateStore.swift in Sources */,
 				DF168A103E0FB8679B34F4B0 /* MonthDetector.swift in Sources */,
 				2B70053E1B6A89926C5B35B3 /* MonthlySnapshot.swift in Sources */,
 				B50381A1372095880CBFC715 /* OFXParser.swift in Sources */,
@@ -566,9 +578,12 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 98AUV869NF;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Budget Tracking";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_NSBonjourServices = _budgetsync._tcp;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "BudgetTracking uses the local network to sync budget data with nearby devices.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -588,9 +603,12 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 98AUV869NF;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Budget Tracking";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_NSBonjourServices = _budgetsync._tcp;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "BudgetTracking uses the local network to sync budget data with nearby devices.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

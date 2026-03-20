@@ -23,9 +23,15 @@ final class SyncEngine: @unchecked Sendable {
     private(set) var lastSyncDate: Date?
 
     private let container: CKContainer
-    private var engine: CKSyncEngine?
+    private var privateEngine: CKSyncEngine?
+    private var sharedEngine: CKSyncEngine?
     private let stateStore = SyncStateStore()
     private let logger = Logger(subsystem: "BudgetTracking", category: "Sync")
+
+    /// Track which engine is "active" for pushing (owner uses private, participant uses shared)
+    private var engine: CKSyncEngine? { privateEngine ?? sharedEngine }
+    /// True if this user is a participant (not the zone owner)
+    private(set) var isParticipant = false
 
     /// Track record names we've sent that are pending confirmation.
     private var pendingRecordNames: Set<String> = []
@@ -69,29 +75,61 @@ final class SyncEngine: @unchecked Sendable {
             return
         }
 
-        // Initialize CKSyncEngine
-        let config = CKSyncEngine.Configuration(
+        // Initialize private database engine
+        let privateConfig = CKSyncEngine.Configuration(
             database: container.privateCloudDatabase,
-            stateSerialization: stateStore.load(),
+            stateSerialization: stateStore.load(key: "private"),
             delegate: self
         )
-        let syncEngine = CKSyncEngine(config)
-        engine = syncEngine
+        let privEngine = CKSyncEngine(privateConfig)
+        privateEngine = privEngine
 
-        // Ensure our custom zone exists
-        let zoneID = SyncConstants.zoneID
-        syncEngine.state.add(pendingDatabaseChanges: [
-            .saveZone(CKRecordZone(zoneID: zoneID))
+        // Ensure our custom zone exists in private database
+        privEngine.state.add(pendingDatabaseChanges: [
+            .saveZone(CKRecordZone(zoneID: SyncConstants.zoneID))
         ])
 
-        // Schedule a fetch to pull any existing data
+        // Initialize shared database engine (for receiving shared data as participant)
+        let sharedConfig = CKSyncEngine.Configuration(
+            database: container.sharedCloudDatabase,
+            stateSerialization: stateStore.load(key: "shared"),
+            delegate: self
+        )
+        let shrEngine = CKSyncEngine(sharedConfig)
+        sharedEngine = shrEngine
+
+        // Fetch changes from both databases
         do {
-            try await syncEngine.fetchChanges()
+            try await privEngine.fetchChanges()
         } catch {
-            logger.error("Initial fetch failed: \(error)")
+            logger.error("Initial private fetch failed: \(error)")
         }
 
-        logger.info("SyncEngine started")
+        do {
+            try await shrEngine.fetchChanges()
+        } catch {
+            logger.error("Initial shared fetch failed: \(error)")
+        }
+
+        // Check if we received any shared data — if so, we're a participant
+        await checkParticipantStatus()
+
+        // Push any unsynced local records to CloudKit
+        pushLocalChanges()
+
+        logger.info("SyncEngine started (isParticipant: \(self.isParticipant))")
+    }
+
+    private func checkParticipantStatus() async {
+        do {
+            let sharedZones = try await container.sharedCloudDatabase.allRecordZones()
+            let hasSharedBudgetZone = sharedZones.contains { $0.zoneID.zoneName == SyncConstants.zoneName }
+            await MainActor.run {
+                isParticipant = hasSharedBudgetZone
+            }
+        } catch {
+            logger.error("Failed to check participant status: \(error)")
+        }
     }
 
     // MARK: - Push Local Changes
@@ -211,7 +249,8 @@ extension SyncEngine: CKSyncEngineDelegate {
     func handleEvent(_ event: CKSyncEngine.Event, syncEngine: CKSyncEngine) {
         switch event {
         case .stateUpdate(let stateUpdate):
-            stateStore.save(stateUpdate.stateSerialization)
+            let key = (syncEngine === privateEngine) ? "private" : "shared"
+            stateStore.save(stateUpdate.stateSerialization, key: key)
 
         case .accountChange(let accountChange):
             handleAccountChange(accountChange)
@@ -308,59 +347,41 @@ extension SyncEngine: CKSyncEngineDelegate {
         for savedRecord in changes.savedRecords {
             let systemData = RecordConverter.archiveSystemFields(of: savedRecord)
             let recordName = savedRecord.recordID.recordName
+            let uuid = UUID(uuidString: recordName)
 
             do {
+                let tableName: String
                 switch savedRecord.recordType {
                 case SyncConstants.RecordType.budgetCategory:
-                    try DatabaseManager.shared.dbQueue.write { db in
-                        try db.execute(sql: """
-                            UPDATE budgetCategory
-                            SET cloudKitSystemFields = ?, cloudKitRecordName = ?
-                            WHERE cloudKitRecordName = ? OR id = ?
-                            """, arguments: [systemData, recordName, recordName, recordName])
-                    }
+                    tableName = "budgetCategory"
                 case SyncConstants.RecordType.transaction:
-                    try DatabaseManager.shared.dbQueue.write { db in
-                        try db.execute(sql: """
-                            UPDATE "transaction"
-                            SET cloudKitSystemFields = ?, cloudKitRecordName = ?
-                            WHERE cloudKitRecordName = ? OR id = ?
-                            """, arguments: [systemData, recordName, recordName, recordName])
-                    }
+                    tableName = "\"transaction\""
                 case SyncConstants.RecordType.importedFile:
-                    try DatabaseManager.shared.dbQueue.write { db in
-                        try db.execute(sql: """
-                            UPDATE importedFile
-                            SET cloudKitSystemFields = ?, cloudKitRecordName = ?
-                            WHERE cloudKitRecordName = ? OR id = ?
-                            """, arguments: [systemData, recordName, recordName, recordName])
-                    }
+                    tableName = "importedFile"
                 case SyncConstants.RecordType.categorizationRule:
-                    try DatabaseManager.shared.dbQueue.write { db in
-                        try db.execute(sql: """
-                            UPDATE categorizationRule
-                            SET cloudKitSystemFields = ?, cloudKitRecordName = ?
-                            WHERE cloudKitRecordName = ? OR id = ?
-                            """, arguments: [systemData, recordName, recordName, recordName])
-                    }
+                    tableName = "categorizationRule"
                 case SyncConstants.RecordType.monthlySnapshot:
-                    try DatabaseManager.shared.dbQueue.write { db in
-                        try db.execute(sql: """
-                            UPDATE monthlySnapshot
-                            SET cloudKitSystemFields = ?, cloudKitRecordName = ?
-                            WHERE cloudKitRecordName = ? OR id = ?
-                            """, arguments: [systemData, recordName, recordName, recordName])
-                    }
+                    tableName = "monthlySnapshot"
                 case SyncConstants.RecordType.bankProfile:
-                    try DatabaseManager.shared.dbQueue.write { db in
+                    tableName = "bankProfile"
+                default:
+                    continue
+                }
+
+                try DatabaseManager.shared.dbQueue.write { db in
+                    if let uuid {
                         try db.execute(sql: """
-                            UPDATE bankProfile
+                            UPDATE \(tableName)
                             SET cloudKitSystemFields = ?, cloudKitRecordName = ?
                             WHERE cloudKitRecordName = ? OR id = ?
-                            """, arguments: [systemData, recordName, recordName, recordName])
+                            """, arguments: [systemData, recordName, recordName, uuid])
+                    } else {
+                        try db.execute(sql: """
+                            UPDATE \(tableName)
+                            SET cloudKitSystemFields = ?, cloudKitRecordName = ?
+                            WHERE cloudKitRecordName = ?
+                            """, arguments: [systemData, recordName, recordName])
                     }
-                default:
-                    break
                 }
             } catch {
                 logger.error("Failed to update system fields for \(savedRecord.recordID): \(error)")
@@ -396,58 +417,90 @@ extension SyncEngine: CKSyncEngineDelegate {
     /// Build a CKRecord for a pending save, looking up the local record by recordName.
     private func buildRecord(for recordID: CKRecord.ID) -> CKRecord? {
         let recordName = recordID.recordName
+        // GRDB stores UUID as a 16-byte blob, so we need to compare with the actual UUID value
+        let uuid = UUID(uuidString: recordName)
 
         do {
             // Try each table to find the matching record
             if let cat = try DatabaseManager.shared.dbQueue.read({ db in
-                try BudgetCategory
-                    .filter(sql: "cloudKitRecordName = ? OR id = ?",
-                            arguments: [recordName, recordName])
+                if let uuid {
+                    return try BudgetCategory
+                        .filter(sql: "cloudKitRecordName = ? OR id = ?",
+                                arguments: [recordName, uuid])
+                        .fetchOne(db)
+                }
+                return try BudgetCategory
+                    .filter(sql: "cloudKitRecordName = ?", arguments: [recordName])
                     .fetchOne(db)
             }) {
                 return RecordConverter.ckRecord(from: cat)
             }
 
             if let txn = try DatabaseManager.shared.dbQueue.read({ db in
-                try Transaction
-                    .filter(sql: "cloudKitRecordName = ? OR id = ?",
-                            arguments: [recordName, recordName])
+                if let uuid {
+                    return try Transaction
+                        .filter(sql: "cloudKitRecordName = ? OR id = ?",
+                                arguments: [recordName, uuid])
+                        .fetchOne(db)
+                }
+                return try Transaction
+                    .filter(sql: "cloudKitRecordName = ?", arguments: [recordName])
                     .fetchOne(db)
             }) {
                 return RecordConverter.ckRecord(from: txn)
             }
 
             if let file = try DatabaseManager.shared.dbQueue.read({ db in
-                try ImportedFile
-                    .filter(sql: "cloudKitRecordName = ? OR id = ?",
-                            arguments: [recordName, recordName])
+                if let uuid {
+                    return try ImportedFile
+                        .filter(sql: "cloudKitRecordName = ? OR id = ?",
+                                arguments: [recordName, uuid])
+                        .fetchOne(db)
+                }
+                return try ImportedFile
+                    .filter(sql: "cloudKitRecordName = ?", arguments: [recordName])
                     .fetchOne(db)
             }) {
                 return RecordConverter.ckRecord(from: file)
             }
 
             if let rule = try DatabaseManager.shared.dbQueue.read({ db in
-                try CategorizationRule
-                    .filter(sql: "cloudKitRecordName = ? OR id = ?",
-                            arguments: [recordName, recordName])
+                if let uuid {
+                    return try CategorizationRule
+                        .filter(sql: "cloudKitRecordName = ? OR id = ?",
+                                arguments: [recordName, uuid])
+                        .fetchOne(db)
+                }
+                return try CategorizationRule
+                    .filter(sql: "cloudKitRecordName = ?", arguments: [recordName])
                     .fetchOne(db)
             }) {
                 return RecordConverter.ckRecord(from: rule)
             }
 
             if let snap = try DatabaseManager.shared.dbQueue.read({ db in
-                try MonthlySnapshot
-                    .filter(sql: "cloudKitRecordName = ? OR id = ?",
-                            arguments: [recordName, recordName])
+                if let uuid {
+                    return try MonthlySnapshot
+                        .filter(sql: "cloudKitRecordName = ? OR id = ?",
+                                arguments: [recordName, uuid])
+                        .fetchOne(db)
+                }
+                return try MonthlySnapshot
+                    .filter(sql: "cloudKitRecordName = ?", arguments: [recordName])
                     .fetchOne(db)
             }) {
                 return RecordConverter.ckRecord(from: snap)
             }
 
             if let profile = try DatabaseManager.shared.dbQueue.read({ db in
-                try BankProfile
-                    .filter(sql: "cloudKitRecordName = ? OR id = ?",
-                            arguments: [recordName, recordName])
+                if let uuid {
+                    return try BankProfile
+                        .filter(sql: "cloudKitRecordName = ? OR id = ?",
+                                arguments: [recordName, uuid])
+                        .fetchOne(db)
+                }
+                return try BankProfile
+                    .filter(sql: "cloudKitRecordName = ?", arguments: [recordName])
                     .fetchOne(db)
             }) {
                 return RecordConverter.ckRecord(from: profile)

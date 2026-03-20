@@ -7,18 +7,21 @@ struct BudgetTrackingApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var syncEngine: SyncEngine
     @State private var shareManager: ShareManager
+    @State private var lanSyncEngine: LANSyncEngine
 
     init() {
         _ = DatabaseManager.shared
         let engine = SyncEngine()
         let share = ShareManager()
+        let lanEngine = LANSyncEngine()
         _syncEngine = State(initialValue: engine)
         _shareManager = State(initialValue: share)
+        _lanSyncEngine = State(initialValue: lanEngine)
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(syncEngine: syncEngine, shareManager: shareManager)
+            ContentView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine)
         }
         .defaultSize(width: 1100, height: 750)
         .commands {
