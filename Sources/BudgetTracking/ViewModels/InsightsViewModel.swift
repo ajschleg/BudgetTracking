@@ -15,9 +15,19 @@ final class InsightsViewModel {
     var ruleResponse: String = ""
     var categorizationSuggestions: [ClaudeAPIService.CategorizationSuggestion] = []
     var categorizationResponse: String = ""
+    // Budget generation state
+    var budgetStyle: ClaudeAPIService.BudgetStyle = .balanced
+    var monthlyIncome: String = ""
+    var budgetAllocations: [ClaudeAPIService.BudgetAllocation] = []
+    var budgetGenerationResponse: String = ""
+    var isLoadingBudgetGeneration = false
+    var showApplyBudgetConfirmation = false
+
     var isLoadingAI = false
     var isLoadingRules = false
     var isLoadingCategorization = false
+    var autoCategorizeRunning = false
+    var autoCategorizeProgress: String = ""
     var aiErrorMessage: String?
 
     private let engine = InsightsEngine()
@@ -199,6 +209,124 @@ final class InsightsViewModel {
         }
     }
 
+    // MARK: - Budget Generation
+
+    func loadIncomeEstimate() {
+        do {
+            // Average income across last 3 months for a stable estimate
+            var total = 0.0
+            var monthsWithIncome = 0
+            var m = currentMonth
+            for _ in 0..<3 {
+                let income = try DatabaseManager.shared.fetchTotalIncome(forMonth: m)
+                if income > 0 {
+                    total += income
+                    monthsWithIncome += 1
+                }
+                m = DateHelpers.previousMonth(from: m)
+            }
+            if monthsWithIncome > 0 {
+                monthlyIncome = String(format: "%.0f", total / Double(monthsWithIncome))
+            }
+        } catch {
+            // Silently fail
+        }
+    }
+
+    func generateBudget() async {
+        guard isAPIKeyConfigured else {
+            aiErrorMessage = "Please enter your Claude API key first."
+            return
+        }
+        guard !isOverCap else {
+            aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
+            return
+        }
+        guard let income = Double(monthlyIncome), income > 0 else {
+            aiErrorMessage = "Please enter a valid monthly income."
+            return
+        }
+
+        await MainActor.run {
+            isLoadingBudgetGeneration = true
+            aiErrorMessage = nil
+            budgetGenerationResponse = ""
+            budgetAllocations = []
+        }
+
+        do {
+            let categories = try DatabaseManager.shared.fetchCategories()
+            // Get 3-month spending history
+            var months: [String] = []
+            var m = currentMonth
+            for _ in 0..<3 {
+                months.append(m)
+                m = DateHelpers.previousMonth(from: m)
+            }
+            let spendingHistory = try DatabaseManager.shared.fetchSpendingByCategory(forMonths: months)
+
+            let prompt = ClaudeAPIService.buildBudgetGenerationPrompt(
+                monthlyIncome: income,
+                style: budgetStyle,
+                categories: categories,
+                spendingHistory: spendingHistory
+            )
+            let result = try await aiService.generateBudget(apiKey: apiKey, prompt: prompt)
+            recordUsage(inputTokens: result.inputTokens, outputTokens: result.outputTokens)
+
+            await MainActor.run {
+                budgetGenerationResponse = result.text
+                budgetAllocations = result.allocations
+                isLoadingBudgetGeneration = false
+            }
+        } catch {
+            await MainActor.run {
+                aiErrorMessage = error.localizedDescription
+                isLoadingBudgetGeneration = false
+            }
+        }
+    }
+
+    func applyGeneratedBudget() {
+        do {
+            var categories = try DatabaseManager.shared.fetchCategories()
+            let colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
+                          "#DDA0DD", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9"]
+
+            for allocation in budgetAllocations {
+                let catName = allocation.category.replacingOccurrences(of: "[NEW] ", with: "")
+
+                if let idx = categories.firstIndex(where: {
+                    $0.name.lowercased() == catName.lowercased()
+                }) {
+                    // Update existing category
+                    categories[idx].monthlyBudget = allocation.amount
+                    try DatabaseManager.shared.saveCategory(categories[idx])
+                } else {
+                    // Create new category
+                    let newCat = BudgetCategory(
+                        id: UUID(),
+                        name: catName,
+                        monthlyBudget: allocation.amount,
+                        colorHex: colors.randomElement() ?? "#4ECDC4",
+                        sortOrder: categories.count,
+                        isArchived: false,
+                        lastModifiedAt: Date(),
+                        cloudKitRecordName: nil,
+                        cloudKitSystemFields: nil,
+                        isDeleted: false
+                    )
+                    try DatabaseManager.shared.saveCategory(newCat)
+                    categories.append(newCat)
+                }
+            }
+            budgetAllocations = []
+            budgetGenerationResponse = "Budget applied successfully!"
+        } catch {
+            aiErrorMessage = "Failed to apply budget: \(error.localizedDescription)"
+        }
+    }
+
     // MARK: - Auto-Categorize Transactions
 
     func categorizeTransactions() async {
@@ -234,6 +362,12 @@ final class InsightsViewModel {
                     isLoadingCategorization = false
                 }
                 return
+            }
+
+            // Cap at 50 transactions per request to avoid timeouts
+            let totalCount = transactions.count
+            if transactions.count > 50 {
+                transactions = Array(transactions.prefix(50))
             }
 
             let prompt = ClaudeAPIService.buildCategorizationPrompt(
@@ -277,7 +411,11 @@ final class InsightsViewModel {
             }
 
             await MainActor.run {
-                categorizationResponse = result.text
+                var responseText = result.text
+                if totalCount > 50 {
+                    responseText += "\n\n*Showing 50 of \(totalCount) uncategorized transactions. Run again after applying to categorize more.*"
+                }
+                categorizationResponse = responseText
                 categorizationSuggestions = matched.filter { $0.transactionId != nil }
                 isLoadingCategorization = false
             }
@@ -332,6 +470,79 @@ final class InsightsViewModel {
         for item in categorizationSuggestions {
             applyCategorization(item)
         }
+    }
+
+    /// Automatically categorize all uncategorized transactions in batches.
+    /// Runs categorize → apply all → repeat until none remain or cap is hit.
+    func autoCategorizeAll() async {
+        guard !autoCategorizeRunning else { return }
+
+        await MainActor.run {
+            autoCategorizeRunning = true
+            autoCategorizeProgress = "Starting..."
+        }
+
+        var batchNumber = 0
+        var totalCategorized = 0
+
+        while autoCategorizeRunning {
+            batchNumber += 1
+
+            // Check remaining uncategorized count
+            var remaining = 0
+            var m = currentMonth
+            for _ in 0..<3 {
+                remaining += (try? DatabaseManager.shared.fetchUncategorizedTransactions(forMonth: m).count) ?? 0
+                m = DateHelpers.previousMonth(from: m)
+            }
+
+            guard remaining > 0 else {
+                await MainActor.run {
+                    autoCategorizeProgress = "Done! Categorized \(totalCategorized) transactions."
+                    autoCategorizeRunning = false
+                    isLoadingCategorization = false
+                }
+                return
+            }
+
+            await MainActor.run {
+                autoCategorizeProgress = "Batch \(batchNumber): \(remaining) remaining..."
+            }
+
+            // Run categorization
+            await categorizeTransactions()
+
+            // Check if we got results
+            guard !categorizationSuggestions.isEmpty else {
+                await MainActor.run {
+                    autoCategorizeProgress = "Done after \(batchNumber) batches. Categorized \(totalCategorized) transactions."
+                    autoCategorizeRunning = false
+                }
+                return
+            }
+
+            // Check cap
+            guard !isOverCap else {
+                await MainActor.run {
+                    autoCategorizeProgress = "Spending cap reached after \(totalCategorized) transactions. Apply remaining suggestions manually."
+                    autoCategorizeRunning = false
+                }
+                return
+            }
+
+            // Apply all suggestions
+            let count = categorizationSuggestions.count
+            applyAllCategorizations()
+            totalCategorized += count
+
+            await MainActor.run {
+                autoCategorizeProgress = "Batch \(batchNumber) done: applied \(count) (\(totalCategorized) total)"
+            }
+        }
+    }
+
+    func stopAutoCategorize() {
+        autoCategorizeRunning = false
     }
 
     // MARK: - Usage Tracking

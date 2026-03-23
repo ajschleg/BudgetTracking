@@ -67,9 +67,45 @@ actor ClaudeAPIService {
         }
     }
 
+    // MARK: - Budget Generation Types
+
+    enum BudgetStyle: String, CaseIterable, Identifiable {
+        case strict = "Strict"
+        case balanced = "Balanced"
+        case flexible = "Flexible"
+
+        var id: String { rawValue }
+
+        var description: String {
+            switch self {
+            case .strict: return "Maximize savings (20%+). Minimize dining out, shopping, and entertainment."
+            case .balanced: return "Moderate savings (10-15%). Reasonable spending on non-essentials."
+            case .flexible: return "Low savings target (5-10%). Generous discretionary spending."
+            }
+        }
+    }
+
+    struct BudgetAllocation: Codable, Identifiable {
+        var id = UUID()
+        let category: String
+        let amount: Double
+        let reason: String
+
+        enum CodingKeys: String, CodingKey {
+            case category, amount, reason
+        }
+    }
+
+    struct BudgetGenerationResult {
+        let text: String
+        let allocations: [BudgetAllocation]
+        let inputTokens: Int
+        let outputTokens: Int
+    }
+
     /// Analyze spending data and return natural-language insights.
     func analyze(apiKey: String, spendingSummary: String) async throws -> AnalysisResult {
-        var request = URLRequest(url: endpoint)
+        var request = URLRequest(url: endpoint, timeoutInterval: 120)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
@@ -229,7 +265,7 @@ actor ClaudeAPIService {
 
     /// Ask the AI to suggest categorization rules based on uncategorized transactions.
     func suggestRules(apiKey: String, prompt: String) async throws -> RuleResult {
-        var request = URLRequest(url: endpoint)
+        var request = URLRequest(url: endpoint, timeoutInterval: 120)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
@@ -376,7 +412,7 @@ actor ClaudeAPIService {
     // MARK: - Auto-Categorize Transactions
 
     func categorizeTransactions(apiKey: String, prompt: String) async throws -> CategorizationResult {
-        var request = URLRequest(url: endpoint)
+        var request = URLRequest(url: endpoint, timeoutInterval: 120)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
@@ -493,6 +529,147 @@ actor ClaudeAPIService {
 
         guard let jsonData = jsonString.data(using: .utf8),
               let items = try? JSONDecoder().decode([CategorizationSuggestion].self, from: jsonData)
+        else {
+            return (displayText, [])
+        }
+
+        return (displayText, items)
+    }
+
+    // MARK: - Budget Generation
+
+    func generateBudget(apiKey: String, prompt: String) async throws -> BudgetGenerationResult {
+        var request = URLRequest(url: endpoint, timeoutInterval: 120)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue(apiVersion, forHTTPHeaderField: "anthropic-version")
+
+        let body: [String: Any] = [
+            "model": model,
+            "max_tokens": 4096,
+            "system": budgetGenerationSystemPrompt,
+            "messages": [
+                ["role": "user", "content": prompt]
+            ]
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ClaudeAPIError.invalidResponse
+        }
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 401 { throw ClaudeAPIError.invalidAPIKey }
+            if httpResponse.statusCode == 429 { throw ClaudeAPIError.rateLimited }
+            let body = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw ClaudeAPIError.httpError(statusCode: httpResponse.statusCode, body: body)
+        }
+
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let content = json["content"] as? [[String: Any]],
+              let firstBlock = content.first,
+              let text = firstBlock["text"] as? String
+        else {
+            throw ClaudeAPIError.unexpectedResponseFormat
+        }
+
+        let usage = json["usage"] as? [String: Any]
+        let inputTokens = usage?["input_tokens"] as? Int ?? 0
+        let outputTokens = usage?["output_tokens"] as? Int ?? 0
+
+        let (displayText, allocations) = Self.parseBudgetResponse(text)
+        return BudgetGenerationResult(text: displayText, allocations: allocations, inputTokens: inputTokens, outputTokens: outputTokens)
+    }
+
+    static func buildBudgetGenerationPrompt(
+        monthlyIncome: Double,
+        style: BudgetStyle,
+        categories: [BudgetCategory],
+        spendingHistory: [String: [UUID: Double]]
+    ) -> String {
+        var lines: [String] = []
+
+        lines.append("## Monthly Income: $\(String(format: "%.2f", monthlyIncome))")
+        lines.append("## Budget Style: \(style.rawValue)")
+        lines.append(style.description)
+        lines.append("")
+
+        lines.append("## Current Categories & Budgets")
+        lines.append("| Category | Current Budget | Avg Spending (3mo) |")
+        lines.append("|----------|---------------|-------------------|")
+
+        // Sort months for display
+        let sortedMonths = spendingHistory.keys.sorted()
+
+        for cat in categories {
+            let currentBudget = String(format: "%.2f", cat.monthlyBudget)
+            // Calculate 3-month average spending
+            var totalSpend = 0.0
+            var monthCount = 0
+            for month in sortedMonths {
+                if let spend = spendingHistory[month]?[cat.id] {
+                    totalSpend += abs(spend)
+                    monthCount += 1
+                }
+            }
+            let avg = monthCount > 0 ? totalSpend / Double(monthCount) : 0
+            lines.append("| \(cat.name) | $\(currentBudget) | $\(String(format: "%.2f", avg)) |")
+        }
+
+        lines.append("")
+        lines.append("## Spending History by Month")
+        for month in sortedMonths {
+            let spending = spendingHistory[month] ?? [:]
+            let total = spending.values.reduce(0.0) { $0 + abs($1) }
+            lines.append("- \(DateHelpers.displayMonth(month)): $\(String(format: "%.2f", total)) total")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private var budgetGenerationSystemPrompt: String {
+        """
+        You are a personal budget planner. The user will provide their monthly income, \
+        desired budget style, existing categories, and spending history.
+
+        Create a complete monthly budget that allocates their FULL income across categories. \
+        The total of all allocations should equal the monthly income.
+
+        You may use the user's existing categories AND suggest new ones. \
+        Prefix new category names with "[NEW] " (e.g., "[NEW] Emergency Fund"). \
+        Use existing category names EXACTLY as shown.
+
+        Keep your text summary to 3-5 sentences explaining the key decisions. \
+        The JSON block is the priority.
+
+        End your response with exactly "---BUDGET---" followed by a JSON array:
+        [{"category":"Groceries","amount":600.00,"reason":"Based on 3-month average"},\
+        {"category":"[NEW] Emergency Fund","amount":200.00,"reason":"Recommended safety net"}]
+
+        RULES:
+        - Allocations MUST sum to the monthly income (account for every dollar)
+        - Include a "Savings" or "[NEW] Savings" category if one doesn't exist
+        - Round amounts to nearest whole dollar for simplicity
+        - Base suggestions on actual spending history when available
+        - The budget style dictates how aggressively to save vs spend on non-essentials
+        """
+    }
+
+    static func parseBudgetResponse(_ raw: String) -> (text: String, allocations: [BudgetAllocation]) {
+        let separator = "---BUDGET---"
+        guard let range = raw.range(of: separator) else {
+            return (raw.trimmingCharacters(in: .whitespacesAndNewlines), [])
+        }
+
+        let displayText = String(raw[raw.startIndex..<range.lowerBound])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let jsonString = String(raw[range.upperBound...])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let jsonData = jsonString.data(using: .utf8),
+              let items = try? JSONDecoder().decode([BudgetAllocation].self, from: jsonData)
         else {
             return (displayText, [])
         }

@@ -475,6 +475,18 @@ final class DatabaseManager {
 
     // MARK: - Transaction Queries
 
+    /// Sum of all positive-amount transactions (income) for a given month.
+    func fetchTotalIncome(forMonth month: String) throws -> Double {
+        try dbQueue.read { db in
+            let row = try Row.fetchOne(db, sql: """
+                SELECT COALESCE(SUM(amount), 0) AS total
+                FROM "transaction"
+                WHERE month = ? AND amount > 0 AND isDeleted = 0
+                """, arguments: [month])
+            return row?["total"] as? Double ?? 0
+        }
+    }
+
     func fetchTransactions(forMonth month: String) throws -> [Transaction] {
         try dbQueue.read { db in
             try Transaction

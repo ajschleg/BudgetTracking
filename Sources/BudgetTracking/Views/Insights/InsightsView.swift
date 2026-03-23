@@ -174,6 +174,114 @@ struct InsightsView: View {
                     Label("AI Assistant", systemImage: "sparkles")
                 }
 
+                // MARK: - Generate Budget
+                if viewModel.isAPIKeyConfigured {
+                    GroupBox {
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Detected income display
+                            HStack {
+                                Text("Detected Monthly Income")
+                                    .font(.subheadline)
+                                Spacer()
+                                if viewModel.monthlyIncome.isEmpty || viewModel.monthlyIncome == "0" {
+                                    Text("No income detected")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    Text("$\(viewModel.monthlyIncome)")
+                                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                                }
+                            }
+
+                            // Style picker
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Budget Style")
+                                    .font(.subheadline)
+                                Picker("Style", selection: $viewModel.budgetStyle) {
+                                    ForEach(ClaudeAPIService.BudgetStyle.allCases) { style in
+                                        Text(style.rawValue).tag(style)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+
+                                Text(viewModel.budgetStyle.description)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            // Generate button
+                            HStack {
+                                Spacer()
+                                Button {
+                                    Task { await viewModel.generateBudget() }
+                                } label: {
+                                    if viewModel.isLoadingBudgetGeneration {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Label("Generate Budget", systemImage: "wand.and.stars")
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(viewModel.isLoadingBudgetGeneration || viewModel.isOverCap)
+                            }
+
+                            // Results
+                            if !viewModel.budgetGenerationResponse.isEmpty {
+                                Divider()
+
+                                Text(viewModel.budgetGenerationResponse)
+                                    .font(.body)
+                                    .textSelection(.enabled)
+                                    .padding(12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                if !viewModel.budgetAllocations.isEmpty {
+                                    Divider()
+
+                                    HStack {
+                                        Text("Proposed Budget")
+                                            .font(.headline)
+                                        Spacer()
+                                        let total = viewModel.budgetAllocations.reduce(0.0) { $0 + $1.amount }
+                                        Text("Total: $\(String(format: "%.0f", total))")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    ForEach(viewModel.budgetAllocations) { allocation in
+                                        budgetAllocationCard(allocation)
+                                    }
+
+                                    Button {
+                                        viewModel.showApplyBudgetConfirmation = true
+                                    } label: {
+                                        Label("Apply This Budget", systemImage: "checkmark.circle.fill")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.orange)
+                                    .controlSize(.large)
+                                }
+                            }
+                        }
+                        .padding(4)
+                    } label: {
+                        Label("Generate Budget", systemImage: "wand.and.stars")
+                    }
+                    .onAppear { viewModel.loadIncomeEstimate() }
+                    .alert("Apply Budget?", isPresented: $viewModel.showApplyBudgetConfirmation) {
+                        Button("Cancel", role: .cancel) {}
+                        Button("Apply", role: .destructive) {
+                            withAnimation { viewModel.applyGeneratedBudget() }
+                        }
+                    } message: {
+                        Text("This will overwrite all current category budgets with the AI-generated amounts. New categories will be created as needed.")
+                    }
+                }
+
                 // MARK: - Rule Suggestions
                 if viewModel.isAPIKeyConfigured {
                     GroupBox {
@@ -245,18 +353,50 @@ struct InsightsView: View {
 
                                 Spacer()
 
-                                Button {
-                                    Task { await viewModel.categorizeTransactions() }
-                                } label: {
-                                    if viewModel.isLoadingCategorization {
+                                if viewModel.autoCategorizeRunning {
+                                    Button {
+                                        viewModel.stopAutoCategorize()
+                                    } label: {
+                                        Label("Stop", systemImage: "stop.fill")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .tint(.red)
+                                } else {
+                                    Button {
+                                        Task { await viewModel.categorizeTransactions() }
+                                    } label: {
+                                        if viewModel.isLoadingCategorization {
+                                            ProgressView()
+                                                .controlSize(.small)
+                                        } else {
+                                            Label("Categorize Batch", systemImage: "tag.fill")
+                                        }
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(viewModel.isLoadingCategorization || viewModel.isOverCap)
+
+                                    Button {
+                                        Task { await viewModel.autoCategorizeAll() }
+                                    } label: {
+                                        Label("Categorize All", systemImage: "arrow.triangle.2.circlepath")
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.orange)
+                                    .disabled(viewModel.isLoadingCategorization || viewModel.isOverCap)
+                                }
+                            }
+
+                            // Auto-categorize progress
+                            if !viewModel.autoCategorizeProgress.isEmpty {
+                                HStack(spacing: 8) {
+                                    if viewModel.autoCategorizeRunning {
                                         ProgressView()
                                             .controlSize(.small)
-                                    } else {
-                                        Label("Categorize", systemImage: "tag.fill")
                                     }
+                                    Text(viewModel.autoCategorizeProgress)
+                                        .font(.caption)
+                                        .foregroundStyle(viewModel.autoCategorizeRunning ? .primary : .secondary)
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(viewModel.isLoadingCategorization || viewModel.isOverCap)
                             }
 
                             if !viewModel.categorizationResponse.isEmpty {
@@ -372,6 +512,43 @@ struct InsightsView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
+        }
+        .padding(10)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - Budget Allocation Card
+
+    private func budgetAllocationCard(_ allocation: ClaudeAPIService.BudgetAllocation) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    if allocation.category.hasPrefix("[NEW] ") {
+                        Text(allocation.category.replacingOccurrences(of: "[NEW] ", with: ""))
+                            .font(.subheadline.weight(.semibold))
+                        Text("NEW")
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(.orange.opacity(0.2))
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text(allocation.category)
+                            .font(.subheadline.weight(.semibold))
+                    }
+                }
+                Text(allocation.reason)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text("$\(String(format: "%.0f", allocation.amount))")
+                .font(.title3.weight(.bold).monospacedDigit())
+                .foregroundStyle(.primary)
         }
         .padding(10)
         .background(.ultraThinMaterial)
