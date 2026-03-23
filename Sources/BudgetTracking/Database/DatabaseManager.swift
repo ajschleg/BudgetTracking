@@ -796,6 +796,88 @@ final class DatabaseManager {
         }
     }
 
+    // MARK: - Insights Queries
+
+    /// Fetch per-category spending for multiple months at once.
+    func fetchSpendingByCategory(forMonths months: [String]) throws -> [String: [UUID: Double]] {
+        guard !months.isEmpty else { return [:] }
+        return try dbQueue.read { db in
+            let placeholders = months.map { _ in "?" }.joined(separator: ", ")
+            let sql = """
+                SELECT month, categoryId, SUM(amount) as total
+                FROM "transaction"
+                WHERE month IN (\(placeholders))
+                  AND amount < 0
+                  AND isDeleted = 0
+                  AND categoryId IS NOT NULL
+                GROUP BY month, categoryId
+                """
+            let rows = try Row.fetchAll(db, sql: sql, arguments: StatementArguments(months))
+            var result: [String: [UUID: Double]] = [:]
+            for row in rows {
+                let month: String = row["month"]
+                let catId: UUID = row["categoryId"]
+                let total: Double = row["total"]
+                result[month, default: [:]][catId] = abs(total)
+            }
+            return result
+        }
+    }
+
+    /// Fetch large transactions (abs(amount) >= threshold) for a given month.
+    func fetchLargeTransactions(forMonth month: String, threshold: Double) throws -> [Transaction] {
+        try dbQueue.read { db in
+            try Transaction
+                .filter(Transaction.Columns.month == month)
+                .filter(Transaction.Columns.isDeleted == false)
+                .filter(sql: "amount < ?", arguments: [-threshold])
+                .order(Transaction.Columns.amount.asc)
+                .fetchAll(db)
+        }
+    }
+
+    /// Fetch total spending per month for a specific category across multiple months.
+    func fetchSpendingByMonth(forCategory categoryId: UUID, months: [String]) throws -> [String: Double] {
+        guard !months.isEmpty else { return [:] }
+        return try dbQueue.read { db in
+            let placeholders = months.map { _ in "?" }.joined(separator: ", ")
+            var args: [DatabaseValueConvertible] = [categoryId.uuidString]
+            args.append(contentsOf: months)
+            let sql = """
+                SELECT month, SUM(amount) as total
+                FROM "transaction"
+                WHERE categoryId = ?
+                  AND month IN (\(placeholders))
+                  AND amount < 0
+                  AND isDeleted = 0
+                GROUP BY month
+                """
+            let rows = try Row.fetchAll(db, sql: sql, arguments: StatementArguments(args))
+            var result: [String: Double] = [:]
+            for row in rows {
+                let month: String = row["month"]
+                let total: Double = row["total"]
+                result[month] = abs(total)
+            }
+            return result
+        }
+    }
+
+    /// Fetch total uncategorized spending for a given month.
+    func fetchUncategorizedSpending(forMonth month: String) throws -> Double {
+        try dbQueue.read { db in
+            let row = try Row.fetchOne(db, sql: """
+                SELECT COALESCE(SUM(amount), 0) as total
+                FROM "transaction"
+                WHERE categoryId IS NULL
+                  AND month = ?
+                  AND amount < 0
+                  AND isDeleted = 0
+                """, arguments: [month])
+            return abs(row?["total"] as Double? ?? 0)
+        }
+    }
+
     // MARK: - LAN Sync Queries
 
     /// Fetch all records modified since a given date (including soft-deleted ones for sync).

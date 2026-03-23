@@ -6,6 +6,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case importStatements = "Import"
     case categories = "Categories"
     case history = "History"
+    case insights = "Insights"
     case sync = "Sync"
 
     var id: String { rawValue }
@@ -17,6 +18,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .importStatements: return "square.and.arrow.down"
         case .categories: return "folder.fill"
         case .history: return "clock.fill"
+        case .insights: return "lightbulb.fill"
         case .sync: return "arrow.triangle.2.circlepath"
         }
     }
@@ -82,6 +84,8 @@ struct ContentView: View {
                 CategoriesSettingsView()
             case .history:
                 HistoryView(selectedMonth: $selectedMonth)
+            case .insights:
+                InsightsView(selectedMonth: $selectedMonth)
             case .sync:
                 SyncSettingsView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine)
             case nil:
