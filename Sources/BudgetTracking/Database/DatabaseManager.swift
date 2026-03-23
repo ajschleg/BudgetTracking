@@ -369,6 +369,40 @@ final class DatabaseManager {
         }
     }
 
+    /// Restore a specific list of categories (e.g. user-saved defaults).
+    func restoreCategories(_ categories: [BudgetCategory]) throws {
+        try dbQueue.write { db in
+            for cat in categories {
+                let exists = try BudgetCategory
+                    .filter(sql: "LOWER(name) = LOWER(?)", arguments: [cat.name])
+                    .filter(BudgetCategory.Columns.isDeleted == false)
+                    .fetchOne(db)
+                if exists == nil {
+                    if var deleted = try BudgetCategory
+                        .filter(sql: "LOWER(name) = LOWER(?)", arguments: [cat.name])
+                        .fetchOne(db)
+                    {
+                        deleted.isDeleted = false
+                        deleted.isArchived = false
+                        deleted.monthlyBudget = cat.monthlyBudget
+                        deleted.colorHex = cat.colorHex
+                        deleted.sortOrder = cat.sortOrder
+                        deleted.lastModifiedAt = Date()
+                        try deleted.update(db)
+                    } else {
+                        var newCat = cat
+                        newCat.id = UUID()
+                        newCat.lastModifiedAt = Date()
+                        newCat.cloudKitRecordName = nil
+                        newCat.cloudKitSystemFields = nil
+                        try newCat.insert(db)
+                    }
+                }
+            }
+        }
+        notifyDataChanged()
+    }
+
     /// Re-create any default categories that are missing or deleted.
     func restoreDefaultCategories() throws {
         try dbQueue.write { db in

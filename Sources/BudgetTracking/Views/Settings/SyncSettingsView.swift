@@ -37,9 +37,24 @@ struct SyncSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 // Header
-                Text("iCloud Sync")
+                Text("Sync Settings")
                     .font(.largeTitle)
                     .fontWeight(.bold)
+
+                // ── iCloud Section Header ──
+                HStack(spacing: 8) {
+                    Image(systemName: "icloud.fill")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("iCloud Sync")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                        Text("Syncs automatically via your iCloud account. Share with other iCloud users.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 // Sync Status Section
                 GroupBox {
@@ -76,7 +91,7 @@ struct SyncSettingsView: View {
                     }
                     .padding(8)
                 } label: {
-                    Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                    Label("iCloud Status", systemImage: "arrow.triangle.2.circlepath")
                 }
 
                 // Sharing Section
@@ -210,10 +225,27 @@ struct SyncSettingsView: View {
                     }
                     .padding(8)
                 } label: {
-                    Label("Sharing", systemImage: "person.2")
+                    Label("iCloud Sharing", systemImage: "person.2")
                 }
 
-                // Local Network Sync Section
+                Divider()
+                    .padding(.vertical, 4)
+
+                // ── LAN Section Header ──
+                HStack(spacing: 8) {
+                    Image(systemName: "wifi")
+                        .font(.title2)
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Local Network Sync")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                        Text("Direct device-to-device sync over WiFi. Works without iCloud — ideal for cross-region setups.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -289,7 +321,7 @@ struct SyncSettingsView: View {
                     }
                     .padding(8)
                 } label: {
-                    Label("Local Network", systemImage: "wifi")
+                    Label("LAN Devices", systemImage: "wifi")
                 }
 
                 // Info Section

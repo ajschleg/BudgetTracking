@@ -2,9 +2,14 @@ import Foundation
 
 @Observable
 final class CategoriesViewModel {
+    private static let savedDefaultsKey = "SavedDefaultCategories"
+
     var categories: [BudgetCategory] = []
     var rules: [CategorizationRule] = []
     var errorMessage: String?
+    var hasSavedDefaults: Bool {
+        UserDefaults.standard.data(forKey: Self.savedDefaultsKey) != nil
+    }
 
     func load() {
         do {
@@ -40,9 +45,23 @@ final class CategoriesViewModel {
         }
     }
 
+    func saveAsDefaults() {
+        do {
+            let data = try JSONEncoder().encode(categories)
+            UserDefaults.standard.set(data, forKey: Self.savedDefaultsKey)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func restoreDefaults() {
         do {
-            try DatabaseManager.shared.restoreDefaultCategories()
+            if let data = UserDefaults.standard.data(forKey: Self.savedDefaultsKey),
+               let saved = try? JSONDecoder().decode([BudgetCategory].self, from: data) {
+                try DatabaseManager.shared.restoreCategories(saved)
+            } else {
+                try DatabaseManager.shared.restoreDefaultCategories()
+            }
             load()
         } catch {
             errorMessage = error.localizedDescription

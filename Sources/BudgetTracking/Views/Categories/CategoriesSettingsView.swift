@@ -5,6 +5,7 @@ struct CategoriesSettingsView: View {
     @State private var showAddCategory = false
     @State private var showAddRule = false
     @State private var editingCategory: BudgetCategory?
+    @State private var showSaveDefaultsConfirmation = false
 
     var body: some View {
         ScrollView {
@@ -15,6 +16,17 @@ struct CategoriesSettingsView: View {
                         .font(.title2)
                         .fontWeight(.semibold)
                     Spacer()
+                    Button {
+                        if viewModel.hasSavedDefaults {
+                            showSaveDefaultsConfirmation = true
+                        } else {
+                            viewModel.saveAsDefaults()
+                        }
+                    } label: {
+                        Label("Save as Defaults", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.bordered)
+
                     Button {
                         viewModel.restoreDefaults()
                     } label: {
@@ -143,6 +155,14 @@ struct CategoriesSettingsView: View {
                 },
                 onCancel: { showAddRule = false }
             )
+        }
+        .alert("Overwrite Saved Defaults?", isPresented: $showSaveDefaultsConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Overwrite", role: .destructive) {
+                viewModel.saveAsDefaults()
+            }
+        } message: {
+            Text("You already have saved default categories. This will replace them with your current categories.")
         }
     }
 }
