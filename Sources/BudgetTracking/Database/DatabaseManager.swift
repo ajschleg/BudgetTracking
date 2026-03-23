@@ -487,6 +487,18 @@ final class DatabaseManager {
         }
     }
 
+    /// All positive-amount (income) transactions for a given month.
+    func fetchIncomeTransactions(forMonth month: String) throws -> [Transaction] {
+        try dbQueue.read { db in
+            try Transaction
+                .filter(Transaction.Columns.month == month)
+                .filter(sql: "amount > 0")
+                .filter(Transaction.Columns.isDeleted == false)
+                .order(Transaction.Columns.date.desc)
+                .fetchAll(db)
+        }
+    }
+
     func fetchTransactions(forMonth month: String) throws -> [Transaction] {
         try dbQueue.read { db in
             try Transaction

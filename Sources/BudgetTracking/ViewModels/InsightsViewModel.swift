@@ -18,6 +18,13 @@ final class InsightsViewModel {
     // Budget generation state
     var budgetStyle: ClaudeAPIService.BudgetStyle = .balanced
     var monthlyIncome: String = ""
+    // Income breakdown state
+    var incomeTransactions: [Transaction] = []
+    var excludedIncomeIds: Set<UUID> = {
+        let data = UserDefaults.standard.data(forKey: "excludedIncomeIds") ?? Data()
+        return (try? JSONDecoder().decode(Set<UUID>.self, from: data)) ?? []
+    }()
+    var showIncomeBreakdown = false
     var budgetAllocations: [ClaudeAPIService.BudgetAllocation] = []
     var budgetGenerationResponse: String = ""
     var isLoadingBudgetGeneration = false
@@ -213,12 +220,15 @@ final class InsightsViewModel {
 
     func loadIncomeEstimate() {
         do {
-            // Average income across last 3 months for a stable estimate
+            // Average income across last 3 months, excluding user-removed sources
             var total = 0.0
             var monthsWithIncome = 0
-            var m = currentMonth
+            let effectiveMonth = currentMonth.isEmpty ? DateHelpers.monthString() : currentMonth
+            var m = effectiveMonth
             for _ in 0..<3 {
-                let income = try DatabaseManager.shared.fetchTotalIncome(forMonth: m)
+                let txns = try DatabaseManager.shared.fetchIncomeTransactions(forMonth: m)
+                let included = txns.filter { !excludedIncomeIds.contains($0.id) }
+                let income = included.reduce(0.0) { $0 + $1.amount }
                 if income > 0 {
                     total += income
                     monthsWithIncome += 1
@@ -231,6 +241,33 @@ final class InsightsViewModel {
         } catch {
             // Silently fail
         }
+    }
+
+    func loadIncomeBreakdown() {
+        let effectiveMonth = currentMonth.isEmpty ? DateHelpers.monthString() : currentMonth
+        do {
+            incomeTransactions = try DatabaseManager.shared.fetchIncomeTransactions(forMonth: effectiveMonth)
+        } catch {
+            incomeTransactions = []
+        }
+    }
+
+    func toggleIncomeExclusion(_ id: UUID) {
+        if excludedIncomeIds.contains(id) {
+            excludedIncomeIds.remove(id)
+        } else {
+            excludedIncomeIds.insert(id)
+        }
+        // Persist
+        if let data = try? JSONEncoder().encode(excludedIncomeIds) {
+            UserDefaults.standard.set(data, forKey: "excludedIncomeIds")
+        }
+        // Recalculate
+        loadIncomeEstimate()
+    }
+
+    func isIncomeExcluded(_ id: UUID) -> Bool {
+        excludedIncomeIds.contains(id)
     }
 
     func generateBudget() async {

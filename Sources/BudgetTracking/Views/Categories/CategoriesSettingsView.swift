@@ -190,7 +190,20 @@ extension CategoriesSettingsView {
                 HStack {
                     Text("Detected Monthly Income")
                         .font(.subheadline)
+
+                    Button {
+                        aiViewModel.loadIncomeBreakdown()
+                        aiViewModel.showIncomeBreakdown = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("View income sources")
+
                     Spacer()
+
                     if aiViewModel.monthlyIncome.isEmpty || aiViewModel.monthlyIncome == "0" {
                         Text("No income detected")
                             .font(.subheadline)
@@ -293,6 +306,9 @@ extension CategoriesSettingsView {
             }
         } message: {
             Text("This will overwrite all current category budgets with the AI-generated amounts. New categories will be created as needed.")
+        }
+        .sheet(isPresented: $aiViewModel.showIncomeBreakdown) {
+            IncomeBreakdownSheet(viewModel: aiViewModel)
         }
     }
 
@@ -425,6 +441,101 @@ extension CategoriesSettingsView {
         .padding(10)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+// MARK: - Income Breakdown Sheet
+
+struct IncomeBreakdownSheet: View {
+    var viewModel: InsightsViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    private var transactions: [Transaction] { viewModel.incomeTransactions }
+    private var includedTotal: Double {
+        transactions
+            .filter { !viewModel.isIncomeExcluded($0.id) }
+            .reduce(0.0) { $0 + $1.amount }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Income Sources")
+                    .font(.title2.weight(.semibold))
+                Spacer()
+                Button("Done") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+            }
+            .padding()
+
+            Divider()
+
+            if transactions.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "banknote")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.secondary)
+                    Text("No income transactions found this month")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(transactions) { txn in
+                            incomeRow(txn)
+                            Divider()
+                        }
+                    }
+                }
+
+                Divider()
+
+                HStack {
+                    Text("Included Total")
+                        .font(.headline)
+                    Spacer()
+                    Text(CurrencyFormatter.format(includedTotal))
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(.green)
+                }
+                .padding()
+            }
+        }
+        .frame(minWidth: 500, minHeight: 400)
+    }
+
+    private func incomeRow(_ txn: Transaction) -> some View {
+        let excluded = viewModel.isIncomeExcluded(txn.id)
+        return HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(txn.description)
+                    .font(.body)
+                    .lineLimit(1)
+                    .strikethrough(excluded)
+                    .foregroundStyle(excluded ? .secondary : .primary)
+                Text(DateHelpers.shortDate(txn.date))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text(CurrencyFormatter.format(txn.amount))
+                .font(.body.monospacedDigit())
+                .foregroundColor(excluded ? .secondary : .green)
+
+            Button {
+                withAnimation { viewModel.toggleIncomeExclusion(txn.id) }
+            } label: {
+                Image(systemName: excluded ? "xmark.circle.fill" : "checkmark.circle.fill")
+                    .foregroundColor(excluded ? .red : .green)
+                    .font(.title3)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
     }
 }
 
