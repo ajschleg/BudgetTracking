@@ -25,6 +25,9 @@ struct ImportView: View {
         }
         .navigationTitle("Import Statements")
         .onAppear { viewModel.loadImportedFiles(month: selectedMonth) }
+        .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
+            viewModel.loadImportedFiles(month: selectedMonth)
+        }
         .onChange(of: selectedMonth) { _, newMonth in
             viewModel.loadImportedFiles(month: newMonth)
             // Only reset when no import is actively in progress.

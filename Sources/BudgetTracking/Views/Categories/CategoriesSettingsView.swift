@@ -121,6 +121,9 @@ struct CategoriesSettingsView: View {
         }
         .navigationTitle("Categories")
         .onAppear { viewModel.load() }
+        .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
+            viewModel.load()
+        }
         .sheet(isPresented: $showAddCategory) {
             CategoryEditorView(
                 categories: viewModel.categories,

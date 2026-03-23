@@ -66,6 +66,9 @@ struct HistoryView: View {
         }
         .navigationTitle("History")
         .onAppear { viewModel.load() }
+        .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
+            viewModel.load()
+        }
     }
 }
 

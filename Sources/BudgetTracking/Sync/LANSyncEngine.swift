@@ -551,6 +551,10 @@ final class LANSyncEngine: @unchecked Sendable {
     private func handleSyncResponse(_ response: SyncResponse, from peerId: String, connection: NWConnection) {
         logger.info("Received \(response.records.count) records from \(peerId)")
 
+        // Capture the previous sync date BEFORE updating it — the reverse sync
+        // must use this so locally edited records aren't skipped.
+        let previousSyncDate = stateStore.lastSyncDate(forPeer: peerId)
+
         Task { @MainActor in
             if let name = connectedPeerName {
                 status = .syncing(peerName: name)
@@ -628,13 +632,13 @@ final class LANSyncEngine: @unchecked Sendable {
             NotificationCenter.default.post(name: .lanSyncDidComplete, object: nil)
         }
 
-        // Only send our changes back if we actually have records to push
-        let reverseSinceDate = stateStore.lastSyncDate(forPeer: peerId)
-        let hasLocalChanges = hasRecordsSince(reverseSinceDate)
+        // Send our changes back using the PREVIOUS sync date so that records
+        // edited between the last sync and now are included.
+        let hasLocalChanges = hasRecordsSince(previousSyncDate)
         if hasLocalChanges {
-            logger.info("Starting reverse sync to \(peerId) (since: \(reverseSinceDate?.description ?? "beginning"))")
+            logger.info("Starting reverse sync to \(peerId) (since: \(previousSyncDate?.description ?? "beginning"))")
             handleSyncRequest(
-                SyncRequest(sinceDate: reverseSinceDate),
+                SyncRequest(sinceDate: previousSyncDate),
                 from: peerId,
                 connection: connection
             )
