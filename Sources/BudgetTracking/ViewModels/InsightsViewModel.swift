@@ -10,7 +10,14 @@ final class InsightsViewModel {
     // AI Assistant state
     var userQuestion: String = ""
     var aiResponse: String = ""
+    var suggestions: [ClaudeAPIService.BudgetSuggestion] = []
+    var ruleSuggestions: [ClaudeAPIService.RuleSuggestion] = []
+    var ruleResponse: String = ""
+    var categorizationSuggestions: [ClaudeAPIService.CategorizationSuggestion] = []
+    var categorizationResponse: String = ""
     var isLoadingAI = false
+    var isLoadingRules = false
+    var isLoadingCategorization = false
     var aiErrorMessage: String?
 
     private let engine = InsightsEngine()
@@ -86,6 +93,7 @@ final class InsightsViewModel {
             recordUsage(inputTokens: result.inputTokens, outputTokens: result.outputTokens)
             await MainActor.run {
                 aiResponse = result.text
+                suggestions = result.suggestions
                 isLoadingAI = false
             }
         } catch {
@@ -93,6 +101,236 @@ final class InsightsViewModel {
                 aiErrorMessage = error.localizedDescription
                 isLoadingAI = false
             }
+        }
+    }
+
+    // MARK: - Apply Suggestions
+
+    func applySuggestion(_ suggestion: ClaudeAPIService.BudgetSuggestion) {
+        do {
+            let categories = try DatabaseManager.shared.fetchCategories()
+            guard var category = categories.first(where: {
+                $0.name.lowercased() == suggestion.category.lowercased()
+            }) else {
+                aiErrorMessage = "Category \"\(suggestion.category)\" not found."
+                return
+            }
+            category.monthlyBudget = suggestion.suggestedBudget
+            try DatabaseManager.shared.saveCategory(category)
+            suggestions.removeAll { $0.id == suggestion.id }
+        } catch {
+            aiErrorMessage = "Failed to apply: \(error.localizedDescription)"
+        }
+    }
+
+    func applyAllSuggestions() {
+        for suggestion in suggestions {
+            applySuggestion(suggestion)
+        }
+    }
+
+    // MARK: - Rule Suggestions
+
+    func suggestRules() async {
+        guard isAPIKeyConfigured else {
+            aiErrorMessage = "Please enter your Claude API key first."
+            return
+        }
+        guard !isOverCap else {
+            aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
+            return
+        }
+
+        await MainActor.run {
+            isLoadingRules = true
+            aiErrorMessage = nil
+            ruleResponse = ""
+            ruleSuggestions = []
+        }
+
+        do {
+            let categories = try DatabaseManager.shared.fetchCategories()
+            let prompt = try ClaudeAPIService.buildRulePrompt(
+                currentMonth: currentMonth,
+                categories: categories
+            )
+            let result = try await aiService.suggestRules(apiKey: apiKey, prompt: prompt)
+            recordUsage(inputTokens: result.inputTokens, outputTokens: result.outputTokens)
+            await MainActor.run {
+                ruleResponse = result.text
+                ruleSuggestions = result.rules
+                isLoadingRules = false
+            }
+        } catch {
+            await MainActor.run {
+                aiErrorMessage = error.localizedDescription
+                isLoadingRules = false
+            }
+        }
+    }
+
+    func applyRule(_ rule: ClaudeAPIService.RuleSuggestion) {
+        do {
+            let categories = try DatabaseManager.shared.fetchCategories()
+            guard let category = categories.first(where: {
+                $0.name.lowercased() == rule.category.lowercased()
+            }) else {
+                aiErrorMessage = "Category \"\(rule.category)\" not found."
+                return
+            }
+            let existingRules = try DatabaseManager.shared.fetchRules()
+            let maxPriority = existingRules.map(\.priority).max() ?? 0
+            let newRule = CategorizationRule(
+                keyword: rule.keyword,
+                categoryId: category.id,
+                priority: maxPriority + 1,
+                isUserDefined: true
+            )
+            try DatabaseManager.shared.saveRule(newRule)
+            ruleSuggestions.removeAll { $0.id == rule.id }
+        } catch {
+            aiErrorMessage = "Failed to apply rule: \(error.localizedDescription)"
+        }
+    }
+
+    func applyAllRules() {
+        for rule in ruleSuggestions {
+            applyRule(rule)
+        }
+    }
+
+    // MARK: - Auto-Categorize Transactions
+
+    func categorizeTransactions() async {
+        guard isAPIKeyConfigured else {
+            aiErrorMessage = "Please enter your Claude API key first."
+            return
+        }
+        guard !isOverCap else {
+            aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
+            return
+        }
+
+        await MainActor.run {
+            isLoadingCategorization = true
+            aiErrorMessage = nil
+            categorizationResponse = ""
+            categorizationSuggestions = []
+        }
+
+        do {
+            let categories = try DatabaseManager.shared.fetchCategories()
+            // Gather uncategorized transactions from last 3 months
+            var transactions: [Transaction] = []
+            var m = currentMonth
+            for _ in 0..<3 {
+                transactions.append(contentsOf: try DatabaseManager.shared.fetchUncategorizedTransactions(forMonth: m))
+                m = DateHelpers.previousMonth(from: m)
+            }
+
+            guard !transactions.isEmpty else {
+                await MainActor.run {
+                    categorizationResponse = "No uncategorized transactions found."
+                    isLoadingCategorization = false
+                }
+                return
+            }
+
+            let prompt = ClaudeAPIService.buildCategorizationPrompt(
+                currentMonth: currentMonth,
+                categories: categories,
+                transactions: transactions
+            )
+            let result = try await aiService.categorizeTransactions(apiKey: apiKey, prompt: prompt)
+            recordUsage(inputTokens: result.inputTokens, outputTokens: result.outputTokens)
+
+            // Match AI suggestions back to actual transaction UUIDs.
+            // Use progressively looser matching to handle AI truncation/reformatting.
+            var matched = result.categorizations
+            var usedTxnIds = Set<UUID>()
+
+            for i in matched.indices {
+                let aiDesc = matched[i].transactionDescription.lowercased().trimmingCharacters(in: .whitespaces)
+                let aiAmount = matched[i].amount
+
+                // Find best match: exact → starts-with → contains → amount-only
+                let candidate = transactions.first(where: { txn in
+                    guard !usedTxnIds.contains(txn.id) else { return false }
+                    guard abs(abs(txn.amount) - aiAmount) < 0.01 else { return false }
+                    return txn.description.lowercased() == aiDesc
+                }) ?? transactions.first(where: { txn in
+                    guard !usedTxnIds.contains(txn.id) else { return false }
+                    guard abs(abs(txn.amount) - aiAmount) < 0.01 else { return false }
+                    let dbDesc = txn.description.lowercased()
+                    return dbDesc.hasPrefix(aiDesc) || aiDesc.hasPrefix(dbDesc)
+                }) ?? transactions.first(where: { txn in
+                    guard !usedTxnIds.contains(txn.id) else { return false }
+                    guard abs(abs(txn.amount) - aiAmount) < 0.01 else { return false }
+                    let dbDesc = txn.description.lowercased()
+                    return dbDesc.contains(aiDesc) || aiDesc.contains(dbDesc)
+                })
+
+                if let txn = candidate {
+                    matched[i].transactionId = txn.id
+                    usedTxnIds.insert(txn.id)
+                }
+            }
+
+            await MainActor.run {
+                categorizationResponse = result.text
+                categorizationSuggestions = matched.filter { $0.transactionId != nil }
+                isLoadingCategorization = false
+            }
+        } catch {
+            await MainActor.run {
+                aiErrorMessage = error.localizedDescription
+                isLoadingCategorization = false
+            }
+        }
+    }
+
+    func applyCategorization(_ item: ClaudeAPIService.CategorizationSuggestion) {
+        guard let txnId = item.transactionId else { return }
+        do {
+            let categories = try DatabaseManager.shared.fetchCategories()
+            let categoryName = item.category.replacingOccurrences(of: "[NEW] ", with: "")
+
+            // Find existing category or create a new one
+            let category: BudgetCategory
+            if let existing = categories.first(where: {
+                $0.name.lowercased() == categoryName.lowercased()
+            }) {
+                category = existing
+            } else {
+                // Create the new category suggested by AI
+                let colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
+                              "#DDA0DD", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9"]
+                var newCat = BudgetCategory(
+                    id: UUID(),
+                    name: categoryName,
+                    monthlyBudget: 0,
+                    colorHex: colors.randomElement() ?? "#4ECDC4",
+                    sortOrder: categories.count,
+                    isArchived: false,
+                    lastModifiedAt: Date(),
+                    cloudKitRecordName: nil,
+                    cloudKitSystemFields: nil,
+                    isDeleted: false
+                )
+                try DatabaseManager.shared.saveCategory(newCat)
+                category = newCat
+            }
+
+            try DatabaseManager.shared.updateTransactionCategory(txnId, categoryId: category.id, isManual: true)
+            categorizationSuggestions.removeAll { $0.id == item.id }
+        } catch {
+            aiErrorMessage = "Failed to categorize: \(error.localizedDescription)"
+        }
+    }
+
+    func applyAllCategorizations() {
+        for item in categorizationSuggestions {
+            applyCategorization(item)
         }
     }
 

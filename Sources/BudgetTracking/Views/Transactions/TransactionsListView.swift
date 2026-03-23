@@ -21,6 +21,9 @@ struct TransactionsListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
             viewModel.load(month: selectedMonth)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .localDataDidChange)) { _ in
+            viewModel.load(month: selectedMonth)
+        }
     }
 }
 

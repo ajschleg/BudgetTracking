@@ -27,6 +27,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 struct ContentView: View {
     @State private var selectedItem: SidebarItem? = .dashboard
     @State private var selectedMonth: String = DateHelpers.monthString()
+    @State private var insightsViewModel = InsightsViewModel()
 
     let syncEngine: SyncEngine
     let shareManager: ShareManager
@@ -85,7 +86,7 @@ struct ContentView: View {
             case .history:
                 HistoryView(selectedMonth: $selectedMonth)
             case .insights:
-                InsightsView(selectedMonth: $selectedMonth)
+                InsightsView(selectedMonth: $selectedMonth, viewModel: insightsViewModel)
             case .sync:
                 SyncSettingsView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine)
             case nil:

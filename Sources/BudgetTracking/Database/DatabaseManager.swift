@@ -878,6 +878,29 @@ final class DatabaseManager {
         }
     }
 
+    /// Fetch uncategorized transactions for a given month.
+    func fetchUncategorizedTransactions(forMonth month: String) throws -> [Transaction] {
+        try dbQueue.read { db in
+            try Transaction
+                .filter(Transaction.Columns.categoryId == nil)
+                .filter(Transaction.Columns.month == month)
+                .filter(Transaction.Columns.isDeleted == false)
+                .order(Transaction.Columns.date.desc)
+                .fetchAll(db)
+        }
+    }
+
+    /// Fetch recent transactions for a given month (all, including categorized).
+    func fetchRecentTransactions(forMonth month: String) throws -> [Transaction] {
+        try dbQueue.read { db in
+            try Transaction
+                .filter(Transaction.Columns.month == month)
+                .filter(Transaction.Columns.isDeleted == false)
+                .order(Transaction.Columns.date.desc)
+                .fetchAll(db)
+        }
+    }
+
     // MARK: - LAN Sync Queries
 
     /// Fetch all records modified since a given date (including soft-deleted ones for sync).
