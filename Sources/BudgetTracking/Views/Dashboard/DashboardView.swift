@@ -11,6 +11,12 @@ struct DashboardView: View {
                 MonthSelectorView(selectedMonth: $selectedMonth)
                     .padding(.top)
 
+                // Income summary
+                if viewModel.totalIncome > 0 {
+                    incomeSummarySection
+                        .padding(.horizontal)
+                }
+
                 // Overall budget bar
                 OverallBudgetBar(
                     spent: viewModel.totalSpent,
@@ -59,6 +65,103 @@ struct DashboardView: View {
         .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
             viewModel.load(month: selectedMonth)
         }
+    }
+
+    // MARK: - Income Summary
+
+    private var incomeSummarySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header (clickable to expand)
+            HStack {
+                Image(systemName: "arrow.down.circle.fill")
+                    .foregroundStyle(.green)
+
+                Text("Income")
+                    .font(.headline)
+
+                Spacer()
+
+                Image(systemName: viewModel.isIncomeExpanded ? "chevron.up" : "chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text(CurrencyFormatter.format(viewModel.totalIncome))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.green)
+            }
+            .padding()
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.isIncomeExpanded.toggle()
+                }
+            }
+
+            // Expanded transaction list
+            if viewModel.isIncomeExpanded {
+                Divider()
+                    .padding(.horizontal)
+
+                if viewModel.incomeTransactions.isEmpty {
+                    Text("No income transactions this month")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding()
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(viewModel.incomeTransactions) { txn in
+                            HStack {
+                                Text(DateHelpers.shortDate(txn.date))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 65, alignment: .leading)
+
+                                Text(txn.description)
+                                    .font(.caption)
+                                    .lineLimit(1)
+
+                                Spacer()
+
+                                Text(CurrencyFormatter.format(txn.amount))
+                                    .font(.caption)
+                                    .monospacedDigit()
+                                    .foregroundStyle(.green)
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 4)
+
+                            if txn.id != viewModel.incomeTransactions.last?.id {
+                                Divider()
+                                    .padding(.horizontal)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                // Net summary
+                Divider()
+                    .padding(.horizontal)
+                HStack {
+                    Text("Net (Income − Spending)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    let net = viewModel.totalIncome - viewModel.totalSpent
+                    Text(CurrencyFormatter.format(abs(net)))
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(net >= 0 ? .green : .red)
+                    Text(net >= 0 ? "surplus" : "deficit")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 6)
+            }
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(10)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.isIncomeExpanded)
     }
 }
 

@@ -7,6 +7,9 @@ final class DashboardViewModel {
     var spendingByCategory: [UUID: Double] = [:]
     var totalSpent: Double = 0
     var totalBudget: Double = 0
+    var totalIncome: Double = 0
+    var incomeTransactions: [Transaction] = []
+    var isIncomeExpanded = false
     var errorMessage: String?
 
     /// The currently expanded category (nil = none expanded).
@@ -24,6 +27,8 @@ final class DashboardViewModel {
             spendingByCategory = try DatabaseManager.shared.fetchSpendingByCategory(forMonth: month)
             totalSpent = try DatabaseManager.shared.fetchTotalSpending(forMonth: month)
             totalBudget = categories.reduce(0) { $0 + $1.monthlyBudget }
+            totalIncome = try DatabaseManager.shared.fetchTotalIncome(forMonth: month)
+            incomeTransactions = try DatabaseManager.shared.fetchIncomeTransactions(forMonth: month)
             errorMessage = nil
 
             // Refresh expanded transactions if a category is still expanded
