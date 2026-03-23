@@ -48,12 +48,25 @@ struct ContentView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                HStack(spacing: 6) {
-                    lanSyncStatusDot
-                    Text(lanSyncStatusLabel)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Button {
+                    lanSyncEngine.syncNow()
+                } label: {
+                    HStack(spacing: 6) {
+                        lanSyncStatusDot
+                        Text(lanSyncStatusLabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if lanSyncEngine.connectedPeerName != nil {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
+                .buttonStyle(.plain)
+                .disabled(lanSyncEngine.connectedPeerName == nil)
+                .help(lanSyncEngine.connectedPeerName != nil ? "Sync now" : "No peer connected")
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
@@ -75,6 +88,54 @@ struct ContentView: View {
                 Text("Select an item from the sidebar")
                     .foregroundStyle(.secondary)
             }
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    lanSyncEngine.syncNow()
+                } label: {
+                    HStack(spacing: 4) {
+                        lanSyncToolbarIcon
+                        if case .syncing(let name) = lanSyncEngine.status {
+                            Text("Syncing with \(name)…")
+                                .font(.caption)
+                        }
+                    }
+                }
+                .disabled(lanSyncEngine.connectedPeerName == nil)
+                .help(lanSyncToolbarHelp)
+            }
+        }
+    }
+
+    // MARK: - Toolbar Sync Button
+
+    @ViewBuilder
+    private var lanSyncToolbarIcon: some View {
+        switch lanSyncEngine.status {
+        case .syncing:
+            ProgressView()
+                .controlSize(.small)
+        case .connected:
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .foregroundStyle(.green)
+        case .searching:
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .foregroundStyle(.orange)
+        default:
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var lanSyncToolbarHelp: String {
+        if lanSyncEngine.connectedPeerName != nil {
+            return "Sync now with \(lanSyncEngine.connectedPeerName!)"
+        }
+        switch lanSyncEngine.status {
+        case .disabled: return "LAN sync is disabled — enable in Sync settings"
+        case .searching: return "Searching for peers…"
+        default: return "No peer connected"
         }
     }
 

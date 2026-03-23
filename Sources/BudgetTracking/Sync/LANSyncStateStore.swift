@@ -1,10 +1,12 @@
 import Foundation
+import os.log
 
 /// Persists per-peer sync timestamps so we only exchange records modified since the last sync.
 final class LANSyncStateStore {
 
     private let fileURL: URL
     private var peerTimestamps: [String: Date] = [:]
+    private let logger = Logger(subsystem: "BudgetTracking", category: "LANSync")
 
     init() {
         let appSupport = FileManager.default.urls(
@@ -28,15 +30,28 @@ final class LANSyncStateStore {
     }
 
     private func load() {
-        guard let data = try? Data(contentsOf: fileURL),
-              let decoded = try? JSONDecoder().decode([String: Date].self, from: data) else {
+        guard let data = try? Data(contentsOf: fileURL) else {
+            logger.debug("No existing state file at \(self.fileURL.path)")
+            return
+        }
+        guard let decoded = try? JSONDecoder().decode([String: Date].self, from: data) else {
+            logger.error("Failed to decode state file at \(self.fileURL.path)")
             return
         }
         peerTimestamps = decoded
+        logger.debug("Loaded sync state for \(decoded.count) peer(s) from \(self.fileURL.path)")
     }
 
     private func save() {
-        guard let data = try? JSONEncoder().encode(peerTimestamps) else { return }
-        try? data.write(to: fileURL, options: .atomic)
+        guard let data = try? JSONEncoder().encode(peerTimestamps) else {
+            logger.error("Failed to encode peer timestamps for save")
+            return
+        }
+        do {
+            try data.write(to: fileURL, options: .atomic)
+            logger.debug("Saved sync state for \(self.peerTimestamps.count) peer(s)")
+        } catch {
+            logger.error("Failed to write state file: \(error)")
+        }
     }
 }

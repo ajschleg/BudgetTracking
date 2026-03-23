@@ -51,6 +51,18 @@ enum SyncMessage: Codable {
     }
 }
 
+extension SyncMessage {
+    /// Human-readable message type for logging.
+    var typeDescription: String {
+        switch self {
+        case .handshake: return "handshake"
+        case .syncRequest: return "syncRequest"
+        case .syncResponse(let resp): return "syncResponse(\(resp.records.count) records)"
+        case .syncAck(let ack): return "syncAck(\(ack.recordsApplied) applied)"
+        }
+    }
+}
+
 // MARK: - Supporting Types
 
 struct PeerInfo: Codable {

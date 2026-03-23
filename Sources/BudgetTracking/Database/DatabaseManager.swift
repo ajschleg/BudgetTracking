@@ -369,6 +369,36 @@ final class DatabaseManager {
         }
     }
 
+    /// Re-create any default categories that are missing or deleted.
+    func restoreDefaultCategories() throws {
+        try dbQueue.write { db in
+            for defaultCat in BudgetCategory.defaultCategories {
+                // Check if a non-deleted category with this name already exists
+                let exists = try BudgetCategory
+                    .filter(sql: "LOWER(name) = LOWER(?)", arguments: [defaultCat.name])
+                    .filter(BudgetCategory.Columns.isDeleted == false)
+                    .fetchOne(db)
+                if exists == nil {
+                    // Un-delete if soft-deleted, otherwise insert fresh
+                    if var deleted = try BudgetCategory
+                        .filter(sql: "LOWER(name) = LOWER(?)", arguments: [defaultCat.name])
+                        .fetchOne(db)
+                    {
+                        deleted.isDeleted = false
+                        deleted.isArchived = false
+                        deleted.lastModifiedAt = Date()
+                        try deleted.update(db)
+                    } else {
+                        var cat = defaultCat
+                        cat.lastModifiedAt = Date()
+                        try cat.insert(db)
+                    }
+                }
+            }
+        }
+        notifyDataChanged()
+    }
+
     // MARK: - Category Queries
 
     func fetchCategories() throws -> [BudgetCategory] {
@@ -736,45 +766,207 @@ final class DatabaseManager {
         }
     }
 
-    /// Upsert a record received from a LAN peer with conflict-aware merge.
+    /// Upsert a record received from a LAN peer with conflict-aware merge (generic fallback).
     /// Returns true if the record was actually applied (incoming was newer).
     @discardableResult
     func upsertFromPeer<T: PersistableRecord & FetchableRecord & Identifiable & Codable>(
         _ incoming: T
     ) throws -> Bool where T.ID == UUID {
         try dbQueue.write { db in
-            // Check if record already exists
-            if let existing = try T.fetchOne(db, key: incoming.id) {
-                // Compare lastModifiedAt — only apply if incoming is newer
-                let mirror = Mirror(reflecting: existing)
-                let existingModified = mirror.children.first(where: { $0.label == "lastModifiedAt" })?.value as? Date ?? .distantPast
-                let incomingMirror = Mirror(reflecting: incoming)
-                let incomingModified = incomingMirror.children.first(where: { $0.label == "lastModifiedAt" })?.value as? Date ?? .distantPast
+            try Self.applyPeerRecord(incoming, existing: try T.fetchOne(db, key: incoming.id), in: db)
+        }
+    }
 
-                guard incomingModified > existingModified else {
-                    return false // Local version is newer or same, skip
-                }
+    // MARK: - Type-Specific Upserts (content-based deduplication)
 
-                // Special handling for Transaction: prefer manually categorized version
-                if let existingTxn = existing as? Transaction,
-                   let incomingTxn = incoming as? Transaction {
-                    if existingTxn.isManuallyCategorized && !incomingTxn.isManuallyCategorized {
-                        return false // Keep the manually categorized version
-                    }
-                }
+    /// Upsert a BudgetCategory with dedup on `name`.
+    @discardableResult
+    func upsertFromPeer(_ incoming: BudgetCategory) throws -> Bool {
+        try dbQueue.write { db in
+            // 1. Exact UUID match
+            if let existing = try BudgetCategory.fetchOne(db, key: incoming.id) {
+                return try Self.applyPeerRecord(incoming, existing: existing, in: db)
             }
-
-            // Strip CloudKit-specific fields for LAN sync
-            var record = incoming
-            let incomingMirror = Mirror(reflecting: record)
-            // Clear cloudKitSystemFields since they're CK-specific
-            if var mutableRecord = record as? any MutablePersistableRecord {
-                try mutableRecord.save(db)
-                return true
+            // 2. Content-based match: same name (case-insensitive)
+            if let existing = try BudgetCategory
+                .filter(sql: "LOWER(name) = LOWER(?)", arguments: [incoming.name])
+                .filter(BudgetCategory.Columns.isDeleted == false)
+                .fetchOne(db)
+            {
+                // Remap any references from incoming.id → existing.id
+                try Self.remapCategoryId(from: incoming.id, to: existing.id, in: db)
+                // Merge using existing's UUID
+                var merged = incoming
+                merged.id = existing.id
+                return try Self.applyPeerRecord(merged, existing: existing, in: db)
             }
-            try record.save(db)
+            // 3. New record
+            return try Self.applyPeerRecord(incoming, existing: nil, in: db)
+        }
+    }
+
+    /// Upsert a Transaction with dedup on `(date, description, amount, month)`.
+    @discardableResult
+    func upsertFromPeer(_ incoming: Transaction) throws -> Bool {
+        try dbQueue.write { db in
+            // 1. Exact UUID match
+            if let existing = try Transaction.fetchOne(db, key: incoming.id) {
+                return try Self.applyPeerTransaction(incoming, existing: existing, in: db)
+            }
+            // 2. Content-based match
+            if let existing = try Transaction
+                .filter(Transaction.Columns.date == incoming.date)
+                .filter(Transaction.Columns.description == incoming.description)
+                .filter(Transaction.Columns.amount == incoming.amount)
+                .filter(Transaction.Columns.month == incoming.month)
+                .filter(Transaction.Columns.isDeleted == false)
+                .fetchOne(db)
+            {
+                var merged = incoming
+                merged.id = existing.id
+                return try Self.applyPeerTransaction(merged, existing: existing, in: db)
+            }
+            // 3. New record
+            return try Self.applyPeerTransaction(incoming, existing: nil, in: db)
+        }
+    }
+
+    /// Upsert an ImportedFile with dedup on `(fileName, fileSize)`.
+    @discardableResult
+    func upsertFromPeer(_ incoming: ImportedFile) throws -> Bool {
+        try dbQueue.write { db in
+            if let existing = try ImportedFile.fetchOne(db, key: incoming.id) {
+                return try Self.applyPeerRecord(incoming, existing: existing, in: db)
+            }
+            if let existing = try ImportedFile
+                .filter(ImportedFile.Columns.fileName == incoming.fileName)
+                .filter(ImportedFile.Columns.fileSize == incoming.fileSize)
+                .filter(ImportedFile.Columns.isDeleted == false)
+                .fetchOne(db)
+            {
+                var merged = incoming
+                merged.id = existing.id
+                return try Self.applyPeerRecord(merged, existing: existing, in: db)
+            }
+            return try Self.applyPeerRecord(incoming, existing: nil, in: db)
+        }
+    }
+
+    /// Upsert a CategorizationRule with dedup on `(keyword, categoryId)`.
+    @discardableResult
+    func upsertFromPeer(_ incoming: CategorizationRule) throws -> Bool {
+        try dbQueue.write { db in
+            if let existing = try CategorizationRule.fetchOne(db, key: incoming.id) {
+                return try Self.applyPeerRecord(incoming, existing: existing, in: db)
+            }
+            if let existing = try CategorizationRule
+                .filter(sql: "LOWER(keyword) = LOWER(?)", arguments: [incoming.keyword])
+                .filter(CategorizationRule.Columns.categoryId == incoming.categoryId)
+                .filter(CategorizationRule.Columns.isDeleted == false)
+                .fetchOne(db)
+            {
+                var merged = incoming
+                merged.id = existing.id
+                return try Self.applyPeerRecord(merged, existing: existing, in: db)
+            }
+            return try Self.applyPeerRecord(incoming, existing: nil, in: db)
+        }
+    }
+
+    /// Upsert a MonthlySnapshot with dedup on `month`.
+    @discardableResult
+    func upsertFromPeer(_ incoming: MonthlySnapshot) throws -> Bool {
+        try dbQueue.write { db in
+            if let existing = try MonthlySnapshot.fetchOne(db, key: incoming.id) {
+                return try Self.applyPeerRecord(incoming, existing: existing, in: db)
+            }
+            if let existing = try MonthlySnapshot
+                .filter(MonthlySnapshot.Columns.month == incoming.month)
+                .filter(MonthlySnapshot.Columns.isDeleted == false)
+                .fetchOne(db)
+            {
+                var merged = incoming
+                merged.id = existing.id
+                return try Self.applyPeerRecord(merged, existing: existing, in: db)
+            }
+            return try Self.applyPeerRecord(incoming, existing: nil, in: db)
+        }
+    }
+
+    /// Upsert a BankProfile with dedup on `name`.
+    @discardableResult
+    func upsertFromPeer(_ incoming: BankProfile) throws -> Bool {
+        try dbQueue.write { db in
+            if let existing = try BankProfile.fetchOne(db, key: incoming.id) {
+                return try Self.applyPeerRecord(incoming, existing: existing, in: db)
+            }
+            if let existing = try BankProfile
+                .filter(sql: "LOWER(name) = LOWER(?)", arguments: [incoming.name])
+                .filter(BankProfile.Columns.isDeleted == false)
+                .fetchOne(db)
+            {
+                var merged = incoming
+                merged.id = existing.id
+                return try Self.applyPeerRecord(merged, existing: existing, in: db)
+            }
+            return try Self.applyPeerRecord(incoming, existing: nil, in: db)
+        }
+    }
+
+    // MARK: - Shared Peer Sync Helpers
+
+    /// Core last-writer-wins merge logic shared by all upsert overloads.
+    private static func applyPeerRecord<T: PersistableRecord & FetchableRecord & Identifiable & Codable>(
+        _ incoming: T, existing: T?, in db: Database
+    ) throws -> Bool where T.ID == UUID {
+        if let existing {
+            let existingModified = Mirror(reflecting: existing)
+                .children.first(where: { $0.label == "lastModifiedAt" })?.value as? Date ?? .distantPast
+            let incomingModified = Mirror(reflecting: incoming)
+                .children.first(where: { $0.label == "lastModifiedAt" })?.value as? Date ?? .distantPast
+            guard incomingModified > existingModified else {
+                return false
+            }
+        }
+        let record = incoming
+        if var mutableRecord = record as? (any MutablePersistableRecord) {
+            try mutableRecord.save(db)
             return true
         }
+        try record.save(db)
+        return true
+    }
+
+    /// Transaction-specific merge that also protects manually categorized records.
+    private static func applyPeerTransaction(
+        _ incoming: Transaction, existing: Transaction?, in db: Database
+    ) throws -> Bool {
+        if let existing {
+            guard incoming.lastModifiedAt > existing.lastModifiedAt else {
+                return false
+            }
+            // Prefer manually categorized version
+            if existing.isManuallyCategorized && !incoming.isManuallyCategorized {
+                return false
+            }
+        }
+        var txn = incoming
+        try txn.save(db)
+        return true
+    }
+
+    /// Remap all references from one categoryId to another (used when merging duplicate categories).
+    private static func remapCategoryId(from oldId: UUID, to newId: UUID, in db: Database) throws {
+        // Update transactions
+        try db.execute(
+            sql: "UPDATE \"transaction\" SET categoryId = ? WHERE categoryId = ?",
+            arguments: [newId, oldId]
+        )
+        // Update categorization rules
+        try db.execute(
+            sql: "UPDATE \"categorizationRule\" SET categoryId = ? WHERE categoryId = ?",
+            arguments: [newId, oldId]
+        )
     }
 
     /// Purge soft-deleted records older than a given date (after sync confirmation).

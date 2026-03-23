@@ -90,9 +90,12 @@ final class LANSyncEngine: @unchecked Sendable {
     // MARK: - Start / Stop
 
     func start() {
-        guard listener == nil else { return }
+        guard listener == nil else {
+            logger.debug("start() called but listener already exists, skipping")
+            return
+        }
 
-        logger.info("Starting LAN sync (deviceId: \(self.deviceId))")
+        logger.info("Starting LAN sync (deviceId: \(self.deviceId), deviceName: \(self.deviceName))")
 
         // Start listener (advertise ourselves)
         do {
@@ -149,6 +152,11 @@ final class LANSyncEngine: @unchecked Sendable {
 
     /// Manually trigger a sync with all connected peers.
     func syncNow() {
+        if connections.isEmpty {
+            logger.info("syncNow() called but no connected peers")
+            return
+        }
+        logger.info("syncNow() triggering sync with \(self.connections.count) peer(s)")
         for (peerId, connection) in connections {
             initiateSync(with: peerId, connection: connection)
         }
@@ -168,7 +176,11 @@ final class LANSyncEngine: @unchecked Sendable {
     private func handleListenerState(_ state: NWListener.State) {
         switch state {
         case .ready:
-            logger.info("Listener ready")
+            if let port = listener?.port {
+                logger.info("Listener ready on port \(port.rawValue)")
+            } else {
+                logger.info("Listener ready (port unknown)")
+            }
         case .failed(let error):
             logger.error("Listener failed: \(error)")
             Task { @MainActor in status = .error("Listener: \(error.localizedDescription)") }
@@ -201,27 +213,65 @@ final class LANSyncEngine: @unchecked Sendable {
     }
 
     private func handleBrowseResults(_ results: Set<NWBrowser.Result>) {
+        logger.debug("Browse results changed: \(results.count) result(s) found")
         var peers: [DiscoveredPeer] = []
 
         for result in results {
-            guard case .bonjour(let txt) = result.metadata else { continue }
-            let peerId = txt["deviceId"] ?? ""
-            let peerName = txt["deviceName"] ?? "Unknown"
+            let peerId: String
+            let peerName: String
 
-            // Don't discover ourselves
-            guard peerId != deviceId, !peerId.isEmpty else { continue }
-
-            peers.append(DiscoveredPeer(id: peerId, name: peerName, endpoint: result.endpoint))
-
-            // Auto-connect if not already connected
-            if connections[peerId] == nil {
-                connectToPeer(peerId: peerId, peerName: peerName, endpoint: result.endpoint)
+            if case .bonjour(let txt) = result.metadata {
+                peerId = txt["deviceId"] ?? ""
+                peerName = txt["deviceName"] ?? endpointDisplayName(result.endpoint)
+                logger.debug("Found service with TXT: \(peerName) (id: \(peerId)) at \(String(describing: result.endpoint))")
+            } else {
+                // TXT record may not be resolved yet — use endpoint as temporary identity
+                // and rely on the handshake to exchange real deviceId/deviceName
+                peerId = ""
+                peerName = endpointDisplayName(result.endpoint)
+                logger.debug("Found service without TXT metadata: \(peerName) at \(String(describing: result.endpoint))")
             }
+
+            // If we have a peerId and it's ourselves, skip
+            if !peerId.isEmpty, peerId == deviceId {
+                logger.debug("Filtering out self: \(peerId)")
+                continue
+            }
+
+            // Check if we already have a connection for this peer (by peerId or endpoint)
+            if !peerId.isEmpty, connections[peerId] != nil {
+                peers.append(DiscoveredPeer(id: peerId, name: peerName, endpoint: result.endpoint))
+                logger.debug("Already connected to \(peerName) (\(peerId)), skipping")
+                continue
+            }
+
+            if connectionExists(for: result.endpoint) {
+                peers.append(DiscoveredPeer(id: peerId.isEmpty ? result.endpoint.debugDescription : peerId, name: peerName, endpoint: result.endpoint))
+                logger.debug("Already have connection to endpoint \(String(describing: result.endpoint)), skipping")
+                continue
+            }
+
+            let effectiveId = peerId.isEmpty ? result.endpoint.debugDescription : peerId
+            peers.append(DiscoveredPeer(id: effectiveId, name: peerName, endpoint: result.endpoint))
+            connectToPeer(peerId: effectiveId, peerName: peerName, endpoint: result.endpoint)
         }
 
         Task { @MainActor in
             discoveredPeers = peers
         }
+    }
+
+    /// Extract a display name from a Bonjour endpoint.
+    private func endpointDisplayName(_ endpoint: NWEndpoint) -> String {
+        if case .service(let name, _, _, _) = endpoint {
+            return name
+        }
+        return endpoint.debugDescription
+    }
+
+    /// Check if any existing connection targets the given endpoint.
+    private func connectionExists(for endpoint: NWEndpoint) -> Bool {
+        connections.values.contains { $0.endpoint == endpoint }
     }
 
     // MARK: - Connection Management
@@ -246,15 +296,24 @@ final class LANSyncEngine: @unchecked Sendable {
         peerName: String? = nil
     ) {
         switch state {
+        case .setup:
+            logger.debug("Connection setup (incoming: \(isIncoming), peer: \(peerId ?? "unknown"))")
+
+        case .preparing:
+            logger.debug("Connection preparing (incoming: \(isIncoming), peer: \(peerId ?? "unknown"))")
+
+        case .waiting(let error):
+            logger.warning("Connection waiting: \(error) (incoming: \(isIncoming), peer: \(peerId ?? "unknown"))")
+
         case .ready:
-            logger.info("Connection ready (incoming: \(isIncoming))")
+            logger.info("Connection ready (incoming: \(isIncoming), peer: \(peerId ?? "unknown"), endpoint: \(String(describing: connection.endpoint)))")
             // Send handshake
             let info = PeerInfo(deviceId: deviceId, deviceName: deviceName, appVersion: "1.0")
             sendMessage(.handshake(info), on: connection)
             startReceiving(on: connection, peerId: peerId)
 
         case .failed(let error):
-            logger.error("Connection failed: \(error)")
+            logger.error("Connection failed: \(error) (incoming: \(isIncoming), peer: \(peerId ?? "unknown"))")
             if let peerId {
                 connections.removeValue(forKey: peerId)
                 receiveBuffers.removeValue(forKey: peerId)
@@ -262,14 +321,15 @@ final class LANSyncEngine: @unchecked Sendable {
             updateConnectionStatus()
 
         case .cancelled:
+            logger.debug("Connection cancelled (peer: \(peerId ?? "unknown"))")
             if let peerId {
                 connections.removeValue(forKey: peerId)
                 receiveBuffers.removeValue(forKey: peerId)
             }
             updateConnectionStatus()
 
-        default:
-            break
+        @unknown default:
+            logger.debug("Connection unknown state (incoming: \(isIncoming), peer: \(peerId ?? "unknown"))")
         }
     }
 
@@ -290,15 +350,19 @@ final class LANSyncEngine: @unchecked Sendable {
     // MARK: - Message Send / Receive
 
     private func sendMessage(_ message: SyncMessage, on connection: NWConnection) {
+        logger.debug("Sending \(message.typeDescription) to \(String(describing: connection.endpoint))")
         do {
             let data = try SyncWireProtocol.encode(message)
+            logger.debug("Encoded \(message.typeDescription): \(data.count) bytes")
             connection.send(content: data, completion: .contentProcessed { [weak self] error in
                 if let error {
-                    self?.logger.error("Send error: \(error)")
+                    self?.logger.error("Send error for \(message.typeDescription): \(error)")
+                } else {
+                    self?.logger.debug("Successfully sent \(message.typeDescription)")
                 }
             })
         } catch {
-            logger.error("Failed to encode message: \(error)")
+            logger.error("Failed to encode \(message.typeDescription): \(error)")
         }
     }
 
@@ -306,24 +370,40 @@ final class LANSyncEngine: @unchecked Sendable {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 1024 * 1024) { [weak self] data, _, isComplete, error in
             guard let self else { return }
 
+            let effectivePeerId = peerId ?? "unknown"
+
             if let data {
-                let effectivePeerId = peerId ?? "unknown"
+                logger.debug("Received \(data.count) bytes from \(effectivePeerId)")
                 var buffer = receiveBuffers[effectivePeerId] ?? Data()
                 buffer.append(data)
+                logger.debug("Buffer size for \(effectivePeerId): \(buffer.count) bytes")
 
                 // Try to extract complete messages
-                while let message = try? SyncWireProtocol.decode(from: &buffer) {
-                    handleMessage(message, from: effectivePeerId, connection: connection)
+                var decodeError: Error?
+                while decodeError == nil {
+                    do {
+                        guard let message = try SyncWireProtocol.decode(from: &buffer) else {
+                            break // Incomplete message, wait for more data
+                        }
+                        handleMessage(message, from: effectivePeerId, connection: connection)
+                    } catch {
+                        decodeError = error
+                        logger.error("Failed to decode message from \(effectivePeerId): \(error)")
+                        // Clear the buffer to avoid getting stuck on corrupt data
+                        buffer = Data()
+                    }
                 }
                 receiveBuffers[effectivePeerId] = buffer
             }
 
             if let error {
-                self.logger.error("Receive error: \(error)")
+                self.logger.error("Receive error from \(effectivePeerId): \(error)")
                 return
             }
 
-            if !isComplete {
+            if isComplete {
+                self.logger.debug("Connection receive completed for \(effectivePeerId)")
+            } else {
                 // Continue receiving
                 self.startReceiving(on: connection, peerId: peerId)
             }
@@ -333,6 +413,7 @@ final class LANSyncEngine: @unchecked Sendable {
     // MARK: - Message Handling
 
     private func handleMessage(_ message: SyncMessage, from peerId: String, connection: NWConnection) {
+        logger.debug("Handling \(message.typeDescription) from \(peerId)")
         switch message {
         case .handshake(let peerInfo):
             handleHandshake(peerInfo, connection: connection)
@@ -352,14 +433,25 @@ final class LANSyncEngine: @unchecked Sendable {
         let peerId = peerInfo.deviceId
         guard peerId != deviceId else {
             // Connected to ourselves, disconnect
+            logger.debug("Handshake revealed self-connection, disconnecting")
             connection.cancel()
             return
         }
 
         logger.info("Handshake from: \(peerInfo.deviceName) (\(peerId))")
+
+        // Re-key connection and buffer from temporary ID (endpoint description or "unknown") to real peerId
+        let endpointKey = connection.endpoint.debugDescription
+        for tempKey in ["unknown", endpointKey] {
+            if let existingBuffer = receiveBuffers.removeValue(forKey: tempKey) {
+                logger.debug("Re-keying buffer from '\(tempKey)' to '\(peerId)'")
+                receiveBuffers[peerId] = existingBuffer
+            }
+            if connections.removeValue(forKey: tempKey) != nil {
+                logger.debug("Re-keying connection from '\(tempKey)' to '\(peerId)'")
+            }
+        }
         connections[peerId] = connection
-        receiveBuffers[peerId] = receiveBuffers["unknown"] ?? Data()
-        receiveBuffers.removeValue(forKey: "unknown")
 
         Task { @MainActor in
             status = .connected(peerName: peerInfo.deviceName)
@@ -395,6 +487,7 @@ final class LANSyncEngine: @unchecked Sendable {
                                      id: cat.id.uuidString, isDeleted: cat.isDeleted,
                                      lastModifiedAt: cat.lastModifiedAt))
             }
+            logger.debug("Gathered \(categories.count) budgetCategory records since \(sinceDate)")
 
             let transactions = try DatabaseManager.shared.fetchAllRecords(
                 type: Transaction.self, since: sinceDate
@@ -404,6 +497,7 @@ final class LANSyncEngine: @unchecked Sendable {
                                      id: txn.id.uuidString, isDeleted: txn.isDeleted,
                                      lastModifiedAt: txn.lastModifiedAt))
             }
+            logger.debug("Gathered \(transactions.count) transaction records since \(sinceDate)")
 
             let files = try DatabaseManager.shared.fetchAllRecords(
                 type: ImportedFile.self, since: sinceDate
@@ -413,6 +507,7 @@ final class LANSyncEngine: @unchecked Sendable {
                                      id: file.id.uuidString, isDeleted: file.isDeleted,
                                      lastModifiedAt: file.lastModifiedAt))
             }
+            logger.debug("Gathered \(files.count) importedFile records since \(sinceDate)")
 
             let rules = try DatabaseManager.shared.fetchAllRecords(
                 type: CategorizationRule.self, since: sinceDate
@@ -422,6 +517,7 @@ final class LANSyncEngine: @unchecked Sendable {
                                      id: rule.id.uuidString, isDeleted: rule.isDeleted,
                                      lastModifiedAt: rule.lastModifiedAt))
             }
+            logger.debug("Gathered \(rules.count) categorizationRule records since \(sinceDate)")
 
             let snapshots = try DatabaseManager.shared.fetchAllRecords(
                 type: MonthlySnapshot.self, since: sinceDate
@@ -431,6 +527,7 @@ final class LANSyncEngine: @unchecked Sendable {
                                      id: snap.id.uuidString, isDeleted: snap.isDeleted,
                                      lastModifiedAt: snap.lastModifiedAt))
             }
+            logger.debug("Gathered \(snapshots.count) monthlySnapshot records since \(sinceDate)")
 
             let profiles = try DatabaseManager.shared.fetchAllRecords(
                 type: BankProfile.self, since: sinceDate
@@ -440,10 +537,11 @@ final class LANSyncEngine: @unchecked Sendable {
                                      id: profile.id.uuidString, isDeleted: profile.isDeleted,
                                      lastModifiedAt: profile.lastModifiedAt))
             }
+            logger.debug("Gathered \(profiles.count) bankProfile records since \(sinceDate)")
 
             let response = SyncResponse(records: records, syncTimestamp: now)
             sendMessage(.syncResponse(response), on: connection)
-            logger.info("Sent \(records.count) records to \(peerId)")
+            logger.info("Sent \(records.count) total records to \(peerId)")
 
         } catch {
             logger.error("Failed to gather records for sync response: \(error)")
@@ -530,12 +628,19 @@ final class LANSyncEngine: @unchecked Sendable {
             NotificationCenter.default.post(name: .lanSyncDidComplete, object: nil)
         }
 
-        // Now send our changes back
-        handleSyncRequest(
-            SyncRequest(sinceDate: stateStore.lastSyncDate(forPeer: peerId)),
-            from: peerId,
-            connection: connection
-        )
+        // Only send our changes back if we actually have records to push
+        let reverseSinceDate = stateStore.lastSyncDate(forPeer: peerId)
+        let hasLocalChanges = hasRecordsSince(reverseSinceDate)
+        if hasLocalChanges {
+            logger.info("Starting reverse sync to \(peerId) (since: \(reverseSinceDate?.description ?? "beginning"))")
+            handleSyncRequest(
+                SyncRequest(sinceDate: reverseSinceDate),
+                from: peerId,
+                connection: connection
+            )
+        } else {
+            logger.info("No local changes to send to \(peerId), skipping reverse sync")
+        }
     }
 
     private func handleSyncAck(_ ack: SyncAck, from peerId: String) {
@@ -550,10 +655,30 @@ final class LANSyncEngine: @unchecked Sendable {
         }
     }
 
+    private func hasRecordsSince(_ date: Date?) -> Bool {
+        let sinceDate = date ?? .distantPast
+        do {
+            let db = DatabaseManager.shared
+            if !(try db.fetchAllRecords(type: BudgetCategory.self, since: sinceDate)).isEmpty { return true }
+            if !(try db.fetchAllRecords(type: Transaction.self, since: sinceDate)).isEmpty { return true }
+            if !(try db.fetchAllRecords(type: ImportedFile.self, since: sinceDate)).isEmpty { return true }
+            if !(try db.fetchAllRecords(type: CategorizationRule.self, since: sinceDate)).isEmpty { return true }
+            if !(try db.fetchAllRecords(type: MonthlySnapshot.self, since: sinceDate)).isEmpty { return true }
+            if !(try db.fetchAllRecords(type: BankProfile.self, since: sinceDate)).isEmpty { return true }
+        } catch {
+            logger.error("Failed to check for local changes: \(error)")
+        }
+        return false
+    }
+
     // MARK: - Push Changes to Peers
 
     private func debouncedPushToPeers() {
-        guard isEnabled, !isApplyingPeerSync else { return }
+        guard isEnabled, !isApplyingPeerSync else {
+            logger.debug("debouncedPushToPeers suppressed (isEnabled: \(self.isEnabled), isApplyingPeerSync: \(self.isApplyingPeerSync))")
+            return
+        }
+        logger.debug("Scheduling debounced push to peers (1.5s delay)")
 
         debounceWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in

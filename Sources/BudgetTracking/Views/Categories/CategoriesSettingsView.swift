@@ -15,6 +15,13 @@ struct CategoriesSettingsView: View {
                         .font(.title2)
                         .fontWeight(.semibold)
                     Spacer()
+                    Button {
+                        viewModel.restoreDefaults()
+                    } label: {
+                        Label("Restore Defaults", systemImage: "arrow.counterclockwise")
+                    }
+                    .buttonStyle(.bordered)
+
                     Button(action: { showAddCategory = true }) {
                         Label("Add Category", systemImage: "plus")
                     }

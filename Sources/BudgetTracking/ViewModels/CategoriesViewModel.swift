@@ -40,6 +40,15 @@ final class CategoriesViewModel {
         }
     }
 
+    func restoreDefaults() {
+        do {
+            try DatabaseManager.shared.restoreDefaultCategories()
+            load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func deleteCategory(_ category: BudgetCategory) {
         do {
             try DatabaseManager.shared.deleteCategory(category)
