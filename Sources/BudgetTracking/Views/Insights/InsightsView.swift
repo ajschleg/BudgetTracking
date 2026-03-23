@@ -102,23 +102,23 @@ struct InsightsView: View {
                                     .background(.ultraThinMaterial)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                                // Suggested budget changes
-                                if !viewModel.suggestions.isEmpty {
+                                // AI-suggested actions
+                                if !viewModel.aiActions.isEmpty {
                                     Divider()
 
                                     HStack {
-                                        Text("Suggested Changes")
+                                        Text("Suggested Actions")
                                             .font(.headline)
                                         Spacer()
                                         Button("Apply All") {
-                                            viewModel.applyAllSuggestions()
+                                            withAnimation { viewModel.applyAllActions() }
                                         }
                                         .buttonStyle(.borderedProminent)
                                         .controlSize(.small)
                                     }
 
-                                    ForEach(viewModel.suggestions) { suggestion in
-                                        suggestionCard(suggestion)
+                                    ForEach(viewModel.aiActions) { action in
+                                        actionCard(action)
                                     }
                                 }
                             }
@@ -153,33 +153,76 @@ struct InsightsView: View {
         }
     }
 
-    // MARK: - Suggestion Card
+    // MARK: - Action Card
 
-    private func suggestionCard(_ suggestion: ClaudeAPIService.BudgetSuggestion) -> some View {
+    private func actionCard(_ action: ClaudeAPIService.AIAction) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(suggestion.category)
-                    .font(.subheadline.weight(.semibold))
-                HStack(spacing: 4) {
-                    Text("$\(String(format: "%.0f", suggestion.currentBudget))")
-                        .foregroundStyle(.secondary)
-                    Image(systemName: "arrow.right")
+                switch action {
+                case .budgetChange(let s):
+                    HStack(spacing: 6) {
+                        Image(systemName: "dollarsign.circle.fill")
+                            .foregroundStyle(.blue)
+                            .font(.caption)
+                        Text("Budget: \(s.category)")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    HStack(spacing: 4) {
+                        Text("$\(String(format: "%.0f", s.currentBudget))")
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("$\(String(format: "%.0f", s.suggestedBudget))")
+                            .foregroundStyle(s.suggestedBudget > s.currentBudget ? .red : .green)
+                            .fontWeight(.medium)
+                    }
+                    .font(.subheadline)
+                    Text(s.reason)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("$\(String(format: "%.0f", suggestion.suggestedBudget))")
-                        .foregroundStyle(suggestion.suggestedBudget > suggestion.currentBudget ? .red : .green)
-                        .fontWeight(.medium)
+
+                case .transactionUpdate(let a):
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.caption)
+                        Text("Categorize: \"\(a.descriptionPattern)\"")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    HStack(spacing: 4) {
+                        Text("Match \"\(a.descriptionPattern)\"")
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(a.category ?? "")
+                            .foregroundStyle(.blue)
+                            .fontWeight(.medium)
+                    }
+                    .font(.subheadline)
+                    Text(a.reason)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                case .ruleCreation(let r):
+                    HStack(spacing: 6) {
+                        Image(systemName: "text.badge.checkmark")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                        Text("Rule: \"\(r.keyword)\" → \(r.category)")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    Text(r.reason)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .font(.subheadline)
-                Text(suggestion.reason)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             Spacer()
 
             Button("Apply") {
-                withAnimation { viewModel.applySuggestion(suggestion) }
+                withAnimation { viewModel.applyAction(action) }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)

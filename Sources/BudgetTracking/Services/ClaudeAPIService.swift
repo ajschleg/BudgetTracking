@@ -7,9 +7,37 @@ actor ClaudeAPIService {
     private let model = "claude-sonnet-4-20250514"
     private let apiVersion = "2023-06-01"
 
+    /// An action the AI can suggest: budget change, transaction update, or rule creation.
+    enum AIAction: Identifiable {
+        case budgetChange(BudgetSuggestion)
+        case transactionUpdate(TransactionAction)
+        case ruleCreation(RuleSuggestion)
+
+        var id: UUID {
+            switch self {
+            case .budgetChange(let s): return s.id
+            case .transactionUpdate(let a): return a.id
+            case .ruleCreation(let r): return r.id
+            }
+        }
+    }
+
+    struct TransactionAction: Codable, Identifiable {
+        var id = UUID()
+        let action: String          // "categorize", "setIncome"
+        let descriptionPattern: String  // substring match on transaction description
+        let category: String?       // target category (for categorize)
+        let reason: String
+
+        enum CodingKeys: String, CodingKey {
+            case action, descriptionPattern, category, reason
+        }
+    }
+
     struct AnalysisResult {
         let text: String
         let suggestions: [BudgetSuggestion]
+        let actions: [AIAction]
         let inputTokens: Int
         let outputTokens: Int
     }
@@ -113,7 +141,7 @@ actor ClaudeAPIService {
 
         let body: [String: Any] = [
             "model": model,
-            "max_tokens": 1024,
+            "max_tokens": 4096,
             "system": systemPrompt,
             "messages": [
                 ["role": "user", "content": spendingSummary]
@@ -151,12 +179,12 @@ actor ClaudeAPIService {
         let inputTokens = usage?["input_tokens"] as? Int ?? 0
         let outputTokens = usage?["output_tokens"] as? Int ?? 0
 
-        let (displayText, suggestions) = Self.parseResponse(text)
-        return AnalysisResult(text: displayText, suggestions: suggestions, inputTokens: inputTokens, outputTokens: outputTokens)
+        let (displayText, suggestions, actions) = Self.parseResponse(text)
+        return AnalysisResult(text: displayText, suggestions: suggestions, actions: actions, inputTokens: inputTokens, outputTokens: outputTokens)
     }
 
-    /// Build an aggregated, privacy-safe spending summary for the AI prompt.
-    /// Only sends category names and monthly totals — no transaction descriptions or merchants.
+    /// Build a spending summary for the AI prompt, including transaction descriptions
+    /// for the current month so the AI can suggest bulk actions.
     static func buildSpendingSummary(
         currentMonth: String,
         categories: [BudgetCategory],
@@ -206,6 +234,21 @@ actor ClaudeAPIService {
             lines.append("Uncategorized spending this month: $\(String(format: "%.2f", uncategorized))")
         }
 
+        // Include current month's transaction descriptions for actionable queries
+        let transactions = try DatabaseManager.shared.fetchTransactions(forMonth: currentMonth)
+        if !transactions.isEmpty {
+            lines.append("")
+            lines.append("## Current Month Transactions")
+            lines.append("| Date | Description | Amount | Category |")
+            lines.append("|------|-------------|--------|----------|")
+            let categoryLookup = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0.name) })
+            for txn in transactions.prefix(200) {  // Cap at 200 to limit prompt size
+                let dateStr = DateHelpers.shortDate(txn.date)
+                let catName = txn.categoryId.flatMap { categoryLookup[$0] } ?? "Uncategorized"
+                lines.append("| \(dateStr) | \(txn.description) | $\(String(format: "%.2f", abs(txn.amount))) | \(catName) |")
+            }
+        }
+
         lines.append("")
         lines.append("Current month: \(DateHelpers.displayMonth(currentMonth))")
 
@@ -217,7 +260,8 @@ actor ClaudeAPIService {
     private var systemPrompt: String {
         """
         You are a personal budget analyst. The user will provide their budget categories with \
-        monthly budgets and historical spending data by category and month.
+        monthly budgets, historical spending data by category and month, and optionally a list \
+        of recent transactions.
 
         Analyze the data and provide:
         1. **Surprise Expense Risks**: Identify expenses that may be coming up based on seasonal \
@@ -230,21 +274,53 @@ actor ClaudeAPIService {
 
         Be concise and actionable. Use specific dollar amounts. Focus on the most impactful insights first.
 
-        IMPORTANT: If you have any concrete budget adjustment suggestions, end your response with \
-        a line containing exactly "---SUGGESTIONS---" followed by a JSON array of objects with \
-        these fields: "category" (exact category name from the user's list), "currentBudget" (their \
-        current monthly budget), "suggestedBudget" (your recommended amount), "reason" (brief explanation). \
-        Only include suggestions for existing categories where you recommend a specific dollar change. Example:
-        ---SUGGESTIONS---
-        [{"category":"Utilities","currentBudget":100,"suggestedBudget":180,"reason":"Winter months average $175"}]
+        The user may also ask you to perform actions on their data. You can suggest these types of actions:
+
+        1. **Budget changes**: Adjust a category's monthly budget amount.
+        2. **Transaction updates**: Bulk-categorize transactions matching a description pattern.
+        3. **Rule creation**: Create a categorization rule so future matching transactions are auto-categorized.
+
+        IMPORTANT: At the end of your response, if you have any actionable suggestions, output \
+        a line containing exactly "---ACTIONS---" followed by a JSON array. Each element must have \
+        a "type" field: "budget", "transaction", or "rule".
+
+        For "budget" type:
+        {"type":"budget","category":"Utilities","currentBudget":100,"suggestedBudget":180,"reason":"Winter average $175"}
+
+        For "transaction" type (bulk categorize matching transactions):
+        {"type":"transaction","action":"categorize","descriptionPattern":"ZELLE MONEY IN","category":"Income","reason":"Zelle deposits are income"}
+
+        For "rule" type (create auto-categorization rule):
+        {"type":"rule","keyword":"ZELLE MONEY IN","category":"Income","reason":"Auto-categorize future Zelle deposits"}
+
+        Use exact category names from the user's list when possible. If suggesting a new category, \
+        note it clearly in your text explanation. The descriptionPattern should be a substring that \
+        matches the transaction descriptions the user is asking about.
+
+        Example:
+        ---ACTIONS---
+        [{"type":"budget","category":"Dining Out","currentBudget":200,"suggestedBudget":150,"reason":"Consistently under $150"},{"type":"transaction","action":"categorize","descriptionPattern":"UBER EATS","category":"Dining Out","reason":"Food delivery service"},{"type":"rule","keyword":"UBER EATS","category":"Dining Out","reason":"Auto-categorize future orders"}]
         """
     }
 
-    /// Parse the AI response, splitting display text from the structured suggestions block.
-    static func parseResponse(_ raw: String) -> (text: String, suggestions: [BudgetSuggestion]) {
-        let separator = "---SUGGESTIONS---"
+    /// Parse the AI response, extracting structured actions from the ---ACTIONS--- block.
+    /// Also supports legacy ---SUGGESTIONS--- format for backward compatibility.
+    static func parseResponse(_ raw: String) -> (text: String, suggestions: [BudgetSuggestion], actions: [AIAction]) {
+        // Try new ---ACTIONS--- format first
+        let actionSeparator = "---ACTIONS---"
+        let legacySeparator = "---SUGGESTIONS---"
+
+        let separator: String
+        if let _ = raw.range(of: actionSeparator) {
+            separator = actionSeparator
+        } else if let _ = raw.range(of: legacySeparator) {
+            separator = legacySeparator
+        } else {
+            return (raw.trimmingCharacters(in: .whitespacesAndNewlines), [], [])
+        }
+
         guard let range = raw.range(of: separator) else {
-            return (raw.trimmingCharacters(in: .whitespacesAndNewlines), [])
+            return (raw.trimmingCharacters(in: .whitespacesAndNewlines), [], [])
         }
 
         let displayText = String(raw[raw.startIndex..<range.lowerBound])
@@ -252,13 +328,53 @@ actor ClaudeAPIService {
         let jsonString = String(raw[range.upperBound...])
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard let jsonData = jsonString.data(using: .utf8),
-              let suggestions = try? JSONDecoder().decode([BudgetSuggestion].self, from: jsonData)
-        else {
-            return (displayText, [])
+        // If legacy format, parse as BudgetSuggestion array
+        if separator == legacySeparator {
+            guard let jsonData = jsonString.data(using: .utf8),
+                  let suggestions = try? JSONDecoder().decode([BudgetSuggestion].self, from: jsonData)
+            else {
+                return (displayText, [], [])
+            }
+            let actions = suggestions.map { AIAction.budgetChange($0) }
+            return (displayText, suggestions, actions)
         }
 
-        return (displayText, suggestions)
+        // New format: parse typed actions
+        guard let jsonData = jsonString.data(using: .utf8),
+              let rawArray = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]]
+        else {
+            return (displayText, [], [])
+        }
+
+        var suggestions: [BudgetSuggestion] = []
+        var actions: [AIAction] = []
+        let decoder = JSONDecoder()
+
+        for item in rawArray {
+            guard let type = item["type"] as? String,
+                  let itemData = try? JSONSerialization.data(withJSONObject: item)
+            else { continue }
+
+            switch type {
+            case "budget":
+                if let s = try? decoder.decode(BudgetSuggestion.self, from: itemData) {
+                    suggestions.append(s)
+                    actions.append(.budgetChange(s))
+                }
+            case "transaction":
+                if let a = try? decoder.decode(TransactionAction.self, from: itemData) {
+                    actions.append(.transactionUpdate(a))
+                }
+            case "rule":
+                if let r = try? decoder.decode(RuleSuggestion.self, from: itemData) {
+                    actions.append(.ruleCreation(r))
+                }
+            default:
+                break
+            }
+        }
+
+        return (displayText, suggestions, actions)
     }
 
     // MARK: - Rule Suggestions

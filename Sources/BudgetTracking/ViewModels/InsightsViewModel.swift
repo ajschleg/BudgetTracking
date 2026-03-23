@@ -11,6 +11,7 @@ final class InsightsViewModel {
     var userQuestion: String = ""
     var aiResponse: String = ""
     var suggestions: [ClaudeAPIService.BudgetSuggestion] = []
+    var aiActions: [ClaudeAPIService.AIAction] = []
     var ruleSuggestions: [ClaudeAPIService.RuleSuggestion] = []
     var ruleResponse: String = ""
     var categorizationSuggestions: [ClaudeAPIService.CategorizationSuggestion] = []
@@ -94,6 +95,7 @@ final class InsightsViewModel {
             isLoadingAI = true
             aiErrorMessage = nil
             aiResponse = ""
+            aiActions = []
         }
 
         do {
@@ -111,6 +113,7 @@ final class InsightsViewModel {
             await MainActor.run {
                 aiResponse = result.text
                 suggestions = result.suggestions
+                aiActions = result.actions
                 isLoadingAI = false
             }
         } catch {
@@ -143,6 +146,76 @@ final class InsightsViewModel {
     func applyAllSuggestions() {
         for suggestion in suggestions {
             applySuggestion(suggestion)
+        }
+    }
+
+    // MARK: - Apply AI Actions
+
+    func applyAction(_ action: ClaudeAPIService.AIAction) {
+        switch action {
+        case .budgetChange(let suggestion):
+            applySuggestion(suggestion)
+            aiActions.removeAll { $0.id == action.id }
+        case .transactionUpdate(let txnAction):
+            applyTransactionAction(txnAction)
+            aiActions.removeAll { $0.id == action.id }
+        case .ruleCreation(let rule):
+            applyRuleFromAction(rule)
+            aiActions.removeAll { $0.id == action.id }
+        }
+    }
+
+    func applyAllActions() {
+        for action in aiActions {
+            applyAction(action)
+        }
+    }
+
+    private func applyTransactionAction(_ action: ClaudeAPIService.TransactionAction) {
+        do {
+            let categories = try DatabaseManager.shared.fetchCategories()
+            guard let targetCategory = categories.first(where: {
+                $0.name.lowercased() == (action.category ?? "").lowercased()
+            }) else {
+                aiErrorMessage = "Category \"\(action.category ?? "")\" not found."
+                return
+            }
+
+            let transactions = try DatabaseManager.shared.fetchTransactions(forMonth: currentMonth)
+            let pattern = action.descriptionPattern.lowercased()
+            let matching = transactions.filter {
+                $0.description.lowercased().contains(pattern)
+            }
+
+            for txn in matching {
+                try DatabaseManager.shared.updateTransactionCategory(
+                    txn.id, categoryId: targetCategory.id, isManual: true
+                )
+            }
+        } catch {
+            aiErrorMessage = "Failed to apply: \(error.localizedDescription)"
+        }
+    }
+
+    private func applyRuleFromAction(_ rule: ClaudeAPIService.RuleSuggestion) {
+        do {
+            let categories = try DatabaseManager.shared.fetchCategories()
+            guard let targetCategory = categories.first(where: {
+                $0.name.lowercased() == rule.category.lowercased()
+            }) else {
+                aiErrorMessage = "Category \"\(rule.category)\" not found."
+                return
+            }
+
+            let newRule = CategorizationRule(
+                keyword: rule.keyword,
+                categoryId: targetCategory.id,
+                priority: 100,
+                isUserDefined: true
+            )
+            try DatabaseManager.shared.saveRule(newRule)
+        } catch {
+            aiErrorMessage = "Failed to create rule: \(error.localizedDescription)"
         }
     }
 
