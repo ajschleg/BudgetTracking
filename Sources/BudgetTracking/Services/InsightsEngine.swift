@@ -22,7 +22,7 @@ final class InsightsEngine {
 
     // MARK: - Public API
 
-    func generateInsights(forMonth currentMonth: String) throws -> [BudgetInsight] {
+    func generateInsights(forMonth currentMonth: String, dismissedReturnIds: Set<UUID> = []) throws -> [BudgetInsight] {
         var insights: [BudgetInsight] = []
 
         let categories = try DatabaseManager.shared.fetchCategories()
@@ -32,6 +32,7 @@ final class InsightsEngine {
         insights.append(contentsOf: try recurringAnnualExpenses(currentMonth: currentMonth))
         insights.append(contentsOf: try budgetOverrunTrends(currentMonth: currentMonth, categories: categories, categoryMap: categoryMap))
         insights.append(contentsOf: try unbudgetedSpending(currentMonth: currentMonth))
+        insights.append(contentsOf: try returnDetection(currentMonth: currentMonth, categoryMap: categoryMap, dismissedIds: dismissedReturnIds))
 
         // Sort by severity (alert first)
         insights.sort { $0.severity > $1.severity }
@@ -257,6 +258,113 @@ final class InsightsEngine {
             months.append(month)
         }
         return months
+    }
+
+    // MARK: - Insight 5: Return Detection
+
+    /// Keywords in transaction descriptions that strongly indicate a return/refund.
+    private static let returnKeywords = ["return", "credit", "refund", "reversal", "chargeback"]
+
+    /// Patterns that indicate income, NOT a return (even if positive and categorized).
+    private static let incomePatterns = [
+        "ach deposit", "direct deposit", "payroll", "salary", "wage",
+        "zelle", "venmo", "cashapp", "cash app", "transfer from",
+        "interest", "dividend", "irs", "tax refund"
+    ]
+
+    /// Check if a transaction description looks like income rather than a return.
+    private func looksLikeIncome(_ description: String) -> Bool {
+        let lower = description.lowercased()
+        return Self.incomePatterns.contains { lower.contains($0) }
+    }
+
+    /// Check if a transaction description contains return/refund keywords.
+    private func hasReturnKeyword(_ description: String) -> Bool {
+        let lower = description.lowercased()
+        return Self.returnKeywords.contains { lower.contains($0) }
+    }
+
+    private func returnDetection(
+        currentMonth: String,
+        categoryMap: [UUID: BudgetCategory],
+        dismissedIds: Set<UUID>
+    ) throws -> [BudgetInsight] {
+        let transactions = try DatabaseManager.shared.fetchTransactions(forMonth: currentMonth)
+
+        // Find positive-amount categorized transactions (potential returns)
+        let candidates = transactions.filter { txn in
+            txn.amount > 0
+            && txn.categoryId != nil
+            && !dismissedIds.contains(txn.id)
+            && !looksLikeIncome(txn.description)  // Skip obvious income
+        }
+
+        guard !candidates.isEmpty else { return [] }
+
+        // Get all negative transactions for merchant matching
+        let purchases = transactions.filter { $0.amount < 0 }
+
+        var insights: [BudgetInsight] = []
+
+        for ret in candidates {
+            let desc = ret.description
+            let isReturnLabeled = hasReturnKeyword(desc)
+
+            // Clean the description for merchant matching
+            let cleanedDesc = desc.replacingOccurrences(
+                of: #"\s*\((?:RETURN|CREDIT|REFUND|REVERSAL)\)\s*$"#,
+                with: "",
+                options: [.regularExpression, .caseInsensitive]
+            ).lowercased()
+
+            // Match against purchases: same category + similar description
+            let matchingPurchases = purchases.filter { purchase in
+                // Must be in the same category
+                guard purchase.categoryId == ret.categoryId else { return false }
+                let purchaseDesc = purchase.description.lowercased()
+                // Match if descriptions share a significant common prefix (≥15 chars)
+                let prefixLen = min(15, min(cleanedDesc.count, purchaseDesc.count))
+                guard prefixLen >= 8 else { return false }
+                return purchaseDesc.hasPrefix(String(cleanedDesc.prefix(prefixLen)))
+                    || cleanedDesc.hasPrefix(String(purchaseDesc.prefix(prefixLen)))
+            }
+
+            // Only flag as a return if:
+            // 1. Description contains return/refund keywords, OR
+            // 2. There's a matching purchase in the same category
+            let isLikelyReturn = isReturnLabeled || !matchingPurchases.isEmpty
+
+            guard isLikelyReturn else { continue }
+
+            let categoryName = ret.categoryId.flatMap { categoryMap[$0]?.name } ?? "Uncategorized"
+            let amount = ret.amount
+
+            var description: String
+            if !matchingPurchases.isEmpty {
+                let purchaseTotal = matchingPurchases.reduce(0.0) { $0 + abs($1.amount) }
+                description = "Detected a \(CurrencyFormatter.format(amount)) return"
+                if isReturnLabeled { description += " (labeled as return)" }
+                description += " in \(categoryName). Found \(matchingPurchases.count) related purchase(s) totaling \(CurrencyFormatter.format(purchaseTotal)). Net impact: \(CurrencyFormatter.format(purchaseTotal - amount))."
+            } else {
+                description = "Detected a \(CurrencyFormatter.format(amount)) return"
+                if isReturnLabeled { description += " (labeled as return)" }
+                description += " in \(categoryName). This offsets \(categoryName) spending."
+            }
+
+            insights.append(BudgetInsight(
+                type: .returnDetected,
+                severity: .info,
+                title: "Return: \(desc.prefix(40))\(desc.count > 40 ? "…" : "")",
+                description: description,
+                suggestedAction: "If this is not a return, tap \"Not a Return\" to exclude it from spending offsets.",
+                iconName: "arrow.uturn.left.circle.fill",
+                relatedCategoryName: categoryName,
+                relatedAmount: amount,
+                relatedTransactionId: ret.id
+            ))
+        }
+
+        return insights
     }
 
     /// Extracts a human-readable month name (e.g., "March") from "2026-03".

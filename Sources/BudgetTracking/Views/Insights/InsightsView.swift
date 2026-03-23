@@ -27,7 +27,9 @@ struct InsightsView: View {
                             emptyInsightsView
                         } else {
                             ForEach(viewModel.insights) { insight in
-                                InsightCardView(insight: insight)
+                                InsightCardView(insight: insight) { txnId in
+                                    viewModel.dismissReturn(txnId)
+                                }
                             }
                         }
                     }

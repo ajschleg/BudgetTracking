@@ -6,6 +6,10 @@ final class InsightsViewModel {
     var insights: [BudgetInsight] = []
     var isLoadingInsights = false
     var errorMessage: String?
+    var dismissedReturnIds: Set<UUID> = {
+        let data = UserDefaults.standard.data(forKey: "dismissedReturnIds") ?? Data()
+        return (try? JSONDecoder().decode(Set<UUID>.self, from: data)) ?? []
+    }()
 
     // AI Assistant state
     var userQuestion: String = ""
@@ -72,7 +76,7 @@ final class InsightsViewModel {
         errorMessage = nil
 
         do {
-            insights = try engine.generateInsights(forMonth: month)
+            insights = try engine.generateInsights(forMonth: month, dismissedReturnIds: dismissedReturnIds)
         } catch {
             errorMessage = error.localizedDescription
             insights = []
@@ -122,6 +126,17 @@ final class InsightsViewModel {
                 isLoadingAI = false
             }
         }
+    }
+
+    // MARK: - Return Dismissal
+
+    func dismissReturn(_ transactionId: UUID) {
+        dismissedReturnIds.insert(transactionId)
+        if let data = try? JSONEncoder().encode(dismissedReturnIds) {
+            UserDefaults.standard.set(data, forKey: "dismissedReturnIds")
+        }
+        // Remove the insight card
+        insights.removeAll { $0.relatedTransactionId == transactionId }
     }
 
     // MARK: - Apply Suggestions

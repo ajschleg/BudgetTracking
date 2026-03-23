@@ -62,6 +62,7 @@
 		EC80E2DF1D3F334069C8EE2E /* BudgetTrackingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A789E73759CED466B7C73C35 /* BudgetTrackingApp.swift */; };
 		F1E746C9970C092EFD2C848F /* ImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA1511E4B898F9C603AC8FA7 /* ImportView.swift */; };
 		AA1111111111111111111111 /* BudgetInsight.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1111111111111111111111 /* BudgetInsight.swift */; };
+		AABB001122334455667788 /* BankSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBAA001122334455667788 /* BankSource.swift */; };
 		AA2222222222222222222222 /* InsightsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB2222222222222222222222 /* InsightsEngine.swift */; };
 		AA3333333333333333333333 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3333333333333333333333 /* ClaudeAPIService.swift */; };
 		AA4444444444444444444444 /* InsightsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4444444444444444444444 /* InsightsViewModel.swift */; };
@@ -134,6 +135,7 @@
 		FBD04A6FF6BEF85B534BDDB5 /* QIFParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QIFParser.swift; sourceTree = "<group>"; };
 		FE0B30CCE20155199B5F3641 /* CategorizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategorizationEngine.swift; sourceTree = "<group>"; };
 		BB1111111111111111111111 /* BudgetInsight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetInsight.swift; sourceTree = "<group>"; };
+		BBAA001122334455667788 /* BankSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankSource.swift; sourceTree = "<group>"; };
 		BB2222222222222222222222 /* InsightsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsEngine.swift; sourceTree = "<group>"; };
 		BB3333333333333333333333 /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
 		BB4444444444444444444444 /* InsightsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsViewModel.swift; sourceTree = "<group>"; };
@@ -232,6 +234,7 @@
 				8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */,
 				7619A21E784D3733842F06AB /* MonthlySnapshot.swift */,
 				BB1111111111111111111111 /* BudgetInsight.swift */,
+				BBAA001122334455667788 /* BankSource.swift */,
 				8DE43370741368E79590623F /* Transaction.swift */,
 			);
 			path = Models;
@@ -464,6 +467,7 @@
 				71414C7F4B6DC0EFDA2E9634 /* BankProfile.swift in Sources */,
 				00949753B9E96D5C7EF05C84 /* BudgetCategory.swift in Sources */,
 				AA1111111111111111111111 /* BudgetInsight.swift in Sources */,
+				AABB001122334455667788 /* BankSource.swift in Sources */,
 				AA3333333333333333333333 /* ClaudeAPIService.swift in Sources */,
 				AA6666666666666666666666 /* InsightCardView.swift in Sources */,
 				AA2222222222222222222222 /* InsightsEngine.swift in Sources */,

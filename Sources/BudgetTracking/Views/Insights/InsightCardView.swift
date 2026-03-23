@@ -2,6 +2,7 @@ import SwiftUI
 
 struct InsightCardView: View {
     let insight: BudgetInsight
+    var onDismissReturn: ((UUID) -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -23,6 +24,19 @@ struct InsightCardView: View {
                         .font(.caption)
                         .foregroundStyle(severityColor)
                         .padding(.top, 2)
+                }
+
+                // "Not a Return" button for return insights
+                if insight.type == .returnDetected, let txnId = insight.relatedTransactionId {
+                    Button {
+                        withAnimation { onDismissReturn?(txnId) }
+                    } label: {
+                        Label("Not a Return", systemImage: "xmark.circle")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .padding(.top, 4)
                 }
             }
 

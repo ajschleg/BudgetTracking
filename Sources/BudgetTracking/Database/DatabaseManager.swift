@@ -658,30 +658,85 @@ final class DatabaseManager {
 
     // MARK: - Spending Aggregation
 
-    func fetchSpendingByCategory(forMonth month: String) throws -> [UUID: Double] {
+    /// SQL LIKE patterns that identify return/refund transactions (positive amounts that should offset spending).
+    private static let returnKeywordPatterns = [
+        "%RETURN%", "%CREDIT%", "%REFUND%", "%REVERSAL%", "%CHARGEBACK%"
+    ]
+
+    /// SQL LIKE patterns that identify income (positive amounts that should NOT offset spending).
+    private static let incomeExcludePatterns = [
+        "%ACH DEPOSIT%", "%DIRECT DEPOSIT%", "%PAYROLL%", "%SALARY%",
+        "%ZELLE%", "%VENMO%", "%CASHAPP%", "%CASH APP%", "%TRANSFER FROM%",
+        "%INTEREST%", "%DIVIDEND%", "%IRS%", "%TAX REFUND%"
+    ]
+
+    /// Build a SQL clause that identifies likely return transactions (positive, categorized,
+    /// has return keyword in description, doesn't look like income, not dismissed).
+    private static func returnFilterSQL(excludeReturnIds: Set<UUID>) -> String {
+        let keywordConditions = returnKeywordPatterns
+            .map { "UPPER(description) LIKE '\($0)'" }
+            .joined(separator: " OR ")
+        let incomeExclusions = incomeExcludePatterns
+            .map { "UPPER(description) NOT LIKE '\($0)'" }
+            .joined(separator: " AND ")
+        let excludeIds = excludeReturnIds.isEmpty
+            ? "''"
+            : excludeReturnIds.map { "'\($0.uuidString)'" }.joined(separator: ",")
+
+        return """
+            amount > 0
+            AND categoryId IS NOT NULL
+            AND (\(keywordConditions))
+            AND (\(incomeExclusions))
+            AND id NOT IN (\(excludeIds))
+            """
+    }
+
+    /// Fetch net spending per category (purchases minus detected returns).
+    /// Only positive transactions with return/refund keywords offset spending.
+    /// Dismissed returns and income-like transactions are excluded from netting.
+    func fetchSpendingByCategory(forMonth month: String, excludeReturnIds: Set<UUID> = []) throws -> [UUID: Double] {
         try dbQueue.read { db in
+            let returnFilter = Self.returnFilterSQL(excludeReturnIds: excludeReturnIds)
             let rows = try Row.fetchAll(db, sql: """
-                SELECT categoryId, SUM(amount) as total
+                SELECT categoryId, SUM(
+                    CASE
+                        WHEN amount < 0 THEN amount
+                        WHEN \(returnFilter) THEN amount
+                        ELSE 0
+                    END
+                ) as total
                 FROM "transaction"
-                WHERE month = ? AND amount < 0 AND isDeleted = 0
+                WHERE month = ? AND isDeleted = 0 AND categoryId IS NOT NULL
                 GROUP BY categoryId
                 """, arguments: [month])
 
             var result: [UUID: Double] = [:]
             for row in rows {
                 if let id: UUID = row["categoryId"] {
-                    result[id] = abs(row["total"] ?? 0.0)
+                    let total: Double = row["total"] ?? 0.0
+                    if total < 0 {
+                        result[id] = abs(total)
+                    }
                 }
             }
             return result
         }
     }
 
-    func fetchTotalSpending(forMonth month: String) throws -> Double {
+    /// Fetch total net spending for a month (purchases minus detected returns).
+    func fetchTotalSpending(forMonth month: String, excludeReturnIds: Set<UUID> = []) throws -> Double {
         try dbQueue.read { db in
+            let returnFilter = Self.returnFilterSQL(excludeReturnIds: excludeReturnIds)
             let total = try Double.fetchOne(db, sql: """
-                SELECT SUM(amount) FROM "transaction"
-                WHERE month = ? AND amount < 0 AND isDeleted = 0
+                SELECT SUM(
+                    CASE
+                        WHEN amount < 0 THEN amount
+                        WHEN \(returnFilter) THEN amount
+                        ELSE 0
+                    END
+                ) FROM "transaction"
+                WHERE month = ? AND isDeleted = 0
                 """, arguments: [month])
             return abs(total ?? 0.0)
         }
@@ -823,15 +878,22 @@ final class DatabaseManager {
     // MARK: - Insights Queries
 
     /// Fetch per-category spending for multiple months at once.
+    /// Fetch net spending per category for multiple months (purchases minus detected returns).
     func fetchSpendingByCategory(forMonths months: [String]) throws -> [String: [UUID: Double]] {
         guard !months.isEmpty else { return [:] }
         return try dbQueue.read { db in
             let placeholders = months.map { _ in "?" }.joined(separator: ", ")
+            let returnFilter = Self.returnFilterSQL(excludeReturnIds: [])
             let sql = """
-                SELECT month, categoryId, SUM(amount) as total
+                SELECT month, categoryId, SUM(
+                    CASE
+                        WHEN amount < 0 THEN amount
+                        WHEN \(returnFilter) THEN amount
+                        ELSE 0
+                    END
+                ) as total
                 FROM "transaction"
                 WHERE month IN (\(placeholders))
-                  AND amount < 0
                   AND isDeleted = 0
                   AND categoryId IS NOT NULL
                 GROUP BY month, categoryId
@@ -842,7 +904,9 @@ final class DatabaseManager {
                 let month: String = row["month"]
                 let catId: UUID = row["categoryId"]
                 let total: Double = row["total"]
-                result[month, default: [:]][catId] = abs(total)
+                if total < 0 {
+                    result[month, default: [:]][catId] = abs(total)
+                }
             }
             return result
         }

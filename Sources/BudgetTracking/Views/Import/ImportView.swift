@@ -7,6 +7,10 @@ struct ImportView: View {
     @State private var isTargeted = false
     @State private var showDeleteConfirmation = false
     @State private var fileToDelete: ImportedFile?
+    @State private var bankSources: [BankSource] = BankSource.loadSaved()
+    @State private var showAddSource = false
+    @State private var newSourceName = ""
+    @State private var newSourceURL = ""
 
     var body: some View {
         HSplitView {
@@ -85,6 +89,8 @@ struct ImportView: View {
         case .idle:
             dropZone
                 .padding()
+            commonSourcesSection
+                .padding(.horizontal)
 
         case .parsing:
             ProgressView("Parsing file...")
@@ -222,6 +228,104 @@ struct ImportView: View {
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers: providers)
             return true
+        }
+    }
+
+    // MARK: - Common Sources
+
+    private var commonSourcesSection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(bankSources) { source in
+                    HStack {
+                        Link(destination: URL(string: source.url) ?? URL(string: "https://google.com")!) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "building.columns.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.blue)
+                                Text(source.name)
+                                    .font(.callout)
+                                Image(systemName: "arrow.up.right.square")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Spacer()
+
+                        if !source.isDefault {
+                            Button {
+                                withAnimation {
+                                    bankSources.removeAll { $0.id == source.id }
+                                    BankSource.save(bankSources)
+                                }
+                            } label: {
+                                Image(systemName: "minus.circle")
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            Button {
+                                withAnimation {
+                                    bankSources.removeAll { $0.id == source.id }
+                                    BankSource.save(bankSources)
+                                }
+                            } label: {
+                                Image(systemName: "eye.slash")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Hide this source")
+                        }
+                    }
+                }
+
+                Divider()
+
+                if showAddSource {
+                    HStack(spacing: 8) {
+                        TextField("Bank name", text: $newSourceName)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 140)
+                        TextField("URL (e.g. chase.com)", text: $newSourceURL)
+                            .textFieldStyle(.roundedBorder)
+                        Button("Add") {
+                            let url = newSourceURL.hasPrefix("http") ? newSourceURL : "https://\(newSourceURL)"
+                            let source = BankSource(name: newSourceName, url: url, isDefault: false)
+                            withAnimation {
+                                bankSources.append(source)
+                                BankSource.save(bankSources)
+                                newSourceName = ""
+                                newSourceURL = ""
+                                showAddSource = false
+                            }
+                        }
+                        .disabled(newSourceName.isEmpty || newSourceURL.isEmpty)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+
+                        Button("Cancel") {
+                            showAddSource = false
+                            newSourceName = ""
+                            newSourceURL = ""
+                        }
+                        .controlSize(.small)
+                    }
+                } else {
+                    Button {
+                        showAddSource = true
+                    } label: {
+                        Label("Add Source", systemImage: "plus.circle")
+                            .font(.callout)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(4)
+        } label: {
+            Label("Common Sources — Download Statements", systemImage: "link")
         }
     }
 
