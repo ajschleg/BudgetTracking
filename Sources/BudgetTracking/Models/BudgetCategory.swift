@@ -39,6 +39,13 @@ struct BudgetCategory: Identifiable, Codable, Equatable {
         self.isDeleted = isDeleted
     }
 
+    static func randomColorHex() -> String {
+        let colors = ["#4CAF50", "#FF9800", "#2196F3", "#9C27B0", "#E91E63",
+                      "#00BCD4", "#795548", "#F44336", "#3F51B5", "#009688",
+                      "#FF5722", "#607D8B", "#8BC34A", "#FFC107", "#673AB7"]
+        return colors.randomElement() ?? "#4CAF50"
+    }
+
     static let defaultCategories: [BudgetCategory] = [
         BudgetCategory(name: "Groceries", monthlyBudget: 600, colorHex: "#4CAF50", sortOrder: 0),
         BudgetCategory(name: "Dining Out", monthlyBudget: 200, colorHex: "#FF9800", sortOrder: 1),

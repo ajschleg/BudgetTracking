@@ -129,14 +129,21 @@ final class InsightsViewModel {
     func applySuggestion(_ suggestion: ClaudeAPIService.BudgetSuggestion) {
         do {
             let categories = try DatabaseManager.shared.fetchCategories()
-            guard var category = categories.first(where: {
+            if var category = categories.first(where: {
                 $0.name.lowercased() == suggestion.category.lowercased()
-            }) else {
-                aiErrorMessage = "Category \"\(suggestion.category)\" not found."
-                return
+            }) {
+                category.monthlyBudget = suggestion.suggestedBudget
+                try DatabaseManager.shared.saveCategory(category)
+            } else {
+                // Category doesn't exist — create it
+                let newCategory = BudgetCategory(
+                    name: suggestion.category,
+                    monthlyBudget: suggestion.suggestedBudget,
+                    colorHex: BudgetCategory.randomColorHex(),
+                    sortOrder: categories.count
+                )
+                try DatabaseManager.shared.saveCategory(newCategory)
             }
-            category.monthlyBudget = suggestion.suggestedBudget
-            try DatabaseManager.shared.saveCategory(category)
             suggestions.removeAll { $0.id == suggestion.id }
         } catch {
             aiErrorMessage = "Failed to apply: \(error.localizedDescription)"
@@ -166,20 +173,43 @@ final class InsightsViewModel {
     }
 
     func applyAllActions() {
-        for action in aiActions {
+        // Apply in dependency order: categories first, then transactions, then rules
+        let sorted = aiActions.sorted { a, b in
+            func priority(_ action: ClaudeAPIService.AIAction) -> Int {
+                switch action {
+                case .budgetChange: return 0  // Create categories first
+                case .transactionUpdate: return 1
+                case .ruleCreation: return 2  // Rules need categories to exist
+                }
+            }
+            return priority(a) < priority(b)
+        }
+        for action in sorted {
             applyAction(action)
         }
     }
 
+    /// Resolve a category name to its UUID, creating the category if it doesn't exist.
+    private func resolveOrCreateCategory(named name: String) throws -> UUID {
+        let categories = try DatabaseManager.shared.fetchCategories()
+        if let existing = categories.first(where: { $0.name.lowercased() == name.lowercased() }) {
+            return existing.id
+        }
+        // Create it
+        let newCategory = BudgetCategory(
+            name: name,
+            monthlyBudget: 0,
+            colorHex: BudgetCategory.randomColorHex(),
+            sortOrder: categories.count
+        )
+        try DatabaseManager.shared.saveCategory(newCategory)
+        return newCategory.id
+    }
+
     private func applyTransactionAction(_ action: ClaudeAPIService.TransactionAction) {
         do {
-            let categories = try DatabaseManager.shared.fetchCategories()
-            guard let targetCategory = categories.first(where: {
-                $0.name.lowercased() == (action.category ?? "").lowercased()
-            }) else {
-                aiErrorMessage = "Category \"\(action.category ?? "")\" not found."
-                return
-            }
+            let categoryName = action.category ?? ""
+            let categoryId = try resolveOrCreateCategory(named: categoryName)
 
             let transactions = try DatabaseManager.shared.fetchTransactions(forMonth: currentMonth)
             let pattern = action.descriptionPattern.lowercased()
@@ -189,7 +219,7 @@ final class InsightsViewModel {
 
             for txn in matching {
                 try DatabaseManager.shared.updateTransactionCategory(
-                    txn.id, categoryId: targetCategory.id, isManual: true
+                    txn.id, categoryId: categoryId, isManual: true
                 )
             }
         } catch {
@@ -199,17 +229,11 @@ final class InsightsViewModel {
 
     private func applyRuleFromAction(_ rule: ClaudeAPIService.RuleSuggestion) {
         do {
-            let categories = try DatabaseManager.shared.fetchCategories()
-            guard let targetCategory = categories.first(where: {
-                $0.name.lowercased() == rule.category.lowercased()
-            }) else {
-                aiErrorMessage = "Category \"\(rule.category)\" not found."
-                return
-            }
+            let categoryId = try resolveOrCreateCategory(named: rule.category)
 
             let newRule = CategorizationRule(
                 keyword: rule.keyword,
-                categoryId: targetCategory.id,
+                categoryId: categoryId,
                 priority: 100,
                 isUserDefined: true
             )

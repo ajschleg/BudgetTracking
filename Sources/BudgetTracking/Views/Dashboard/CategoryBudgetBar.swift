@@ -6,7 +6,9 @@ struct CategoryBudgetBar: View {
     let percentage: Double
     var isExpanded: Bool = false
     var transactions: [Transaction] = []
+    var allCategories: [BudgetCategory] = []
     var onTap: (() -> Void)?
+    var onCategoryChange: ((UUID, UUID) -> Void)?  // (transactionId, newCategoryId)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -98,6 +100,14 @@ struct CategoryBudgetBar: View {
 
                                 Spacer()
 
+                                if !allCategories.isEmpty {
+                                    TransactionCategoryPicker(
+                                        transaction: txn,
+                                        categories: allCategories,
+                                        onCategoryChange: onCategoryChange
+                                    )
+                                }
+
                                 Text(CurrencyFormatter.format(abs(txn.amount)))
                                     .font(.caption)
                                     .monospacedDigit()
@@ -119,5 +129,32 @@ struct CategoryBudgetBar: View {
         .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(10)
         .animation(.easeInOut(duration: 0.2), value: isExpanded)
+    }
+}
+
+/// A small inline picker for reassigning a transaction's category.
+private struct TransactionCategoryPicker: View {
+    let transaction: Transaction
+    let categories: [BudgetCategory]
+    var onCategoryChange: ((UUID, UUID) -> Void)?
+
+    @State private var selectedCategoryId: UUID?
+
+    var body: some View {
+        Picker("", selection: $selectedCategoryId) {
+            Text("Uncategorized").tag(nil as UUID?)
+            ForEach(categories) { cat in
+                Text(cat.name).tag(cat.id as UUID?)
+            }
+        }
+        .labelsHidden()
+        .frame(width: 130)
+        .controlSize(.small)
+        .onAppear { selectedCategoryId = transaction.categoryId }
+        .onChange(of: selectedCategoryId) { _, newValue in
+            if let newId = newValue, newId != transaction.categoryId {
+                onCategoryChange?(transaction.id, newId)
+            }
+        }
     }
 }

@@ -53,6 +53,22 @@ final class DashboardViewModel {
         }
     }
 
+    func changeTransactionCategory(_ transactionId: UUID, to newCategoryId: UUID) {
+        do {
+            try DatabaseManager.shared.updateTransactionCategory(transactionId, categoryId: newCategoryId, isManual: true)
+            // Refresh spending data
+            load(month: currentMonth)
+            // Re-expand the current category to update the transaction list
+            if let expanded = expandedCategoryId {
+                expandedTransactions = try DatabaseManager.shared.fetchTransactions(
+                    forMonth: currentMonth, categoryId: expanded
+                )
+            }
+        } catch {
+            // Silently fail — the picker will revert on next load
+        }
+    }
+
     func spending(for category: BudgetCategory) -> Double {
         spendingByCategory[category.id] ?? 0
     }

@@ -38,7 +38,11 @@ struct DashboardView: View {
                                 isExpanded: viewModel.expandedCategoryId == category.id,
                                 transactions: viewModel.expandedCategoryId == category.id
                                     ? viewModel.expandedTransactions : [],
-                                onTap: { viewModel.toggleCategory(category.id) }
+                                allCategories: viewModel.categories,
+                                onTap: { viewModel.toggleCategory(category.id) },
+                                onCategoryChange: { txnId, newCatId in
+                                    viewModel.changeTransactionCategory(txnId, to: newCatId)
+                                }
                             )
                         }
                     }
