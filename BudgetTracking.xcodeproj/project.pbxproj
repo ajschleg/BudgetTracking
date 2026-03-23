@@ -36,6 +36,7 @@
 		AAB0D77A318B158439549FAD /* ImportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 814237725B108CA6C713DE5B /* ImportViewModel.swift */; };
 		AC9DEFC24754618C7AD10C3D /* ChaseCSVParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59EF97C6FF89940BA0975677 /* ChaseCSVParsingTests.swift */; };
 		ACB2FE6DD3AD75F0E535C0A9 /* SyncSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */; };
+		D1A0B3C4E7F89012ABCD1234 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0B3C5E7F89012ABCD1234 /* SettingsView.swift */; };
 		B50381A1372095880CBFC715 /* OFXParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A01F52CACF433AE1C260BB /* OFXParser.swift */; };
 		BC63EA54D93D3ACD9B197092 /* SyncStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47794CD4CE264DCABF650F6F /* SyncStateStore.swift */; };
 		BCD801CD70883317A41748C3 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69A036733184969414358E31 /* DashboardViewModel.swift */; };
@@ -118,6 +119,7 @@
 		A789E73759CED466B7C73C35 /* BudgetTrackingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTrackingApp.swift; sourceTree = "<group>"; };
 		AC763A3C4CF46175AE1AC828 /* OverallBudgetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverallBudgetBar.swift; sourceTree = "<group>"; };
 		AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSettingsView.swift; sourceTree = "<group>"; };
+		D1A0B3C5E7F89012ABCD1234 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B1F8FA4860B574D29B070358 /* CategoriesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesViewModel.swift; sourceTree = "<group>"; };
 		C441C5CCF6F0938AECC87B47 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		D003AE1329BA1C9FCD924629 /* RecordConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordConverter.swift; sourceTree = "<group>"; };
@@ -206,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */,
+				D1A0B3C5E7F89012ABCD1234 /* SettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -507,6 +510,7 @@
 				7A580A066A36B2FB74E0918C /* SyncConstants.swift in Sources */,
 				6288FC30C05B0F0D344B0761 /* SyncEngine.swift in Sources */,
 				ACB2FE6DD3AD75F0E535C0A9 /* SyncSettingsView.swift in Sources */,
+				D1A0B3C4E7F89012ABCD1234 /* SettingsView.swift in Sources */,
 				BC63EA54D93D3ACD9B197092 /* SyncStateStore.swift in Sources */,
 				C877E5C5F34AC7349C7085CC /* Transaction.swift in Sources */,
 				9E5B026BFA80B5B95CBBEF1A /* TransactionsListView.swift in Sources */,

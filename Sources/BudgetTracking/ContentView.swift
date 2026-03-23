@@ -8,6 +8,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case history = "History"
     case insights = "Insights"
     case sync = "Sync"
+    case settings = "Settings"
 
     var id: String { rawValue }
 
@@ -20,6 +21,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .history: return "clock.fill"
         case .insights: return "lightbulb.fill"
         case .sync: return "arrow.triangle.2.circlepath"
+        case .settings: return "gear"
         }
     }
 }
@@ -78,17 +80,19 @@ struct ContentView: View {
             case .dashboard:
                 DashboardView(selectedMonth: $selectedMonth)
             case .transactions:
-                TransactionsListView(selectedMonth: $selectedMonth)
+                TransactionsListView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
             case .importStatements:
                 ImportView(selectedMonth: $selectedMonth)
             case .categories:
-                CategoriesSettingsView()
+                CategoriesSettingsView(aiViewModel: insightsViewModel)
             case .history:
                 HistoryView(selectedMonth: $selectedMonth)
             case .insights:
                 InsightsView(selectedMonth: $selectedMonth, viewModel: insightsViewModel)
             case .sync:
                 SyncSettingsView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine)
+            case .settings:
+                SettingsView(aiViewModel: insightsViewModel)
             case nil:
                 Text("Select an item from the sidebar")
                     .foregroundStyle(.secondary)

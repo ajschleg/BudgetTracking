@@ -3,7 +3,6 @@ import SwiftUI
 struct InsightsView: View {
     @Binding var selectedMonth: String
     @Bindable var viewModel: InsightsViewModel
-    @State private var showAPIKeyField = false
 
     var body: some View {
         ScrollView {
@@ -37,39 +36,10 @@ struct InsightsView: View {
                     Label("Budget Insights", systemImage: "lightbulb.fill")
                 }
 
-                // MARK: - AI Assistant
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // API Key Configuration
-                        DisclosureGroup(isExpanded: $showAPIKeyField) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                SecureField("sk-ant-...", text: $viewModel.apiKey)
-                                .textFieldStyle(.roundedBorder)
-
-                                Text("Your API key is stored locally and only used to send aggregated spending data (category names and monthly totals) to Claude for analysis. No transaction descriptions or merchant names are sent.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.top, 8)
-                        } label: {
-                            HStack(spacing: 6) {
-                                Text("API Key")
-                                    .font(.subheadline)
-                                if viewModel.isAPIKeyConfigured {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.green)
-                                        .font(.caption)
-                                } else {
-                                    Image(systemName: "exclamationmark.circle")
-                                        .foregroundStyle(.secondary)
-                                        .font(.caption)
-                                }
-                            }
-                        }
-
-                        Divider()
-
-                        if viewModel.isAPIKeyConfigured {
+                // MARK: - AI Assistant (Ask AI)
+                if viewModel.isAPIKeyConfigured {
+                    GroupBox {
+                        VStack(alignment: .leading, spacing: 16) {
                             // Usage indicator
                             HStack {
                                 Text("Usage this month: $\(String(format: "%.2f", viewModel.monthlySpend)) / $\(String(format: "%.2f", viewModel.monthlyCap)) cap")
@@ -109,7 +79,7 @@ struct InsightsView: View {
                                 }
                             }
 
-                            // AI Response
+                            // Error display
                             if let error = viewModel.aiErrorMessage {
                                 Text(error)
                                     .foregroundStyle(.red)
@@ -120,6 +90,7 @@ struct InsightsView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
 
+                            // AI Response
                             if !viewModel.aiResponse.isEmpty {
                                 Divider()
 
@@ -151,288 +122,21 @@ struct InsightsView: View {
                                     }
                                 }
                             }
-                        } else {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Enter your Claude API key above to enable AI-powered spending analysis.")
-                                    .font(.callout)
-                                    .foregroundStyle(.secondary)
-
-                                HStack(spacing: 4) {
-                                    Text("Need an API key?")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Link("Get one at console.anthropic.com",
-                                         destination: URL(string: "https://console.anthropic.com/settings/keys")!)
-                                        .font(.caption)
-                                }
-                            }
-                            .padding(.vertical, 8)
-                        }
-                    }
-                    .padding(4)
-                } label: {
-                    Label("AI Assistant", systemImage: "sparkles")
-                }
-
-                // MARK: - Generate Budget
-                if viewModel.isAPIKeyConfigured {
-                    GroupBox {
-                        VStack(alignment: .leading, spacing: 12) {
-                            // Detected income display
-                            HStack {
-                                Text("Detected Monthly Income")
-                                    .font(.subheadline)
-                                Spacer()
-                                if viewModel.monthlyIncome.isEmpty || viewModel.monthlyIncome == "0" {
-                                    Text("No income detected")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    Text("$\(viewModel.monthlyIncome)")
-                                        .font(.subheadline.weight(.semibold).monospacedDigit())
-                                }
-                            }
-
-                            // Style picker
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Budget Style")
-                                    .font(.subheadline)
-                                Picker("Style", selection: $viewModel.budgetStyle) {
-                                    ForEach(ClaudeAPIService.BudgetStyle.allCases) { style in
-                                        Text(style.rawValue).tag(style)
-                                    }
-                                }
-                                .pickerStyle(.segmented)
-
-                                Text(viewModel.budgetStyle.description)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            // Generate button
-                            HStack {
-                                Spacer()
-                                Button {
-                                    Task { await viewModel.generateBudget() }
-                                } label: {
-                                    if viewModel.isLoadingBudgetGeneration {
-                                        ProgressView()
-                                            .controlSize(.small)
-                                    } else {
-                                        Label("Generate Budget", systemImage: "wand.and.stars")
-                                    }
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(viewModel.isLoadingBudgetGeneration || viewModel.isOverCap)
-                            }
-
-                            // Results
-                            if !viewModel.budgetGenerationResponse.isEmpty {
-                                Divider()
-
-                                Text(viewModel.budgetGenerationResponse)
-                                    .font(.body)
-                                    .textSelection(.enabled)
-                                    .padding(12)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                                if !viewModel.budgetAllocations.isEmpty {
-                                    Divider()
-
-                                    HStack {
-                                        Text("Proposed Budget")
-                                            .font(.headline)
-                                        Spacer()
-                                        let total = viewModel.budgetAllocations.reduce(0.0) { $0 + $1.amount }
-                                        Text("Total: $\(String(format: "%.0f", total))")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                    }
-
-                                    ForEach(viewModel.budgetAllocations) { allocation in
-                                        budgetAllocationCard(allocation)
-                                    }
-
-                                    Button {
-                                        viewModel.showApplyBudgetConfirmation = true
-                                    } label: {
-                                        Label("Apply This Budget", systemImage: "checkmark.circle.fill")
-                                            .frame(maxWidth: .infinity)
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .tint(.orange)
-                                    .controlSize(.large)
-                                }
-                            }
                         }
                         .padding(4)
                     } label: {
-                        Label("Generate Budget", systemImage: "wand.and.stars")
+                        Label("AI Assistant", systemImage: "sparkles")
                     }
-                    .onAppear { viewModel.loadIncomeEstimate() }
-                    .alert("Apply Budget?", isPresented: $viewModel.showApplyBudgetConfirmation) {
-                        Button("Cancel", role: .cancel) {}
-                        Button("Apply", role: .destructive) {
-                            withAnimation { viewModel.applyGeneratedBudget() }
-                        }
-                    } message: {
-                        Text("This will overwrite all current category budgets with the AI-generated amounts. New categories will be created as needed.")
-                    }
-                }
-
-                // MARK: - Rule Suggestions
-                if viewModel.isAPIKeyConfigured {
+                } else {
                     GroupBox {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("Analyze your transactions and suggest keyword rules to auto-categorize them.")
-                                    .font(.body)
-                                    .foregroundStyle(.secondary)
-
-                                Spacer()
-
-                                Button {
-                                    Task { await viewModel.suggestRules() }
-                                } label: {
-                                    if viewModel.isLoadingRules {
-                                        ProgressView()
-                                            .controlSize(.small)
-                                    } else {
-                                        Label("Suggest Rules", systemImage: "wand.and.stars")
-                                    }
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(viewModel.isLoadingRules || viewModel.isOverCap)
-                            }
-
-                            if !viewModel.ruleResponse.isEmpty {
-                                Divider()
-
-                                Text(viewModel.ruleResponse)
-                                    .font(.body)
-                                    .textSelection(.enabled)
-                                    .padding(12)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                                if !viewModel.ruleSuggestions.isEmpty {
-                                    Divider()
-
-                                    HStack {
-                                        Text("Suggested Rules")
-                                            .font(.headline)
-                                        Spacer()
-                                        Button("Apply All") {
-                                            viewModel.applyAllRules()
-                                        }
-                                        .buttonStyle(.borderedProminent)
-                                        .controlSize(.small)
-                                    }
-
-                                    ForEach(viewModel.ruleSuggestions) { rule in
-                                        ruleCard(rule)
-                                    }
-                                }
-                            }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Configure your Claude API key in Settings to enable AI-powered spending analysis.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
                         }
                         .padding(4)
                     } label: {
-                        Label("Auto-Categorization Rules", systemImage: "text.badge.checkmark")
-                    }
-
-                    // MARK: - Auto-Categorize Transactions
-                    GroupBox {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("Let AI categorize your uncategorized transactions.")
-                                    .font(.body)
-                                    .foregroundStyle(.secondary)
-
-                                Spacer()
-
-                                if viewModel.autoCategorizeRunning {
-                                    Button {
-                                        viewModel.stopAutoCategorize()
-                                    } label: {
-                                        Label("Stop", systemImage: "stop.fill")
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .tint(.red)
-                                } else {
-                                    Button {
-                                        Task { await viewModel.categorizeTransactions() }
-                                    } label: {
-                                        if viewModel.isLoadingCategorization {
-                                            ProgressView()
-                                                .controlSize(.small)
-                                        } else {
-                                            Label("Categorize Batch", systemImage: "tag.fill")
-                                        }
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(viewModel.isLoadingCategorization || viewModel.isOverCap)
-
-                                    Button {
-                                        Task { await viewModel.autoCategorizeAll() }
-                                    } label: {
-                                        Label("Categorize All", systemImage: "arrow.triangle.2.circlepath")
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .tint(.orange)
-                                    .disabled(viewModel.isLoadingCategorization || viewModel.isOverCap)
-                                }
-                            }
-
-                            // Auto-categorize progress
-                            if !viewModel.autoCategorizeProgress.isEmpty {
-                                HStack(spacing: 8) {
-                                    if viewModel.autoCategorizeRunning {
-                                        ProgressView()
-                                            .controlSize(.small)
-                                    }
-                                    Text(viewModel.autoCategorizeProgress)
-                                        .font(.caption)
-                                        .foregroundStyle(viewModel.autoCategorizeRunning ? .primary : .secondary)
-                                }
-                            }
-
-                            if !viewModel.categorizationResponse.isEmpty {
-                                Divider()
-
-                                Text(viewModel.categorizationResponse)
-                                    .font(.body)
-                                    .textSelection(.enabled)
-                                    .padding(12)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                                if !viewModel.categorizationSuggestions.isEmpty {
-                                    Divider()
-
-                                    HStack {
-                                        Text("Suggested Categories")
-                                            .font(.headline)
-                                        Spacer()
-                                        Button("Apply All") {
-                                            viewModel.applyAllCategorizations()
-                                        }
-                                        .buttonStyle(.borderedProminent)
-                                        .controlSize(.small)
-                                    }
-
-                                    ForEach(viewModel.categorizationSuggestions) { item in
-                                        categorizationCard(item)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(4)
-                    } label: {
-                        Label("Auto-Categorize Transactions", systemImage: "tag.fill")
+                        Label("AI Assistant", systemImage: "sparkles")
                     }
                 }
             }
@@ -476,126 +180,6 @@ struct InsightsView: View {
 
             Button("Apply") {
                 withAnimation { viewModel.applySuggestion(suggestion) }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-        }
-        .padding(10)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    // MARK: - Rule Card
-
-    private func ruleCard(_ rule: ClaudeAPIService.RuleSuggestion) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text("\"\(rule.keyword)\"")
-                        .font(.subheadline.weight(.semibold).monospaced())
-                    Image(systemName: "arrow.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(rule.category)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.blue)
-                }
-                Text(rule.reason)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Button("Apply") {
-                withAnimation { viewModel.applyRule(rule) }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-        }
-        .padding(10)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    // MARK: - Budget Allocation Card
-
-    private func budgetAllocationCard(_ allocation: ClaudeAPIService.BudgetAllocation) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    if allocation.category.hasPrefix("[NEW] ") {
-                        Text(allocation.category.replacingOccurrences(of: "[NEW] ", with: ""))
-                            .font(.subheadline.weight(.semibold))
-                        Text("NEW")
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(.orange.opacity(0.2))
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
-                            .foregroundStyle(.orange)
-                    } else {
-                        Text(allocation.category)
-                            .font(.subheadline.weight(.semibold))
-                    }
-                }
-                Text(allocation.reason)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Text("$\(String(format: "%.0f", allocation.amount))")
-                .font(.title3.weight(.bold).monospacedDigit())
-                .foregroundStyle(.primary)
-        }
-        .padding(10)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    // MARK: - Categorization Card
-
-    private func categorizationCard(_ item: ClaudeAPIService.CategorizationSuggestion) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.transactionDescription)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                HStack(spacing: 6) {
-                    Text("$\(String(format: "%.2f", item.amount))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Image(systemName: "arrow.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if item.category.hasPrefix("[NEW] ") {
-                        Text(item.category.replacingOccurrences(of: "[NEW] ", with: ""))
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.orange)
-                        Text("NEW")
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(.orange.opacity(0.2))
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
-                            .foregroundStyle(.orange)
-                    } else {
-                        Text(item.category)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
-                Text(item.reason)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Button("Apply") {
-                withAnimation { viewModel.applyCategorization(item) }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
