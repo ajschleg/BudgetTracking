@@ -13,6 +13,13 @@ final class DatabaseManager {
         }
     }
 
+    /// URL of the SQLite database file.
+    var databaseURL: URL {
+        FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        ).first!.appendingPathComponent("BudgetTracking/budget.sqlite")
+    }
+
     private init() {
         do {
             let appSupportURL = FileManager.default.urls(

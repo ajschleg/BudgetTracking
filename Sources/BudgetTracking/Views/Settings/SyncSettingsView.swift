@@ -12,6 +12,7 @@ struct SyncSettingsView: View {
     @State private var showDiagnostics = false
     @State private var diagnosticInfo: DiagnosticInfo?
     @State private var isLoadingDiagnostics = false
+    @State private var showImportConfirmation = false
 
     struct DiagnosticInfo {
         var iCloudAccount: String = "Checking..."
@@ -343,6 +344,50 @@ struct SyncSettingsView: View {
                     Label("Info", systemImage: "info.circle")
                 }
 
+                // Database Import/Export
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Export Database")
+                                    .font(.headline)
+                                Text("Save a copy of your SQLite database file")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button {
+                                exportDatabase()
+                            } label: {
+                                Label("Export", systemImage: "square.and.arrow.up")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+
+                        Divider()
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Import Database")
+                                    .font(.headline)
+                                Text("Replace your database with an exported copy")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button {
+                                showImportConfirmation = true
+                            } label: {
+                                Label("Import", systemImage: "square.and.arrow.down")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(8)
+                } label: {
+                    Label("Data", systemImage: "externaldrive")
+                }
+
                 // Diagnostics Section
                 GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
@@ -405,6 +450,14 @@ struct SyncSettingsView: View {
                 }
             }
             .padding(24)
+        }
+        .alert("Replace Database?", isPresented: $showImportConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Replace", role: .destructive) {
+                importDatabase()
+            }
+        } message: {
+            Text("This will replace your entire database with the imported file. All current data will be lost. Make sure you have an export if you want to keep it.")
         }
     }
 
@@ -813,6 +866,76 @@ struct SyncSettingsView: View {
         await MainActor.run {
             diagnosticInfo = info
             isLoadingDiagnostics = false
+        }
+    }
+
+    // MARK: - Export Database
+
+    private func exportDatabase() {
+        let sourceURL = DatabaseManager.shared.databaseURL
+        guard FileManager.default.fileExists(atPath: sourceURL.path) else { return }
+
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "budget.sqlite"
+        panel.allowedContentTypes = [.database, .data]
+        panel.canCreateDirectories = true
+
+        guard panel.runModal() == .OK, let destURL = panel.url else { return }
+
+        do {
+            if FileManager.default.fileExists(atPath: destURL.path) {
+                try FileManager.default.removeItem(at: destURL)
+            }
+            try FileManager.default.copyItem(at: sourceURL, to: destURL)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Export Failed"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
+        }
+    }
+
+    private func importDatabase() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.database, .data]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+
+        guard panel.runModal() == .OK, let sourceURL = panel.url else { return }
+
+        let destURL = DatabaseManager.shared.databaseURL
+
+        do {
+            // Replace the database file
+            if FileManager.default.fileExists(atPath: destURL.path) {
+                try FileManager.default.removeItem(at: destURL)
+            }
+            try FileManager.default.copyItem(at: sourceURL, to: destURL)
+
+            // Also remove WAL/SHM files so SQLite doesn't use stale journals
+            for ext in ["-wal", "-shm"] {
+                let journalURL = destURL.appendingPathExtension(ext.dropFirst().description)
+                let journalPath = destURL.path + ext
+                if FileManager.default.fileExists(atPath: journalPath) {
+                    try FileManager.default.removeItem(atPath: journalPath)
+                }
+            }
+
+            // Notify user to restart
+            let alert = NSAlert()
+            alert.messageText = "Database Imported"
+            alert.informativeText = "Please restart the app for the new database to take effect."
+            alert.alertStyle = .informational
+            alert.runModal()
+
+            NSApplication.shared.terminate(nil)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Import Failed"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
         }
     }
 
