@@ -2,6 +2,8 @@ import SwiftUI
 
 struct DashboardView: View {
     @Binding var selectedMonth: String
+    @Binding var selectedItem: SidebarItem?
+    @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
     @State private var viewModel = DashboardViewModel()
 
     var body: some View {
@@ -80,6 +82,17 @@ struct DashboardView: View {
                     .font(.headline)
 
                 Spacer()
+
+                if isIncomePageEnabled {
+                    Button {
+                        selectedItem = .income
+                    } label: {
+                        Image(systemName: "arrow.right.circle")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open Income page")
+                }
 
                 Image(systemName: viewModel.isIncomeExpanded ? "chevron.up" : "chevron.down")
                     .font(.caption)

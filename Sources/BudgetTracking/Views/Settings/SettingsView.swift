@@ -2,10 +2,25 @@ import SwiftUI
 
 struct SettingsView: View {
     @Bindable var aiViewModel: InsightsViewModel
+    @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // MARK: - Pages
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Income Page", isOn: $isIncomePageEnabled)
+
+                        Text("Show the Income page in the sidebar for tracking income by source.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(8)
+                } label: {
+                    Label("Pages", systemImage: "sidebar.left")
+                }
+
                 // MARK: - AI Configuration
                 GroupBox {
                     VStack(alignment: .leading, spacing: 16) {

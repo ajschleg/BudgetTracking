@@ -499,6 +499,27 @@ final class DatabaseManager {
         }
     }
 
+    /// Fetch all active transactions for a given month (for rule re-application).
+    func fetchAllActiveTransactions(forMonth month: String) throws -> [Transaction] {
+        try dbQueue.read { db in
+            try Transaction
+                .filter(Transaction.Columns.month == month)
+                .filter(Transaction.Columns.isDeleted == false)
+                .order(Transaction.Columns.date.desc)
+                .fetchAll(db)
+        }
+    }
+
+    /// Fetch every active (non-deleted) transaction across all months.
+    func fetchAllActiveTransactions() throws -> [Transaction] {
+        try dbQueue.read { db in
+            try Transaction
+                .filter(Transaction.Columns.isDeleted == false)
+                .order(Transaction.Columns.date.desc)
+                .fetchAll(db)
+        }
+    }
+
     func fetchTransactions(forMonth month: String) throws -> [Transaction] {
         try dbQueue.read { db in
             try Transaction
@@ -955,26 +976,34 @@ final class DatabaseManager {
     func fetchUncategorizedSpending(forMonth month: String) throws -> Double {
         try dbQueue.read { db in
             let row = try Row.fetchOne(db, sql: """
-                SELECT COALESCE(SUM(amount), 0) as total
-                FROM "transaction"
-                WHERE categoryId IS NULL
-                  AND month = ?
-                  AND amount < 0
-                  AND isDeleted = 0
+                SELECT COALESCE(SUM(t.amount), 0) as total
+                FROM "transaction" t
+                LEFT JOIN "budgetCategory" c ON t.categoryId = c.id
+                    AND c.isDeleted = 0 AND c.isArchived = 0
+                WHERE (t.categoryId IS NULL OR c.id IS NULL)
+                  AND t.month = ?
+                  AND t.amount < 0
+                  AND t.isDeleted = 0
                 """, arguments: [month])
             return abs(row?["total"] as Double? ?? 0)
         }
     }
 
     /// Fetch uncategorized transactions for a given month.
+    /// Includes transactions whose categoryId is NULL as well as those
+    /// whose categoryId points to a deleted or archived category.
     func fetchUncategorizedTransactions(forMonth month: String) throws -> [Transaction] {
         try dbQueue.read { db in
-            try Transaction
-                .filter(Transaction.Columns.categoryId == nil)
-                .filter(Transaction.Columns.month == month)
-                .filter(Transaction.Columns.isDeleted == false)
-                .order(Transaction.Columns.date.desc)
-                .fetchAll(db)
+            try Transaction.fetchAll(db, sql: """
+                SELECT t.*
+                FROM "transaction" t
+                LEFT JOIN "budgetCategory" c ON t.categoryId = c.id
+                    AND c.isDeleted = 0 AND c.isArchived = 0
+                WHERE (t.categoryId IS NULL OR c.id IS NULL)
+                  AND t.month = ?
+                  AND t.isDeleted = 0
+                ORDER BY t.date DESC
+                """, arguments: [month])
         }
     }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 enum SidebarItem: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
+    case income = "Income"
     case transactions = "Transactions"
     case importStatements = "Import"
     case categories = "Categories"
@@ -15,6 +16,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .dashboard: return "chart.bar.fill"
+        case .income: return "banknote"
         case .transactions: return "list.bullet.rectangle"
         case .importStatements: return "square.and.arrow.down"
         case .categories: return "folder.fill"
@@ -30,14 +32,22 @@ struct ContentView: View {
     @State private var selectedItem: SidebarItem? = .dashboard
     @State private var selectedMonth: String = DateHelpers.monthString()
     @State private var insightsViewModel = InsightsViewModel()
+    @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
 
     let syncEngine: SyncEngine
     let shareManager: ShareManager
     let lanSyncEngine: LANSyncEngine
 
+    private var visibleSidebarItems: [SidebarItem] {
+        SidebarItem.allCases.filter { item in
+            if item == .income { return isIncomePageEnabled }
+            return true
+        }
+    }
+
     var body: some View {
         NavigationSplitView {
-            List(SidebarItem.allCases, selection: $selectedItem) { item in
+            List(visibleSidebarItems, selection: $selectedItem) { item in
                 Label(item.rawValue, systemImage: item.icon)
                     .tag(item)
             }
@@ -78,7 +88,9 @@ struct ContentView: View {
         } detail: {
             switch selectedItem {
             case .dashboard:
-                DashboardView(selectedMonth: $selectedMonth)
+                DashboardView(selectedMonth: $selectedMonth, selectedItem: $selectedItem)
+            case .income:
+                IncomeView(selectedMonth: $selectedMonth)
             case .transactions:
                 TransactionsListView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
             case .importStatements:

@@ -77,6 +77,9 @@ final class CategoriesViewModel {
         }
     }
 
+    /// Number of transactions categorized by the most recent rule addition.
+    var lastRuleApplyCount: Int = 0
+
     func addRule(keyword: String, categoryId: UUID, priority: Int = 0) {
         let rule = CategorizationRule(
             keyword: keyword,
@@ -85,6 +88,28 @@ final class CategoriesViewModel {
         )
         do {
             try DatabaseManager.shared.saveRule(rule)
+
+            // Immediately apply all rules to every transaction in the
+            // database. This covers uncategorized, auto-categorized, and
+            // manually-categorized transactions alike.
+            let allRules = try DatabaseManager.shared.fetchRules()
+            let cats = try DatabaseManager.shared.fetchCategories()
+            let engine = CategorizationEngine(rules: allRules, categories: cats)
+
+            let candidates = try DatabaseManager.shared.fetchAllActiveTransactions()
+            var count = 0
+            for txn in candidates {
+                if let matched = engine.categorize(description: txn.description, merchant: txn.merchant) {
+                    guard matched.categoryId != txn.categoryId else { continue }
+                    try DatabaseManager.shared.updateTransactionCategory(
+                        txn.id, categoryId: matched.categoryId, isManual: false
+                    )
+                    try DatabaseManager.shared.incrementRuleMatchCount(matched.id)
+                    count += 1
+                }
+            }
+            lastRuleApplyCount = count
+
             load()
         } catch {
             errorMessage = error.localizedDescription

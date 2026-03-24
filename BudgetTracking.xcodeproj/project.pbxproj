@@ -68,6 +68,9 @@
 		AA4444444444444444444444 /* InsightsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4444444444444444444444 /* InsightsViewModel.swift */; };
 		AA5555555555555555555555 /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB5555555555555555555555 /* InsightsView.swift */; };
 		AA6666666666666666666666 /* InsightCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6666666666666666666666 /* InsightCardView.swift */; };
+		CC9900001111111111111111 /* IncomeSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9900001111111111111111 /* IncomeSource.swift */; };
+		CC9900002222222222222222 /* IncomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9900002222222222222222 /* IncomeViewModel.swift */; };
+		CC9900003333333333333333 /* IncomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9900003333333333333333 /* IncomeView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -141,6 +144,9 @@
 		BB4444444444444444444444 /* InsightsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsViewModel.swift; sourceTree = "<group>"; };
 		BB5555555555555555555555 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
 		BB6666666666666666666666 /* InsightCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightCardView.swift; sourceTree = "<group>"; };
+		DD9900001111111111111111 /* IncomeSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeSource.swift; sourceTree = "<group>"; };
+		DD9900002222222222222222 /* IncomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeViewModel.swift; sourceTree = "<group>"; };
+		DD9900003333333333333333 /* IncomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -172,6 +178,7 @@
 				69A036733184969414358E31 /* DashboardViewModel.swift */,
 				850E4467CF4D66BED7921C21 /* HistoryViewModel.swift */,
 				814237725B108CA6C713DE5B /* ImportViewModel.swift */,
+				DD9900002222222222222222 /* IncomeViewModel.swift */,
 				BB4444444444444444444444 /* InsightsViewModel.swift */,
 				6CB5F4483BD61BDCE9951D67 /* TransactionsViewModel.swift */,
 			);
@@ -232,6 +239,7 @@
 				9BEA30480C1E86191A7C17DD /* BudgetCategory.swift */,
 				371D0746A64876D4E554C092 /* CategorizationRule.swift */,
 				8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */,
+				DD9900001111111111111111 /* IncomeSource.swift */,
 				7619A21E784D3733842F06AB /* MonthlySnapshot.swift */,
 				BB1111111111111111111111 /* BudgetInsight.swift */,
 				BBAA001122334455667788 /* BankSource.swift */,
@@ -326,11 +334,20 @@
 				50FFDC941B04DD627C9F4F11 /* Dashboard */,
 				DF89480F8E83603CA222F55F /* History */,
 				6E3ED7D1737E604EE89141DD /* Import */,
+				EE9900004444444444444444 /* Income */,
 				CC7777777777777777777777 /* Insights */,
 				6D6CC1085EA6F7479DA64F5D /* Settings */,
 				8782EFBBD3C5B11948F3840C /* Transactions */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		EE9900004444444444444444 /* Income */ = {
+			isa = PBXGroup;
+			children = (
+				DD9900003333333333333333 /* IncomeView.swift */,
+			);
+			path = Income;
 			sourceTree = "<group>";
 		};
 		CBDBD11D1B167B2D16640DE9 /* Categories */ = {
@@ -496,6 +513,9 @@
 				F1E746C9970C092EFD2C848F /* ImportView.swift in Sources */,
 				AAB0D77A318B158439549FAD /* ImportViewModel.swift in Sources */,
 				0A095A6B4194BDCF8CEAF4DD /* ImportedFile.swift in Sources */,
+				CC9900001111111111111111 /* IncomeSource.swift in Sources */,
+				CC9900002222222222222222 /* IncomeViewModel.swift in Sources */,
+				CC9900003333333333333333 /* IncomeView.swift in Sources */,
 				34B5F561DA5DF8F30DA3B425 /* LANSyncEngine.swift in Sources */,
 				8D62D571E3AAB5C7C52B7708 /* LANSyncProtocol.swift in Sources */,
 				578E34AA65E5FD5F944BD4AD /* LANSyncStateStore.swift in Sources */,

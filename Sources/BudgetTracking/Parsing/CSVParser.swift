@@ -15,16 +15,29 @@ struct CSVStatementParser: StatementParser {
         // create extra fields, causing a header/field count mismatch.
         // Normalize \r\n → \n first, then split, to avoid creating empty lines.
         let rawContent = try String(contentsOf: fileURL, encoding: .utf8)
-        let cleanedContent = rawContent
+        let normalized = rawContent
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
-            .split(separator: "\n", omittingEmptySubsequences: true)
+        let lines = normalized.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+
+        // Determine the delimiter character used in the file.
+        let delimChar: Character = delimiter == "\t" ? "\t" : ","
+
+        // Count fields in the header line to know how many columns are expected.
+        let headerFieldCount = lines.first.map { line in
+            line.filter { $0 == delimChar }.count + 1
+        } ?? 0
+
+        let cleanedContent = lines
             .map { line -> String in
-                // Strip at most one trailing comma (with optional whitespace) per line.
-                // Chase exports add one extra trailing comma to every data row.
-                guard line.hasSuffix(",") || line.hasSuffix(", ") else { return String(line) }
-                var s = String(line)
-                // Remove trailing whitespace then one comma
+                // Strip at most one trailing comma (with optional whitespace) per line,
+                // but only if the line has MORE fields than the header. This avoids
+                // removing a legitimate empty trailing field (e.g. an empty Memo column)
+                // that matches a real header column.
+                guard line.hasSuffix(",") || line.hasSuffix(", ") else { return line }
+                let lineFieldCount = line.filter { $0 == delimChar }.count + 1
+                guard lineFieldCount > headerFieldCount else { return line }
+                var s = line
                 while s.last?.isWhitespace == true { s.removeLast() }
                 if s.last == "," { s.removeLast() }
                 return s

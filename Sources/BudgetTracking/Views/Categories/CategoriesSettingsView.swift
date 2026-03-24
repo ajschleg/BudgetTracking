@@ -7,6 +7,24 @@ struct CategoriesSettingsView: View {
     @State private var showAddRule = false
     @State private var editingCategory: BudgetCategory?
     @State private var showSaveDefaultsConfirmation = false
+    @State private var ruleApplyMessage: String?
+    @State private var ruleSearchText: String = ""
+    @State private var categorySearchText: String = ""
+
+    private var filteredCategories: [BudgetCategory] {
+        guard !categorySearchText.isEmpty else { return viewModel.categories }
+        return viewModel.categories.filter {
+            $0.name.localizedCaseInsensitiveContains(categorySearchText)
+        }
+    }
+
+    private var filteredRules: [CategorizationRule] {
+        guard !ruleSearchText.isEmpty else { return viewModel.rules }
+        return viewModel.rules.filter {
+            $0.keyword.localizedCaseInsensitiveContains(ruleSearchText) ||
+            viewModel.categoryName(for: $0.categoryId).localizedCaseInsensitiveContains(ruleSearchText)
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -46,8 +64,14 @@ struct CategoriesSettingsView: View {
                     generateBudgetSection
                 }
 
+                if !viewModel.categories.isEmpty {
+                    TextField("Search categories...", text: $categorySearchText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 300)
+                }
+
                 LazyVStack(spacing: 8) {
-                    ForEach(viewModel.categories) { category in
+                    ForEach(filteredCategories) { category in
                         CategoryRow(
                             category: category,
                             onEdit: { editingCategory = category },
@@ -73,6 +97,14 @@ struct CategoriesSettingsView: View {
                     Text("Categorization Rules")
                         .font(.title2)
                         .fontWeight(.semibold)
+
+                    if let message = ruleApplyMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                            .transition(.opacity)
+                    }
+
                     Spacer()
                     Button(action: { showAddRule = true }) {
                         Label("Add Rule", systemImage: "plus")
@@ -85,13 +117,19 @@ struct CategoriesSettingsView: View {
                     suggestRulesSection
                 }
 
+                if !viewModel.rules.isEmpty {
+                    TextField("Search rules...", text: $ruleSearchText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 300)
+                }
+
                 if viewModel.rules.isEmpty {
                     Text("No rules configured. Rules are also auto-created when you manually categorize transactions.")
                         .foregroundStyle(.secondary)
                         .padding()
                 } else {
                     LazyVStack(spacing: 4) {
-                        ForEach(viewModel.rules) { rule in
+                        ForEach(filteredRules) { rule in
                             HStack {
                                 Text("\"\(rule.keyword)\"")
                                     .fontWeight(.medium)
@@ -166,6 +204,12 @@ struct CategoriesSettingsView: View {
                 onSave: { keyword, categoryId in
                     viewModel.addRule(keyword: keyword, categoryId: categoryId)
                     showAddRule = false
+                    let count = viewModel.lastRuleApplyCount
+                    if count > 0 {
+                        withAnimation {
+                            ruleApplyMessage = "Rule applied to \(count) transaction\(count == 1 ? "" : "s")."
+                        }
+                    }
                 },
                 onCancel: { showAddRule = false }
             )

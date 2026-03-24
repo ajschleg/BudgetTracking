@@ -4,6 +4,7 @@ struct TransactionsListView: View {
     @Binding var selectedMonth: String
     @Bindable var aiViewModel: InsightsViewModel
     @State private var viewModel = TransactionsViewModel()
+    @State private var reapplyResultMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,23 +15,71 @@ struct TransactionsListView: View {
 
             TransactionTableContent(viewModel: viewModel)
 
+            Divider()
+
+            // Re-apply Rules section
+            reapplyRulesSection
+                .padding(.horizontal)
+                .padding(.top)
+
             // AI Auto-Categorize section
             if aiViewModel.isAPIKeyConfigured {
-                Divider()
                 autoCategorizeSection
-                    .padding()
+                    .padding(.horizontal)
+                    .padding(.top)
+                    .padding(.bottom)
             }
         }
         .navigationTitle("Transactions")
-        .onAppear { viewModel.load(month: selectedMonth) }
+        .onAppear {
+            viewModel.load(month: selectedMonth)
+            aiViewModel.load(month: selectedMonth)
+        }
         .onChange(of: selectedMonth) { _, newMonth in
             viewModel.load(month: newMonth)
+            aiViewModel.load(month: newMonth)
         }
         .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
             viewModel.load(month: selectedMonth)
         }
         .onReceive(NotificationCenter.default.publisher(for: .localDataDidChange)) { _ in
             viewModel.load(month: selectedMonth)
+        }
+    }
+
+    // MARK: - Re-apply Rules Section
+
+    private var reapplyRulesSection: some View {
+        GroupBox {
+            HStack {
+                Text("Re-apply categorization rules to uncategorized transactions.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if let message = reapplyResultMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .transition(.opacity)
+                }
+
+                Button {
+                    let count = viewModel.reapplyRules()
+                    withAnimation {
+                        reapplyResultMessage = count > 0
+                            ? "Categorized \(count) transaction\(count == 1 ? "" : "s")."
+                            : "No new matches found."
+                    }
+                } label: {
+                    Label("Re-apply Rules", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(4)
+        } label: {
+            Label("Rule-Based Categorization", systemImage: "text.badge.checkmark")
         }
     }
 
