@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct ImportView: View {
     @Binding var selectedMonth: String
+    @Bindable var aiViewModel: InsightsViewModel
     @State private var viewModel = ImportViewModel()
     @State private var isTargeted = false
     @State private var showDeleteConfirmation = false
@@ -13,19 +14,33 @@ struct ImportView: View {
     @State private var newSourceURL = ""
 
     var body: some View {
-        HSplitView {
-            // Left: Import area
-            VStack(spacing: 16) {
-                MonthSelectorView(selectedMonth: $selectedMonth)
-                    .padding(.top, 8)
+        VStack(spacing: 0) {
+            HSplitView {
+                // Left: Import area
+                VStack(spacing: 16) {
+                    MonthSelectorView(selectedMonth: $selectedMonth)
+                        .padding(.top, 8)
 
-                importContent
+                    importContent
+                }
+                .frame(minWidth: 400)
+
+                // Right: Imported files list
+                importedFilesList
+                    .frame(minWidth: 250, idealWidth: 300)
             }
-            .frame(minWidth: 400)
 
-            // Right: Imported files list
-            importedFilesList
-                .frame(minWidth: 250, idealWidth: 300)
+            if aiViewModel.isAPIKeyConfigured {
+                AIChatBar(
+                    viewModel: aiViewModel,
+                    actions: [
+                        AIChatAction(label: "Help with Import", icon: "sparkles") {
+                            await aiViewModel.askAI()
+                        }
+                    ],
+                    page: .importStatements
+                )
+            }
         }
         .navigationTitle("Import Statements")
         .onAppear { viewModel.loadImportedFiles(month: selectedMonth) }

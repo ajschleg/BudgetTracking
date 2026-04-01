@@ -15,19 +15,25 @@ struct TransactionsListView: View {
 
             TransactionTableContent(viewModel: viewModel)
 
-            Divider()
-
-            // Re-apply Rules section
-            reapplyRulesSection
-                .padding(.horizontal)
-                .padding(.top)
-
-            // AI Auto-Categorize section
             if aiViewModel.isAPIKeyConfigured {
-                autoCategorizeSection
-                    .padding(.horizontal)
-                    .padding(.top)
-                    .padding(.bottom)
+                AIChatBar(
+                    viewModel: aiViewModel,
+                    actions: [
+                        AIChatAction(label: "Re-apply Rules", icon: "arrow.clockwise") { @MainActor in
+                            let count = viewModel.reapplyRules()
+                            aiViewModel.categorizationResponse = count > 0
+                                ? "Categorized \(count) transaction\(count == 1 ? "" : "s") using rules."
+                                : "No new matches found."
+                        },
+                        AIChatAction(label: "Categorize Batch", icon: "tag.fill") {
+                            await aiViewModel.categorizeTransactions()
+                        },
+                        AIChatAction(label: "Categorize All", icon: "arrow.triangle.2.circlepath") {
+                            await aiViewModel.autoCategorizeAll()
+                        }
+                    ],
+                    page: .transactions
+                )
             }
         }
         .navigationTitle("Transactions")
@@ -45,190 +51,6 @@ struct TransactionsListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .localDataDidChange)) { _ in
             viewModel.load(month: selectedMonth)
         }
-    }
-
-    // MARK: - Re-apply Rules Section
-
-    private var reapplyRulesSection: some View {
-        GroupBox {
-            HStack {
-                Text("Re-apply categorization rules to uncategorized transactions.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                if let message = reapplyResultMessage {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .transition(.opacity)
-                }
-
-                Button {
-                    let count = viewModel.reapplyRules()
-                    withAnimation {
-                        reapplyResultMessage = count > 0
-                            ? "Categorized \(count) transaction\(count == 1 ? "" : "s")."
-                            : "No new matches found."
-                    }
-                } label: {
-                    Label("Re-apply Rules", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding(4)
-        } label: {
-            Label("Rule-Based Categorization", systemImage: "text.badge.checkmark")
-        }
-    }
-
-    // MARK: - Auto-Categorize Section
-
-    private var autoCategorizeSection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Let AI categorize your uncategorized transactions.")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    if aiViewModel.autoCategorizeRunning {
-                        Button {
-                            aiViewModel.stopAutoCategorize()
-                        } label: {
-                            Label("Stop", systemImage: "stop.fill")
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.red)
-                    } else {
-                        Button {
-                            Task { await aiViewModel.categorizeTransactions() }
-                        } label: {
-                            if aiViewModel.isLoadingCategorization {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Label("Categorize Batch", systemImage: "tag.fill")
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(aiViewModel.isLoadingCategorization || aiViewModel.isOverCap)
-
-                        Button {
-                            Task { await aiViewModel.autoCategorizeAll() }
-                        } label: {
-                            Label("Categorize All", systemImage: "arrow.triangle.2.circlepath")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.orange)
-                        .disabled(aiViewModel.isLoadingCategorization || aiViewModel.isOverCap)
-                    }
-                }
-
-                if !aiViewModel.autoCategorizeProgress.isEmpty {
-                    HStack(spacing: 8) {
-                        if aiViewModel.autoCategorizeRunning {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
-                        Text(aiViewModel.autoCategorizeProgress)
-                            .font(.caption)
-                            .foregroundStyle(aiViewModel.autoCategorizeRunning ? .primary : .secondary)
-                    }
-                }
-
-                if let error = aiViewModel.aiErrorMessage {
-                    Text(error)
-                        .foregroundStyle(.red)
-                        .font(.callout)
-                }
-
-                if !aiViewModel.categorizationResponse.isEmpty {
-                    Divider()
-
-                    Text(aiViewModel.categorizationResponse)
-                        .font(.body)
-                        .textSelection(.enabled)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                    if !aiViewModel.categorizationSuggestions.isEmpty {
-                        Divider()
-
-                        HStack {
-                            Text("Suggested Categories")
-                                .font(.headline)
-                            Spacer()
-                            Button("Apply All") {
-                                aiViewModel.applyAllCategorizations()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                        }
-
-                        ForEach(aiViewModel.categorizationSuggestions) { item in
-                            categorizationCard(item)
-                        }
-                    }
-                }
-            }
-            .padding(4)
-        } label: {
-            Label("AI Auto-Categorize", systemImage: "tag.fill")
-        }
-    }
-
-    private func categorizationCard(_ item: ClaudeAPIService.CategorizationSuggestion) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.transactionDescription)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                HStack(spacing: 6) {
-                    Text("$\(String(format: "%.2f", item.amount))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Image(systemName: "arrow.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if item.category.hasPrefix("[NEW] ") {
-                        Text(item.category.replacingOccurrences(of: "[NEW] ", with: ""))
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.orange)
-                        Text("NEW")
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(.orange.opacity(0.2))
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
-                            .foregroundStyle(.orange)
-                    } else {
-                        Text(item.category)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.blue)
-                    }
-                }
-                Text(item.reason)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Button("Apply") {
-                withAnimation { aiViewModel.applyCategorization(item) }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-        }
-        .padding(10)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 

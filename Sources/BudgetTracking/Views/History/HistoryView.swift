@@ -2,10 +2,12 @@ import SwiftUI
 
 struct HistoryView: View {
     @Binding var selectedMonth: String
+    @Bindable var aiViewModel: InsightsViewModel
     @State private var viewModel = HistoryViewModel()
     @State private var selectedHistoryMonth: String?
 
     var body: some View {
+        VStack(spacing: 0) {
         HSplitView {
             // Month list
             VStack(alignment: .leading) {
@@ -64,8 +66,24 @@ struct HistoryView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+
+            if aiViewModel.isAPIKeyConfigured {
+                AIChatBar(
+                    viewModel: aiViewModel,
+                    actions: [
+                        AIChatAction(label: "Analyze Trends", icon: "sparkles") {
+                            await aiViewModel.askAI()
+                        }
+                    ],
+                    page: .history
+                )
+            }
+        }
         .navigationTitle("History")
-        .onAppear { viewModel.load() }
+        .onAppear {
+            viewModel.load()
+            aiViewModel.load(month: selectedMonth)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
             viewModel.load()
         }

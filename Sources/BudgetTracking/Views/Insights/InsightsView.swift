@@ -5,145 +5,65 @@ struct InsightsView: View {
     @Bindable var viewModel: InsightsViewModel
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Month selector
-                MonthSelectorView(selectedMonth: $selectedMonth)
-                    .padding(.top)
+        PageWithChatBar(
+            viewModel: viewModel,
+            actions: [
+                AIChatAction(label: "Get Insights", icon: "sparkles") {
+                    await viewModel.askAI()
+                }
+            ],
+            page: .insights
+        ) {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Month selector
+                    MonthSelectorView(selectedMonth: $selectedMonth)
+                        .padding(.top)
 
-                // MARK: - On-Device Insights
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if viewModel.isLoadingInsights {
-                            HStack {
-                                ProgressView()
-                                    .controlSize(.small)
-                                Text("Analyzing spending patterns...")
+                    // MARK: - On-Device Insights
+                    GroupBox {
+                        VStack(alignment: .leading, spacing: 12) {
+                            if viewModel.isLoadingInsights {
+                                HStack {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Analyzing spending patterns...")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 20)
+                                .frame(maxWidth: .infinity)
+                            } else if viewModel.insights.isEmpty {
+                                emptyInsightsView
+                            } else {
+                                ForEach(viewModel.insights) { insight in
+                                    InsightCardView(insight: insight) { txnId in
+                                        viewModel.dismissReturn(txnId)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(4)
+                    } label: {
+                        Label("Budget Insights", systemImage: "lightbulb.fill")
+                    }
+
+                    // API key not configured message
+                    if !viewModel.isAPIKeyConfigured {
+                        GroupBox {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Configure your Claude API key in Settings to enable AI-powered spending analysis.")
+                                    .font(.callout)
                                     .foregroundStyle(.secondary)
                             }
-                            .padding(.vertical, 20)
-                            .frame(maxWidth: .infinity)
-                        } else if viewModel.insights.isEmpty {
-                            emptyInsightsView
-                        } else {
-                            ForEach(viewModel.insights) { insight in
-                                InsightCardView(insight: insight) { txnId in
-                                    viewModel.dismissReturn(txnId)
-                                }
-                            }
+                            .padding(4)
+                        } label: {
+                            Label("AI Assistant", systemImage: "sparkles")
                         }
-                    }
-                    .padding(4)
-                } label: {
-                    Label("Budget Insights", systemImage: "lightbulb.fill")
-                }
-
-                // MARK: - AI Assistant (Ask AI)
-                if viewModel.isAPIKeyConfigured {
-                    GroupBox {
-                        VStack(alignment: .leading, spacing: 16) {
-                            // Usage indicator
-                            HStack {
-                                Text("Usage this month: $\(String(format: "%.2f", viewModel.monthlySpend)) / $\(String(format: "%.2f", viewModel.monthlyCap)) cap")
-                                    .font(.caption)
-                                    .foregroundStyle(viewModel.isOverCap ? .red : .secondary)
-                                Spacer()
-                            }
-
-                            // Question field + Ask AI button
-                            VStack(alignment: .leading, spacing: 8) {
-                                TextField("Ask a question (optional) — e.g. \"What should I budget for taxes?\"",
-                                          text: $viewModel.userQuestion, axis: .vertical)
-                                    .textFieldStyle(.roundedBorder)
-                                    .lineLimit(1...4)
-
-                                HStack {
-                                    Text(viewModel.userQuestion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                         ? "Get a general analysis of your spending patterns."
-                                         : "Your question will be answered using your spending data as context.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-
-                                    Spacer()
-
-                                    Button {
-                                        Task { await viewModel.askAI() }
-                                    } label: {
-                                        if viewModel.isLoadingAI {
-                                            ProgressView()
-                                                .controlSize(.small)
-                                        } else {
-                                            Label("Ask AI", systemImage: "sparkles")
-                                        }
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(viewModel.isLoadingAI || viewModel.isOverCap)
-                                }
-                            }
-
-                            // Error display
-                            if let error = viewModel.aiErrorMessage {
-                                Text(error)
-                                    .foregroundStyle(.red)
-                                    .font(.callout)
-                                    .padding(8)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(.red.opacity(0.08))
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-
-                            // AI Response
-                            if !viewModel.aiResponse.isEmpty {
-                                Divider()
-
-                                Text(viewModel.aiResponse)
-                                    .font(.body)
-                                    .textSelection(.enabled)
-                                    .padding(12)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                                // AI-suggested actions
-                                if !viewModel.aiActions.isEmpty {
-                                    Divider()
-
-                                    HStack {
-                                        Text("Suggested Actions")
-                                            .font(.headline)
-                                        Spacer()
-                                        Button("Apply All") {
-                                            withAnimation { viewModel.applyAllActions() }
-                                        }
-                                        .buttonStyle(.borderedProminent)
-                                        .controlSize(.small)
-                                    }
-
-                                    ForEach(viewModel.aiActions) { action in
-                                        actionCard(action)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(4)
-                    } label: {
-                        Label("AI Assistant", systemImage: "sparkles")
-                    }
-                } else {
-                    GroupBox {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Configure your Claude API key in Settings to enable AI-powered spending analysis.")
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(4)
-                    } label: {
-                        Label("AI Assistant", systemImage: "sparkles")
                     }
                 }
+                .padding(.horizontal)
+                .padding(.bottom, 20)
             }
-            .padding(.horizontal)
-            .padding(.bottom, 20)
         }
         .navigationTitle("Insights")
         .onAppear { viewModel.load(month: selectedMonth) }
@@ -153,85 +73,6 @@ struct InsightsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
             viewModel.load(month: selectedMonth)
         }
-    }
-
-    // MARK: - Action Card
-
-    private func actionCard(_ action: ClaudeAPIService.AIAction) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                switch action {
-                case .budgetChange(let s):
-                    HStack(spacing: 6) {
-                        Image(systemName: "dollarsign.circle.fill")
-                            .foregroundStyle(.blue)
-                            .font(.caption)
-                        Text("Budget: \(s.category)")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    HStack(spacing: 4) {
-                        Text("$\(String(format: "%.0f", s.currentBudget))")
-                            .foregroundStyle(.secondary)
-                        Image(systemName: "arrow.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("$\(String(format: "%.0f", s.suggestedBudget))")
-                            .foregroundStyle(s.suggestedBudget > s.currentBudget ? .red : .green)
-                            .fontWeight(.medium)
-                    }
-                    .font(.subheadline)
-                    Text(s.reason)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                case .transactionUpdate(let a):
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.right.circle.fill")
-                            .foregroundStyle(.orange)
-                            .font(.caption)
-                        Text("Categorize: \"\(a.descriptionPattern)\"")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    HStack(spacing: 4) {
-                        Text("Match \"\(a.descriptionPattern)\"")
-                            .foregroundStyle(.secondary)
-                        Image(systemName: "arrow.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(a.category ?? "")
-                            .foregroundStyle(.blue)
-                            .fontWeight(.medium)
-                    }
-                    .font(.subheadline)
-                    Text(a.reason)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                case .ruleCreation(let r):
-                    HStack(spacing: 6) {
-                        Image(systemName: "text.badge.checkmark")
-                            .foregroundStyle(.green)
-                            .font(.caption)
-                        Text("Rule: \"\(r.keyword)\" → \(r.category)")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    Text(r.reason)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-
-            Button("Apply") {
-                withAnimation { viewModel.applyAction(action) }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-        }
-        .padding(10)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Empty State

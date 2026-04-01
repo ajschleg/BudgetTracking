@@ -2,43 +2,54 @@ import SwiftUI
 
 struct IncomeView: View {
     @Binding var selectedMonth: String
+    @Bindable var aiViewModel: InsightsViewModel
     @State private var viewModel = IncomeViewModel()
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                MonthSelectorView(selectedMonth: $selectedMonth)
-                    .padding(.top)
-
-                // Total income summary
-                if viewModel.totalIncome > 0 {
-                    totalIncomeBanner
-                        .padding(.horizontal)
+        PageWithChatBar(
+            viewModel: aiViewModel,
+            actions: [
+                AIChatAction(label: "Analyze Income", icon: "sparkles") {
+                    await aiViewModel.askAI()
                 }
+            ],
+            page: .income
+        ) {
+            ScrollView {
+                VStack(spacing: 20) {
+                    MonthSelectorView(selectedMonth: $selectedMonth)
+                        .padding(.top)
 
-                // Source sections
-                LazyVStack(spacing: 12) {
-                    ForEach(viewModel.sources) { source in
-                        let txns = viewModel.transactions(for: source.id)
-                        if !txns.isEmpty {
-                            sourceSection(source: source, transactions: txns, total: viewModel.total(for: source.id))
+                    // Total income summary
+                    if viewModel.totalIncome > 0 {
+                        totalIncomeBanner
+                            .padding(.horizontal)
+                    }
+
+                    // Source sections
+                    LazyVStack(spacing: 12) {
+                        ForEach(viewModel.sources) { source in
+                            let txns = viewModel.transactions(for: source.id)
+                            if !txns.isEmpty {
+                                sourceSection(source: source, transactions: txns, total: viewModel.total(for: source.id))
+                            }
+                        }
+
+                        // Uncategorized
+                        if !viewModel.uncategorizedTransactions.isEmpty {
+                            uncategorizedSection
                         }
                     }
+                    .padding(.horizontal)
 
-                    // Uncategorized
-                    if !viewModel.uncategorizedTransactions.isEmpty {
-                        uncategorizedSection
+                    if viewModel.incomeTransactions.isEmpty {
+                        Text("No income transactions this month.")
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 40)
                     }
                 }
-                .padding(.horizontal)
-
-                if viewModel.incomeTransactions.isEmpty {
-                    Text("No income transactions this month.")
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 40)
-                }
+                .padding(.bottom, 20)
             }
-            .padding(.bottom, 20)
         }
         .navigationTitle("Income")
         .toolbar {

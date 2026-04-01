@@ -88,17 +88,17 @@ struct ContentView: View {
         } detail: {
             switch selectedItem {
             case .dashboard:
-                DashboardView(selectedMonth: $selectedMonth, selectedItem: $selectedItem)
+                DashboardView(selectedMonth: $selectedMonth, selectedItem: $selectedItem, aiViewModel: insightsViewModel)
             case .income:
-                IncomeView(selectedMonth: $selectedMonth)
+                IncomeView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
             case .transactions:
                 TransactionsListView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
             case .importStatements:
-                ImportView(selectedMonth: $selectedMonth)
+                ImportView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
             case .categories:
                 CategoriesSettingsView(aiViewModel: insightsViewModel)
             case .history:
-                HistoryView(selectedMonth: $selectedMonth)
+                HistoryView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
             case .insights:
                 InsightsView(selectedMonth: $selectedMonth, viewModel: insightsViewModel)
             case .sync:

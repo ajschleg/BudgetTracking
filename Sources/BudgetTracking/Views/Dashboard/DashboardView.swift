@@ -3,66 +3,81 @@ import SwiftUI
 struct DashboardView: View {
     @Binding var selectedMonth: String
     @Binding var selectedItem: SidebarItem?
+    @Bindable var aiViewModel: InsightsViewModel
     @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
     @State private var viewModel = DashboardViewModel()
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Month selector
-                MonthSelectorView(selectedMonth: $selectedMonth)
-                    .padding(.top)
-
-                // Income summary
-                if viewModel.totalIncome > 0 {
-                    incomeSummarySection
-                        .padding(.horizontal)
+        PageWithChatBar(
+            viewModel: aiViewModel,
+            actions: [
+                AIChatAction(label: "Analyze Spending", icon: "sparkles") {
+                    await aiViewModel.askAI()
                 }
+            ],
+            page: .dashboard
+        ) {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Month selector
+                    MonthSelectorView(selectedMonth: $selectedMonth)
+                        .padding(.top)
 
-                // Overall budget bar
-                OverallBudgetBar(
-                    spent: viewModel.totalSpent,
-                    budget: viewModel.totalBudget,
-                    percentage: viewModel.overallPercentage
-                )
-                .padding(.horizontal)
-
-                Divider()
-                    .padding(.horizontal)
-
-                // Category budget bars
-                if viewModel.categories.isEmpty {
-                    Text("No budget categories configured.\nGo to Categories to set up your budget.")
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.vertical, 40)
-                } else {
-                    LazyVStack(spacing: 12) {
-                        ForEach(viewModel.categories) { category in
-                            CategoryBudgetBar(
-                                category: category,
-                                spent: viewModel.spending(for: category),
-                                percentage: viewModel.percentage(for: category),
-                                isExpanded: viewModel.expandedCategoryId == category.id,
-                                transactions: viewModel.expandedCategoryId == category.id
-                                    ? viewModel.expandedTransactions : [],
-                                allCategories: viewModel.categories,
-                                onTap: { viewModel.toggleCategory(category.id) },
-                                onCategoryChange: { txnId, newCatId in
-                                    viewModel.changeTransactionCategory(txnId, to: newCatId)
-                                }
-                            )
-                        }
+                    // Income summary
+                    if viewModel.totalIncome > 0 {
+                        incomeSummarySection
+                            .padding(.horizontal)
                     }
+
+                    // Overall budget bar
+                    OverallBudgetBar(
+                        spent: viewModel.totalSpent,
+                        budget: viewModel.totalBudget,
+                        percentage: viewModel.overallPercentage
+                    )
                     .padding(.horizontal)
+
+                    Divider()
+                        .padding(.horizontal)
+
+                    // Category budget bars
+                    if viewModel.categories.isEmpty {
+                        Text("No budget categories configured.\nGo to Categories to set up your budget.")
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.vertical, 40)
+                    } else {
+                        LazyVStack(spacing: 12) {
+                            ForEach(viewModel.categories) { category in
+                                CategoryBudgetBar(
+                                    category: category,
+                                    spent: viewModel.spending(for: category),
+                                    percentage: viewModel.percentage(for: category),
+                                    isExpanded: viewModel.expandedCategoryId == category.id,
+                                    transactions: viewModel.expandedCategoryId == category.id
+                                        ? viewModel.expandedTransactions : [],
+                                    allCategories: viewModel.categories,
+                                    onTap: { viewModel.toggleCategory(category.id) },
+                                    onCategoryChange: { txnId, newCatId in
+                                        viewModel.changeTransactionCategory(txnId, to: newCatId)
+                                    }
+                                )
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
                 }
+                .padding(.bottom, 20)
             }
-            .padding(.bottom, 20)
         }
         .navigationTitle("Dashboard")
-        .onAppear { viewModel.load(month: selectedMonth) }
+        .onAppear {
+            viewModel.load(month: selectedMonth)
+            aiViewModel.load(month: selectedMonth)
+        }
         .onChange(of: selectedMonth) { _, newMonth in
             viewModel.load(month: newMonth)
+            aiViewModel.load(month: newMonth)
         }
         .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
             viewModel.load(month: selectedMonth)
