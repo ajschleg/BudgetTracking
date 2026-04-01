@@ -35,6 +35,8 @@ final class InsightsViewModel {
     var isLoadingBudgetGeneration = false
     var showApplyBudgetConfirmation = false
 
+    var isChatResponseExpanded = false
+
     var isLoadingAI = false
     var isLoadingRules = false
     var isLoadingCategorization = false
@@ -119,6 +121,7 @@ final class InsightsViewModel {
                 suggestions = result.suggestions
                 aiActions = result.actions
                 isLoadingAI = false
+                isChatResponseExpanded = true
             }
         } catch {
             await MainActor.run {
@@ -289,6 +292,7 @@ final class InsightsViewModel {
                 ruleResponse = result.text
                 ruleSuggestions = result.rules
                 isLoadingRules = false
+                isChatResponseExpanded = true
             }
         } catch {
             await MainActor.run {
@@ -427,6 +431,7 @@ final class InsightsViewModel {
                 budgetGenerationResponse = result.text
                 budgetAllocations = result.allocations
                 isLoadingBudgetGeneration = false
+                isChatResponseExpanded = true
             }
         } catch {
             await MainActor.run {
@@ -567,6 +572,7 @@ final class InsightsViewModel {
                 categorizationResponse = responseText
                 categorizationSuggestions = matched.filter { $0.transactionId != nil }
                 isLoadingCategorization = false
+                isChatResponseExpanded = true
             }
         } catch {
             await MainActor.run {

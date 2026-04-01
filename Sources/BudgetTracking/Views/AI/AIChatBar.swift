@@ -6,8 +6,6 @@ struct AIChatBar: View {
     let page: SidebarItem
     var onApplyBudget: (() -> Void)?
 
-    @State private var isResponseExpanded = false
-
     private var isAnyLoading: Bool {
         viewModel.isLoadingAI || viewModel.isLoadingRules ||
         viewModel.isLoadingCategorization || viewModel.isLoadingBudgetGeneration ||
@@ -37,7 +35,7 @@ struct AIChatBar: View {
     var body: some View {
         VStack(spacing: 0) {
             // Expandable response area
-            if isResponseExpanded && hasResponse {
+            if viewModel.isChatResponseExpanded && hasResponse {
                 Divider()
 
                 ScrollView {
@@ -101,14 +99,14 @@ struct AIChatBar: View {
                 if hasResponse {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            isResponseExpanded.toggle()
+                            viewModel.isChatResponseExpanded.toggle()
                         }
                     } label: {
-                        Image(systemName: isResponseExpanded ? "chevron.down" : "chevron.up")
+                        Image(systemName: viewModel.isChatResponseExpanded ? "chevron.down" : "chevron.up")
                             .font(.caption)
                     }
                     .buttonStyle(.plain)
-                    .help(isResponseExpanded ? "Collapse response" : "Expand response")
+                    .help(viewModel.isChatResponseExpanded ? "Collapse response" : "Expand response")
                 }
 
                 // Usage indicator
@@ -121,13 +119,6 @@ struct AIChatBar: View {
             .padding(.vertical, 8)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .onChange(of: hasResponse) { _, newValue in
-            if newValue {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isResponseExpanded = true
-                }
-            }
-        }
     }
 
     private func submitChat() async {
