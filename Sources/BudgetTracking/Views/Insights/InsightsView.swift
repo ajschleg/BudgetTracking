@@ -9,7 +9,7 @@ struct InsightsView: View {
             viewModel: viewModel,
             actions: [
                 AIChatAction(label: "Get Insights", icon: "sparkles") {
-                    await viewModel.askAI()
+                    await viewModel.askAI(page: .insights)
                 }
             ],
             page: .insights

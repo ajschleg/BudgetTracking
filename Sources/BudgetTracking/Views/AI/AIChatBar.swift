@@ -6,6 +6,10 @@ struct AIChatBar: View {
     let page: SidebarItem
     var onApplyBudget: (() -> Void)?
 
+    private var chatState: PageChatState {
+        viewModel.pageChatStates[page, default: PageChatState()]
+    }
+
     private var isAnyLoading: Bool {
         viewModel.isLoadingAI || viewModel.isLoadingRules ||
         viewModel.isLoadingCategorization || viewModel.isLoadingBudgetGeneration ||
@@ -13,11 +17,10 @@ struct AIChatBar: View {
     }
 
     private var hasResponse: Bool {
-        // General chat response (available on all pages)
-        if !viewModel.aiResponse.isEmpty || !viewModel.aiActions.isEmpty || viewModel.aiErrorMessage != nil {
+        let state = chatState
+        if !state.aiResponse.isEmpty || !state.aiActions.isEmpty || state.aiErrorMessage != nil {
             return true
         }
-        // Page-specific responses
         switch page {
         case .transactions:
             return !viewModel.categorizationResponse.isEmpty ||
@@ -34,10 +37,36 @@ struct AIChatBar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Expandable response area
-            if viewModel.isChatResponseExpanded && hasResponse {
-                Divider()
+            Divider()
 
+            // Always-visible show/hide toggle bar
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.pageChatStates[page, default: PageChatState()].isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: chatState.isExpanded ? "chevron.down" : "chevron.up")
+                        .font(.caption2.weight(.semibold))
+                    Text("AI Response")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    if hasResponse {
+                        Circle()
+                            .fill(.blue)
+                            .frame(width: 6, height: 6)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 5)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(hasResponse ? .primary : .secondary)
+
+            // Expandable response area
+            if chatState.isExpanded && hasResponse {
                 ScrollView {
                     AIChatResponseView(
                         viewModel: viewModel,
@@ -75,7 +104,10 @@ struct AIChatBar: View {
                 }
 
                 // Chat text field
-                TextField("Ask AI...", text: $viewModel.userQuestion)
+                TextField("Ask AI...", text: Binding(
+                    get: { viewModel.pageChatStates[page, default: PageChatState()].userQuestion },
+                    set: { viewModel.pageChatStates[page, default: PageChatState()].userQuestion = $0 }
+                ))
                     .textFieldStyle(.roundedBorder)
                     .onSubmit {
                         Task { await submitChat() }
@@ -95,20 +127,6 @@ struct AIChatBar: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(isAnyLoading || viewModel.isOverCap)
 
-                // Expand/collapse toggle
-                if hasResponse {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            viewModel.isChatResponseExpanded.toggle()
-                        }
-                    } label: {
-                        Image(systemName: viewModel.isChatResponseExpanded ? "chevron.down" : "chevron.up")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .help(viewModel.isChatResponseExpanded ? "Collapse response" : "Expand response")
-                }
-
                 // Usage indicator
                 Text("$\(String(format: "%.2f", viewModel.monthlySpend))")
                     .font(.system(size: 10))
@@ -122,7 +140,6 @@ struct AIChatBar: View {
     }
 
     private func submitChat() async {
-        // Default behavior: general AI analysis
-        await viewModel.askAI()
+        await viewModel.askAI(page: page)
     }
 }

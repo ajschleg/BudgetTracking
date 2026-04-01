@@ -12,7 +12,7 @@ struct DashboardView: View {
             viewModel: aiViewModel,
             actions: [
                 AIChatAction(label: "Analyze Spending", icon: "sparkles") {
-                    await aiViewModel.askAI()
+                    await aiViewModel.askAI(page: .dashboard)
                 }
             ],
             page: .dashboard

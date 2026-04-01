@@ -1,6 +1,16 @@
 import Foundation
 import SwiftUI
 
+/// Per-page chat state for the AI assistant.
+struct PageChatState {
+    var userQuestion: String = ""
+    var aiResponse: String = ""
+    var aiActions: [ClaudeAPIService.AIAction] = []
+    var suggestions: [ClaudeAPIService.BudgetSuggestion] = []
+    var aiErrorMessage: String?
+    var isExpanded: Bool = false
+}
+
 @Observable
 final class InsightsViewModel {
     var insights: [BudgetInsight] = []
@@ -11,11 +21,10 @@ final class InsightsViewModel {
         return (try? JSONDecoder().decode(Set<UUID>.self, from: data)) ?? []
     }()
 
-    // AI Assistant state
-    var userQuestion: String = ""
-    var aiResponse: String = ""
-    var suggestions: [ClaudeAPIService.BudgetSuggestion] = []
-    var aiActions: [ClaudeAPIService.AIAction] = []
+    // Per-page chat history
+    var pageChatStates: [SidebarItem: PageChatState] = [:]
+
+    // Page-specific AI state (inherently single-page)
     var ruleSuggestions: [ClaudeAPIService.RuleSuggestion] = []
     var ruleResponse: String = ""
     var categorizationSuggestions: [ClaudeAPIService.CategorizationSuggestion] = []
@@ -35,14 +44,11 @@ final class InsightsViewModel {
     var isLoadingBudgetGeneration = false
     var showApplyBudgetConfirmation = false
 
-    var isChatResponseExpanded = false
-
     var isLoadingAI = false
     var isLoadingRules = false
     var isLoadingCategorization = false
     var autoCategorizeRunning = false
     var autoCategorizeProgress: String = ""
-    var aiErrorMessage: String?
 
     private let engine = InsightsEngine()
     private let aiService = ClaudeAPIService()
@@ -87,21 +93,23 @@ final class InsightsViewModel {
         isLoadingInsights = false
     }
 
-    func askAI() async {
+    func askAI(page: SidebarItem) async {
         guard isAPIKeyConfigured else {
-            aiErrorMessage = "Please enter your Claude API key first."
+            pageChatStates[page, default: PageChatState()].aiErrorMessage = "Please enter your Claude API key first."
             return
         }
         guard !isOverCap else {
-            aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
+            pageChatStates[page, default: PageChatState()].aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
             return
         }
 
+        let question = pageChatStates[page, default: PageChatState()].userQuestion.trimmingCharacters(in: .whitespacesAndNewlines)
+
         await MainActor.run {
             isLoadingAI = true
-            aiErrorMessage = nil
-            aiResponse = ""
-            aiActions = []
+            pageChatStates[page, default: PageChatState()].aiErrorMessage = nil
+            pageChatStates[page, default: PageChatState()].aiResponse = ""
+            pageChatStates[page, default: PageChatState()].aiActions = []
         }
 
         do {
@@ -110,22 +118,21 @@ final class InsightsViewModel {
                 currentMonth: currentMonth,
                 categories: categories
             )
-            let question = userQuestion.trimmingCharacters(in: .whitespacesAndNewlines)
             if !question.isEmpty {
                 summary += "\n\n## User Question\n\(question)"
             }
             let result = try await aiService.analyze(apiKey: apiKey, spendingSummary: summary)
             recordUsage(inputTokens: result.inputTokens, outputTokens: result.outputTokens)
             await MainActor.run {
-                aiResponse = result.text
-                suggestions = result.suggestions
-                aiActions = result.actions
+                pageChatStates[page, default: PageChatState()].aiResponse = result.text
+                pageChatStates[page, default: PageChatState()].suggestions = result.suggestions
+                pageChatStates[page, default: PageChatState()].aiActions = result.actions
+                pageChatStates[page, default: PageChatState()].isExpanded = true
                 isLoadingAI = false
-                isChatResponseExpanded = true
             }
         } catch {
             await MainActor.run {
-                aiErrorMessage = error.localizedDescription
+                pageChatStates[page, default: PageChatState()].aiErrorMessage = error.localizedDescription
                 isLoadingAI = false
             }
         }
@@ -144,7 +151,7 @@ final class InsightsViewModel {
 
     // MARK: - Apply Suggestions
 
-    func applySuggestion(_ suggestion: ClaudeAPIService.BudgetSuggestion) {
+    func applySuggestion(_ suggestion: ClaudeAPIService.BudgetSuggestion, page: SidebarItem) {
         do {
             let categories = try DatabaseManager.shared.fetchCategories()
             if var category = categories.first(where: {
@@ -153,7 +160,6 @@ final class InsightsViewModel {
                 category.monthlyBudget = suggestion.suggestedBudget
                 try DatabaseManager.shared.saveCategory(category)
             } else {
-                // Category doesn't exist — create it
                 let newCategory = BudgetCategory(
                     name: suggestion.category,
                     monthlyBudget: suggestion.suggestedBudget,
@@ -162,48 +168,42 @@ final class InsightsViewModel {
                 )
                 try DatabaseManager.shared.saveCategory(newCategory)
             }
-            suggestions.removeAll { $0.id == suggestion.id }
+            pageChatStates[page, default: PageChatState()].suggestions.removeAll { $0.id == suggestion.id }
         } catch {
-            aiErrorMessage = "Failed to apply: \(error.localizedDescription)"
-        }
-    }
-
-    func applyAllSuggestions() {
-        for suggestion in suggestions {
-            applySuggestion(suggestion)
+            pageChatStates[page, default: PageChatState()].aiErrorMessage = "Failed to apply: \(error.localizedDescription)"
         }
     }
 
     // MARK: - Apply AI Actions
 
-    func applyAction(_ action: ClaudeAPIService.AIAction) {
+    func applyAction(_ action: ClaudeAPIService.AIAction, page: SidebarItem) {
         switch action {
         case .budgetChange(let suggestion):
-            applySuggestion(suggestion)
-            aiActions.removeAll { $0.id == action.id }
+            applySuggestion(suggestion, page: page)
+            pageChatStates[page, default: PageChatState()].aiActions.removeAll { $0.id == action.id }
         case .transactionUpdate(let txnAction):
-            applyTransactionAction(txnAction)
-            aiActions.removeAll { $0.id == action.id }
+            applyTransactionAction(txnAction, page: page)
+            pageChatStates[page, default: PageChatState()].aiActions.removeAll { $0.id == action.id }
         case .ruleCreation(let rule):
-            applyRuleFromAction(rule)
-            aiActions.removeAll { $0.id == action.id }
+            applyRuleFromAction(rule, page: page)
+            pageChatStates[page, default: PageChatState()].aiActions.removeAll { $0.id == action.id }
         }
     }
 
-    func applyAllActions() {
-        // Apply in dependency order: categories first, then transactions, then rules
-        let sorted = aiActions.sorted { a, b in
+    func applyAllActions(page: SidebarItem) {
+        let actions = pageChatStates[page, default: PageChatState()].aiActions
+        let sorted = actions.sorted { a, b in
             func priority(_ action: ClaudeAPIService.AIAction) -> Int {
                 switch action {
-                case .budgetChange: return 0  // Create categories first
+                case .budgetChange: return 0
                 case .transactionUpdate: return 1
-                case .ruleCreation: return 2  // Rules need categories to exist
+                case .ruleCreation: return 2
                 }
             }
             return priority(a) < priority(b)
         }
         for action in sorted {
-            applyAction(action)
+            applyAction(action, page: page)
         }
     }
 
@@ -224,7 +224,7 @@ final class InsightsViewModel {
         return newCategory.id
     }
 
-    private func applyTransactionAction(_ action: ClaudeAPIService.TransactionAction) {
+    private func applyTransactionAction(_ action: ClaudeAPIService.TransactionAction, page: SidebarItem) {
         do {
             let categoryName = action.category ?? ""
             let categoryId = try resolveOrCreateCategory(named: categoryName)
@@ -241,11 +241,11 @@ final class InsightsViewModel {
                 )
             }
         } catch {
-            aiErrorMessage = "Failed to apply: \(error.localizedDescription)"
+            pageChatStates[page, default: PageChatState()].aiErrorMessage = "Failed to apply: \(error.localizedDescription)"
         }
     }
 
-    private func applyRuleFromAction(_ rule: ClaudeAPIService.RuleSuggestion) {
+    private func applyRuleFromAction(_ rule: ClaudeAPIService.RuleSuggestion, page: SidebarItem) {
         do {
             let categoryId = try resolveOrCreateCategory(named: rule.category)
 
@@ -257,7 +257,7 @@ final class InsightsViewModel {
             )
             try DatabaseManager.shared.saveRule(newRule)
         } catch {
-            aiErrorMessage = "Failed to create rule: \(error.localizedDescription)"
+            pageChatStates[page, default: PageChatState()].aiErrorMessage = "Failed to create rule: \(error.localizedDescription)"
         }
     }
 
@@ -265,17 +265,17 @@ final class InsightsViewModel {
 
     func suggestRules() async {
         guard isAPIKeyConfigured else {
-            aiErrorMessage = "Please enter your Claude API key first."
+            pageChatStates[.categories, default: PageChatState()].aiErrorMessage = "Please enter your Claude API key first."
             return
         }
         guard !isOverCap else {
-            aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
+            pageChatStates[.categories, default: PageChatState()].aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
             return
         }
 
         await MainActor.run {
             isLoadingRules = true
-            aiErrorMessage = nil
+            pageChatStates[.categories, default: PageChatState()].aiErrorMessage = nil
             ruleResponse = ""
             ruleSuggestions = []
         }
@@ -292,11 +292,11 @@ final class InsightsViewModel {
                 ruleResponse = result.text
                 ruleSuggestions = result.rules
                 isLoadingRules = false
-                isChatResponseExpanded = true
+                pageChatStates[.categories, default: PageChatState()].isExpanded = true
             }
         } catch {
             await MainActor.run {
-                aiErrorMessage = error.localizedDescription
+                pageChatStates[.categories, default: PageChatState()].aiErrorMessage = error.localizedDescription
                 isLoadingRules = false
             }
         }
@@ -308,7 +308,7 @@ final class InsightsViewModel {
             guard let category = categories.first(where: {
                 $0.name.lowercased() == rule.category.lowercased()
             }) else {
-                aiErrorMessage = "Category \"\(rule.category)\" not found."
+                pageChatStates[.categories, default: PageChatState()].aiErrorMessage = "Category \"\(rule.category)\" not found."
                 return
             }
             let existingRules = try DatabaseManager.shared.fetchRules()
@@ -322,7 +322,7 @@ final class InsightsViewModel {
             try DatabaseManager.shared.saveRule(newRule)
             ruleSuggestions.removeAll { $0.id == rule.id }
         } catch {
-            aiErrorMessage = "Failed to apply rule: \(error.localizedDescription)"
+            pageChatStates[.categories, default: PageChatState()].aiErrorMessage = "Failed to apply rule: \(error.localizedDescription)"
         }
     }
 
@@ -388,21 +388,21 @@ final class InsightsViewModel {
 
     func generateBudget() async {
         guard isAPIKeyConfigured else {
-            aiErrorMessage = "Please enter your Claude API key first."
+            pageChatStates[.categories, default: PageChatState()].aiErrorMessage = "Please enter your Claude API key first."
             return
         }
         guard !isOverCap else {
-            aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
+            pageChatStates[.categories, default: PageChatState()].aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
             return
         }
         guard let income = Double(monthlyIncome), income > 0 else {
-            aiErrorMessage = "Please enter a valid monthly income."
+            pageChatStates[.categories, default: PageChatState()].aiErrorMessage = "Please enter a valid monthly income."
             return
         }
 
         await MainActor.run {
             isLoadingBudgetGeneration = true
-            aiErrorMessage = nil
+            pageChatStates[.categories, default: PageChatState()].aiErrorMessage = nil
             budgetGenerationResponse = ""
             budgetAllocations = []
         }
@@ -431,11 +431,11 @@ final class InsightsViewModel {
                 budgetGenerationResponse = result.text
                 budgetAllocations = result.allocations
                 isLoadingBudgetGeneration = false
-                isChatResponseExpanded = true
+                pageChatStates[.categories, default: PageChatState()].isExpanded = true
             }
         } catch {
             await MainActor.run {
-                aiErrorMessage = error.localizedDescription
+                pageChatStates[.categories, default: PageChatState()].aiErrorMessage = error.localizedDescription
                 isLoadingBudgetGeneration = false
             }
         }
@@ -477,7 +477,7 @@ final class InsightsViewModel {
             budgetAllocations = []
             budgetGenerationResponse = "Budget applied successfully!"
         } catch {
-            aiErrorMessage = "Failed to apply budget: \(error.localizedDescription)"
+            pageChatStates[.categories, default: PageChatState()].aiErrorMessage = "Failed to apply budget: \(error.localizedDescription)"
         }
     }
 
@@ -485,17 +485,17 @@ final class InsightsViewModel {
 
     func categorizeTransactions() async {
         guard isAPIKeyConfigured else {
-            aiErrorMessage = "Please enter your Claude API key first."
+            pageChatStates[.transactions, default: PageChatState()].aiErrorMessage = "Please enter your Claude API key first."
             return
         }
         guard !isOverCap else {
-            aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
+            pageChatStates[.transactions, default: PageChatState()].aiErrorMessage = "Monthly spending cap of $\(String(format: "%.2f", monthlyCap)) reached. Resets next month."
             return
         }
 
         await MainActor.run {
             isLoadingCategorization = true
-            aiErrorMessage = nil
+            pageChatStates[.transactions, default: PageChatState()].aiErrorMessage = nil
             categorizationResponse = ""
             categorizationSuggestions = []
         }
@@ -572,11 +572,11 @@ final class InsightsViewModel {
                 categorizationResponse = responseText
                 categorizationSuggestions = matched.filter { $0.transactionId != nil }
                 isLoadingCategorization = false
-                isChatResponseExpanded = true
+                pageChatStates[.transactions, default: PageChatState()].isExpanded = true
             }
         } catch {
             await MainActor.run {
-                aiErrorMessage = error.localizedDescription
+                pageChatStates[.transactions, default: PageChatState()].aiErrorMessage = error.localizedDescription
                 isLoadingCategorization = false
             }
         }
@@ -617,7 +617,7 @@ final class InsightsViewModel {
             try DatabaseManager.shared.updateTransactionCategory(txnId, categoryId: category.id, isManual: true)
             categorizationSuggestions.removeAll { $0.id == item.id }
         } catch {
-            aiErrorMessage = "Failed to categorize: \(error.localizedDescription)"
+            pageChatStates[.transactions, default: PageChatState()].aiErrorMessage = "Failed to categorize: \(error.localizedDescription)"
         }
     }
 

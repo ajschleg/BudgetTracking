@@ -35,7 +35,7 @@ struct ImportView: View {
                     viewModel: aiViewModel,
                     actions: [
                         AIChatAction(label: "Help with Import", icon: "sparkles") {
-                            await aiViewModel.askAI()
+                            await aiViewModel.askAI(page: .importStatements)
                         }
                     ],
                     page: .importStatements

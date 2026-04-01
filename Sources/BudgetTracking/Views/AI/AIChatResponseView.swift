@@ -5,10 +5,14 @@ struct AIChatResponseView: View {
     let page: SidebarItem
     var onApplyBudget: (() -> Void)?
 
+    private var chatState: PageChatState {
+        viewModel.pageChatStates[page, default: PageChatState()]
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Error display
-            if let error = viewModel.aiErrorMessage {
+            if let error = chatState.aiErrorMessage {
                 Text(error)
                     .foregroundStyle(.red)
                     .font(.callout)
@@ -19,8 +23,8 @@ struct AIChatResponseView: View {
             }
 
             // General AI response (from free-form chat, available on all pages)
-            if !viewModel.aiResponse.isEmpty {
-                Text(viewModel.aiResponse)
+            if !chatState.aiResponse.isEmpty {
+                Text(chatState.aiResponse)
                     .font(.body)
                     .textSelection(.enabled)
                     .padding(12)
@@ -105,7 +109,7 @@ struct AIChatResponseView: View {
 
     @ViewBuilder
     private var aiActionCards: some View {
-        if !viewModel.aiActions.isEmpty {
+        if !chatState.aiActions.isEmpty {
             Divider()
 
             HStack {
@@ -113,13 +117,13 @@ struct AIChatResponseView: View {
                     .font(.headline)
                 Spacer()
                 Button("Apply All") {
-                    withAnimation { viewModel.applyAllActions() }
+                    withAnimation { viewModel.applyAllActions(page: page) }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
             }
 
-            ForEach(viewModel.aiActions) { action in
+            ForEach(chatState.aiActions) { action in
                 actionCard(action)
             }
         }
@@ -276,7 +280,7 @@ struct AIChatResponseView: View {
             Spacer()
 
             Button("Apply") {
-                withAnimation { viewModel.applyAction(action) }
+                withAnimation { viewModel.applyAction(action, page: page) }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)

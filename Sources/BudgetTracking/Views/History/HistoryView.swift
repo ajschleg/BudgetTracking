@@ -72,7 +72,7 @@ struct HistoryView: View {
                     viewModel: aiViewModel,
                     actions: [
                         AIChatAction(label: "Analyze Trends", icon: "sparkles") {
-                            await aiViewModel.askAI()
+                            await aiViewModel.askAI(page: .history)
                         }
                     ],
                     page: .history

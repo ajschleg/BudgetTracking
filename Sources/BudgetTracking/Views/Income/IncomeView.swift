@@ -10,7 +10,7 @@ struct IncomeView: View {
             viewModel: aiViewModel,
             actions: [
                 AIChatAction(label: "Analyze Income", icon: "sparkles") {
-                    await aiViewModel.askAI()
+                    await aiViewModel.askAI(page: .income)
                 }
             ],
             page: .income
