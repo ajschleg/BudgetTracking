@@ -242,6 +242,21 @@ final class DatabaseManager {
             try db.create(index: "ebayCOGS_orderId", on: "ebayCostOfGoods", columns: ["ebayOrderId"])
         }
 
+        migrator.registerMigration("v6_createEbaySourcingTransaction") { db in
+            try db.create(table: "ebaySourcingTransaction") { t in
+                t.column("id", .text).primaryKey()
+                t.column("transactionId", .text).notNull()
+                    .references("transaction", onDelete: .cascade)
+                t.column("month", .text).notNull()
+                t.column("lastModifiedAt", .datetime)
+                t.column("cloudKitRecordName", .text)
+                t.column("cloudKitSystemFields", .blob)
+                t.column("isDeleted", .boolean).notNull().defaults(to: false)
+            }
+            try db.create(index: "ebaySourcing_month", on: "ebaySourcingTransaction", columns: ["month"])
+            try db.create(index: "ebaySourcing_txnId", on: "ebaySourcingTransaction", columns: ["transactionId"], unique: true)
+        }
+
         try migrator.migrate(dbQueue)
     }
 

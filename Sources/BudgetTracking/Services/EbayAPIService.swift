@@ -302,7 +302,12 @@ actor EbayAPIService {
         switch httpResponse.statusCode {
         case 200...299:
             let decoder = JSONDecoder()
-            return try decoder.decode(T.self, from: data)
+            do {
+                return try decoder.decode(T.self, from: data)
+            } catch {
+                let preview = String(data: data.prefix(500), encoding: .utf8) ?? "binary"
+                throw EbayAPIError.apiError(code: "DECODE_ERROR", message: "Failed to decode response: \(error.localizedDescription). Response preview: \(preview)")
+            }
         case 401:
             throw EbayAPIError.tokenExpired
         case 429:

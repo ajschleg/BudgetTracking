@@ -107,7 +107,11 @@ struct EbayEarningsView: View {
                         .padding(.horizontal)
                     }
 
+                    // Net profit banner
                     if let summary = viewModel.summary, summary.totalSales > 0 {
+                        netProfitBanner(summary)
+                            .padding(.horizontal)
+
                         earningsSummaryCard(summary)
                             .padding(.horizontal)
                     }
@@ -173,6 +177,205 @@ struct EbayEarningsView: View {
         }
     }
 
+    // MARK: - Net Profit Banner
+
+    private func netProfitBanner(_ summary: DatabaseManager.EbayEarningsSummary) -> some View {
+        VStack(spacing: 0) {
+            // Monthly Net Profit and Lifetime Net Profit side by side
+            HStack(alignment: .top, spacing: 0) {
+                let totalMonthlyCosts = summary.totalFees + summary.totalCOGS + summary.totalShipping + summary.totalSourcingCosts
+
+                // Monthly Net Profit
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Monthly Net Profit")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text(CurrencyFormatter.format(summary.netEarnings))
+                        .font(.system(size: 32, weight: .bold).monospacedDigit())
+                        .foregroundStyle(summary.netEarnings >= 0 ? .green : .red)
+
+                    HStack(spacing: 12) {
+                        HStack(spacing: 3) {
+                            Text("Sales:")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(CurrencyFormatter.format(summary.totalSales))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.green)
+                        }
+                        HStack(spacing: 3) {
+                            Text("Costs:")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(CurrencyFormatter.format(-totalMonthlyCosts))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Divider()
+                    .frame(height: 55)
+                    .padding(.horizontal, 16)
+
+                // Lifetime Net Profit
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Lifetime Net Profit")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text(CurrencyFormatter.format(viewModel.lifetimeNetProfit))
+                        .font(.system(size: 32, weight: .bold).monospacedDigit())
+                        .foregroundStyle(viewModel.lifetimeNetProfit >= 0 ? .green : .red)
+
+                    HStack(spacing: 12) {
+                        HStack(spacing: 3) {
+                            Text("Sales:")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(CurrencyFormatter.format(viewModel.lifetimeSales))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.green)
+                        }
+                        HStack(spacing: 3) {
+                            Text("Costs:")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(CurrencyFormatter.format(-viewModel.lifetimeCosts))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+
+                Spacer()
+            }
+            .padding()
+
+            Divider()
+
+            // Sourcing action bar
+            HStack(spacing: 12) {
+                Text("Sourcing")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    viewModel.isManagingSourcingCategories = true
+                } label: {
+                    Label("Categories", systemImage: "folder.badge.gearshape")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button {
+                    viewModel.isAddingSourcingTransaction = true
+                } label: {
+                    Label("Add Transaction", systemImage: "plus.circle")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Spacer()
+
+                // Monthly transactions toggle
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isMonthlySourcingExpanded.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Monthly (\(viewModel.allSourcingTransactions.count))")
+                            .font(.caption)
+                        Image(systemName: isMonthlySourcingExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption2)
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.blue)
+
+                // Lifetime transactions toggle
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isLifetimeSourcingExpanded.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Lifetime (\(viewModel.lifetimeSourcingTransactions.count))")
+                            .font(.caption)
+                        Image(systemName: isLifetimeSourcingExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption2)
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.blue)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            // Expandable monthly transactions
+            if isMonthlySourcingExpanded {
+                Divider()
+                    .padding(.horizontal)
+                HStack {
+                    Text("Monthly Sourcing Transactions")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if viewModel.totalSourcingCosts > 0 {
+                        Text(CurrencyFormatter.format(-viewModel.totalSourcingCosts))
+                            .font(.caption.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.red)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 6)
+
+                sourcingTransactionList(
+                    transactions: viewModel.allSourcingTransactions,
+                    showRemoveButton: true
+                )
+            }
+
+            // Expandable lifetime transactions
+            if isLifetimeSourcingExpanded {
+                Divider()
+                    .padding(.horizontal)
+                HStack {
+                    Text("Lifetime Sourcing Transactions")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if viewModel.lifetimeCosts > 0 {
+                        Text(CurrencyFormatter.format(-viewModel.lifetimeCosts))
+                            .font(.caption.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.red)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 6)
+
+                sourcingTransactionList(
+                    transactions: viewModel.lifetimeSourcingTransactions,
+                    showRemoveButton: false
+                )
+            }
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(10)
+        .animation(.easeInOut(duration: 0.2), value: isMonthlySourcingExpanded)
+        .animation(.easeInOut(duration: 0.2), value: isLifetimeSourcingExpanded)
+        .sheet(isPresented: $viewModel.isManagingSourcingCategories) {
+            SourcingCategoriesSheet(viewModel: viewModel)
+        }
+        .sheet(isPresented: $viewModel.isAddingSourcingTransaction) {
+            AddSourcingTransactionSheet(viewModel: viewModel, month: selectedMonth)
+        }
+    }
+
     // MARK: - Earnings Summary Card
 
     private func earningsSummaryCard(_ summary: DatabaseManager.EbayEarningsSummary) -> some View {
@@ -192,6 +395,9 @@ struct EbayEarningsView: View {
             }
             if summary.totalShipping > 0 {
                 summaryRow("Shipping Costs", value: -summary.totalShipping, color: .red)
+            }
+            if summary.totalSourcingCosts > 0 {
+                summaryRow("Sourcing Costs", value: -summary.totalSourcingCosts, color: .red)
             }
 
             Divider()
@@ -519,6 +725,56 @@ struct EbayEarningsView: View {
         .cornerRadius(10)
     }
 
+    // MARK: - Sourcing Transaction List
+
+    @State private var isMonthlySourcingExpanded = false
+    @State private var isLifetimeSourcingExpanded = false
+
+    private func sourcingTransactionList(transactions: [Transaction], showRemoveButton: Bool) -> some View {
+        VStack(spacing: 0) {
+            ForEach(transactions) { txn in
+                HStack {
+                    Text(DateHelpers.shortDate(txn.date))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 65, alignment: .leading)
+                    Text(txn.description)
+                        .font(.caption)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(CurrencyFormatter.format(txn.amount))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.red)
+                    if showRemoveButton && viewModel.isManualSourcing(txn.id) {
+                        Button {
+                            viewModel.removeManualSourcingTransaction(txn.id)
+                        } label: {
+                            Image(systemName: "xmark.circle")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 3)
+
+                if txn.id != transactions.last?.id {
+                    Divider()
+                        .padding(.horizontal)
+                }
+            }
+
+            if transactions.isEmpty {
+                Text("No sourcing transactions")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(.vertical, 8)
+            }
+        }
+        .padding(.bottom, 4)
+    }
+
     // MARK: - Sync
 
     private func syncFromAPI() async {
@@ -542,10 +798,11 @@ struct EbayEarningsView: View {
                 accessToken: token, startDate: startDate, endDate: endDate, transactionType: "SALE"
             )
 
-            // Collect unique order IDs and fetch item titles from Fulfillment API
+            // Try to fetch item titles from Fulfillment API (optional — may not have scope)
             let uniqueOrderIds = Array(Set(sales.compactMap { $0.orderId }))
-            viewModel.syncProgress = "Fetching item details for \(uniqueOrderIds.count) orders..."
+            viewModel.syncProgress = "Fetching item details..."
             let titlesByOrderId = await apiService.fetchItemTitles(accessToken: token, orderIds: uniqueOrderIds)
+            // titlesByOrderId will be empty if Fulfillment API access is denied — that's fine
 
             // Transform and save orders + fees
             viewModel.syncProgress = "Saving \(sales.count) orders..."
