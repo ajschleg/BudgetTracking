@@ -8,6 +8,7 @@ struct BudgetTrackingApp: App {
     @State private var syncEngine: SyncEngine
     @State private var shareManager: ShareManager
     @State private var lanSyncEngine: LANSyncEngine
+    @State private var ebayAuthManager = EbayAuthManager()
 
     init() {
         _ = DatabaseManager.shared
@@ -21,7 +22,12 @@ struct BudgetTrackingApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine)
+            ContentView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine, ebayAuthManager: ebayAuthManager)
+                .onOpenURL { url in
+                    if url.scheme == "budgettracking" && url.absoluteString.contains("ebay") {
+                        ebayAuthManager.handleCallback(url: url)
+                    }
+                }
         }
         .defaultSize(width: 1100, height: 750)
         .commands {

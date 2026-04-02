@@ -10,34 +10,55 @@
 		00949753B9E96D5C7EF05C84 /* BudgetCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BEA30480C1E86191A7C17DD /* BudgetCategory.swift */; };
 		0753534F76448F6943A73BC8 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C441C5CCF6F0938AECC87B47 /* DashboardView.swift */; };
 		0A095A6B4194BDCF8CEAF4DD /* ImportedFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */; };
+		0D43ABEC5941DA199A8F790B /* PageWithChatBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28149C9503586624C972BE13 /* PageWithChatBar.swift */; };
+		16E3BF316E1EBAC92DA52138 /* IncomeSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA01A86FF1D3853480318444 /* IncomeSource.swift */; };
 		1A383ED322BCD4A92BCD1358 /* QIFParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBD04A6FF6BEF85B534BDDB5 /* QIFParser.swift */; };
 		1C536B9A9FBAC5B6EEDB408C /* DatabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500C712221C092D00861F3F1 /* DatabaseManager.swift */; };
 		21EE1C948FB25E41AFA9438B /* CategoriesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */; };
 		2262254EC1D204794A7FAE5B /* CategorizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0B30CCE20155199B5F3641 /* CategorizationEngine.swift */; };
 		272104B2FC3606FBEFCC7A82 /* CategoryBudgetBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D71603A8E67893664EA891E2 /* CategoryBudgetBar.swift */; };
+		28EE3833CBDB15B9E25FC938 /* BudgetGenerationConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32E291AFC07CA3748B3093C /* BudgetGenerationConfigSheet.swift */; };
 		2B70053E1B6A89926C5B35B3 /* MonthlySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7619A21E784D3733842F06AB /* MonthlySnapshot.swift */; };
+		2E0AA0E7463717B068972F27 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DAFFB65E1B8DC4234A95DD /* ClaudeAPIService.swift */; };
 		31B61674E829E73409C0C28B /* RuleLearner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65A3B7896DEB2A0E6AEC65D1 /* RuleLearner.swift */; };
 		34B5F561DA5DF8F30DA3B425 /* LANSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BA7808B805B4F38D7302BAE /* LANSyncEngine.swift */; };
+		3678DBB86AF5CFEF2EBB4ACC /* AIChatAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB7909A9F088E78203DFFCD /* AIChatAction.swift */; };
+		499AF6E0D703784C6A49966A /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0F57784E60C0D2712927E7 /* InsightsView.swift */; };
 		4B65D18E316BD2F56ED01E1A /* BudgetTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20DF0EA465BF47A908DCDB65 /* BudgetTrackingTests.swift */; };
 		4D8B02F05E5A562078C9C534 /* OverallBudgetBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC763A3C4CF46175AE1AC828 /* OverallBudgetBar.swift */; };
 		512FFF288B12EF51E36DBB8A /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850E4467CF4D66BED7921C21 /* HistoryViewModel.swift */; };
+		53DE32AAB74E25F098BD7A3A /* AIChatResponseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CED4B6F9C35AB112B90B992 /* AIChatResponseView.swift */; };
 		578E34AA65E5FD5F944BD4AD /* LANSyncStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50183D2237253558FB109BCF /* LANSyncStateStore.swift */; };
+		5B4AFCE461C368F83062E6E5 /* EbayPayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49BEC4E6C384AF003FC2308F /* EbayPayout.swift */; };
+		5F6FA71768D8583151739DB3 /* BudgetInsight.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE4F27922798141DF89B8AE6 /* BudgetInsight.swift */; };
 		6288FC30C05B0F0D344B0761 /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 450EE9D75CEFA6800800FD74 /* SyncEngine.swift */; };
+		6E0566C5CCCA9B3BF45F3C79 /* DatabaseManager+Ebay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 214F47BAB2196C5F3A3D0684 /* DatabaseManager+Ebay.swift */; };
+		6E43B473C9B859F833DD3903 /* AIChatBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B7C1025D2E67B345EF401F4 /* AIChatBar.swift */; };
 		6FB1CC56DA9F81D74E2EF69E /* ColorThresholds.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483034A4379587D3D92B9DE4 /* ColorThresholds.swift */; };
 		71414C7F4B6DC0EFDA2E9634 /* BankProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 526F8721F1A64F0D88D2C518 /* BankProfile.swift */; };
+		746A38C0937480FFC4DF3BAB /* EbayEarningsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E95B4A446E484C32A02CE61 /* EbayEarningsView.swift */; };
 		74AA6D546426CF8564F34E3D /* ShareManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C7C8113ED1B9E2730EAAEA /* ShareManager.swift */; };
+		76B066C8FDE03F3F385CFA57 /* EbayAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078CA30B073B997BB4E2E011 /* EbayAuthManager.swift */; };
 		78EF18856F7D9F0257AF4283 /* ParsePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C223CDC9EF1CB212EB74994 /* ParsePreviewView.swift */; };
 		7A580A066A36B2FB74E0918C /* SyncConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C4DB933183AAE503F2BDA58 /* SyncConstants.swift */; };
+		82C5DEB0ABE1AA45D2DF8766 /* EbayOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A492ECA271140AFAF4CED8 /* EbayOrder.swift */; };
 		8D62D571E3AAB5C7C52B7708 /* LANSyncProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CCE676CAB667CD64540FCB0 /* LANSyncProtocol.swift */; };
+		902FBFE9D6BEB8617F5329B3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDACD8F8DF659FDD26EF7120 /* SettingsView.swift */; };
 		911EBF67095502AE2A1B187B /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = B1DB69D28DCA99819C197986 /* GRDB */; };
 		94A5A04BEECF42B2B47C0C0B /* RecordConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D003AE1329BA1C9FCD924629 /* RecordConverter.swift */; };
 		975CAB7903971BC772DD9F63 /* CoreXLSX in Frameworks */ = {isa = PBXBuildFile; productRef = C55AFD4D6FAF2DF78710AD63 /* CoreXLSX */; };
+		9B88872EB416F58730BECA4A /* InsightCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 207075BF019B0C8B0CF062E9 /* InsightCardView.swift */; };
 		9E5B026BFA80B5B95CBBEF1A /* TransactionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E057CC4BC6FDC268C283743D /* TransactionsListView.swift */; };
+		A1795BED0494373F2A9BCE7B /* COGSEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6ABE1557E9F882FFFF72047 /* COGSEditorView.swift */; };
+		A250FAA6AA91909BBB3491C0 /* EbayFee.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0A4D4CF27E36301EC7A040 /* EbayFee.swift */; };
+		AA953FDFC1D12F336EB2EE0D /* EbayEarningsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D794553C3B7A2870527C9C /* EbayEarningsViewModel.swift */; };
 		AAB0D77A318B158439549FAD /* ImportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 814237725B108CA6C713DE5B /* ImportViewModel.swift */; };
+		AC843B3052010881EE9F4555 /* BankSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 040FF16290A04B1268873359 /* BankSource.swift */; };
 		AC9DEFC24754618C7AD10C3D /* ChaseCSVParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59EF97C6FF89940BA0975677 /* ChaseCSVParsingTests.swift */; };
 		ACB2FE6DD3AD75F0E535C0A9 /* SyncSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */; };
-		D1A0B3C4E7F89012ABCD1234 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0B3C5E7F89012ABCD1234 /* SettingsView.swift */; };
 		B50381A1372095880CBFC715 /* OFXParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A01F52CACF433AE1C260BB /* OFXParser.swift */; };
+		B9C411FEC25252B94B5D6463 /* EbayAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F5BD0514DFCEDE5098BF5D3 /* EbayAPIService.swift */; };
+		BC2B265AC0576CB39E5D6D69 /* IncomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A45A6F8375DF9333888ACE9 /* IncomeViewModel.swift */; };
 		BC63EA54D93D3ACD9B197092 /* SyncStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47794CD4CE264DCABF650F6F /* SyncStateStore.swift */; };
 		BCD801CD70883317A41748C3 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69A036733184969414358E31 /* DashboardViewModel.swift */; };
 		C313D96517FED3F0274A363B /* CSVParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = D01542F21F15F5E6C42F6502 /* CSVParser.swift */; };
@@ -52,30 +73,19 @@
 		D3C509DBC43307381F8393FE /* ConflictResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F647A3AD0CF01EECA79DAE /* ConflictResolver.swift */; };
 		D7008F01D23AE7B946581A0B /* SourceCategoryMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA78E2AB21723326275631B /* SourceCategoryMapper.swift */; };
 		D8D8C67951908DB67031EF63 /* CategoriesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F8FA4860B574D29B070358 /* CategoriesViewModel.swift */; };
+		DA8B4F231582A859EDDC9776 /* EbayCostOfGoods.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBB5969A6E90269E0E983B6 /* EbayCostOfGoods.swift */; };
 		DB6896C55F6286E95A606730 /* ColumnMappingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 094A531E2A0D314BB48D3607 /* ColumnMappingView.swift */; };
 		DBA41401FE97452A03932280 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 307BCBEDFB636BDB931C5D56 /* ContentView.swift */; };
 		DF168A103E0FB8679B34F4B0 /* MonthDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2296F730746DD13BF04875B5 /* MonthDetector.swift */; };
+		DF5E85723C46685BEDAF4BA0 /* IncomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25C9165CC6CD0F19498E66FA /* IncomeView.swift */; };
 		E0CEB5468DA58916BB7030D9 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ADAAEEDA6767ED5825AFB5 /* CurrencyFormatter.swift */; };
 		E53470827328467C88573F4C /* CategorizationRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371D0746A64876D4E554C092 /* CategorizationRule.swift */; };
 		E6D708D14B960CFB3793275A /* PDFParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11DFF79231E859813B37A16 /* PDFParser.swift */; };
+		E8A3702B42005E8CE7A068AB /* InsightsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ABB74337E8DADE534BC987F /* InsightsEngine.swift */; };
 		EC3EEAA146801B8DDC992AB8 /* CategoryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA86F8F7A4922668F97DE78D /* CategoryEditorView.swift */; };
 		EC80E2DF1D3F334069C8EE2E /* BudgetTrackingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A789E73759CED466B7C73C35 /* BudgetTrackingApp.swift */; };
 		F1E746C9970C092EFD2C848F /* ImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA1511E4B898F9C603AC8FA7 /* ImportView.swift */; };
-		AA1111111111111111111111 /* BudgetInsight.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1111111111111111111111 /* BudgetInsight.swift */; };
-		AABB001122334455667788 /* BankSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBAA001122334455667788 /* BankSource.swift */; };
-		AA2222222222222222222222 /* InsightsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB2222222222222222222222 /* InsightsEngine.swift */; };
-		AA3333333333333333333333 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3333333333333333333333 /* ClaudeAPIService.swift */; };
-		AA4444444444444444444444 /* InsightsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4444444444444444444444 /* InsightsViewModel.swift */; };
-		AA5555555555555555555555 /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB5555555555555555555555 /* InsightsView.swift */; };
-		AA6666666666666666666666 /* InsightCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6666666666666666666666 /* InsightCardView.swift */; };
-		CC9900001111111111111111 /* IncomeSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9900001111111111111111 /* IncomeSource.swift */; };
-		CC9900002222222222222222 /* IncomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9900002222222222222222 /* IncomeViewModel.swift */; };
-		CC9900003333333333333333 /* IncomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9900003333333333333333 /* IncomeView.swift */; };
-		B1C2D3E4F5A6B7C8D9E0F1A2 /* AIChatAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* AIChatAction.swift */; };
-		B1C2D3E4F5A6B7C8D9E0F1A3 /* AIChatBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F3 /* AIChatBar.swift */; };
-		B1C2D3E4F5A6B7C8D9E0F1A4 /* AIChatResponseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F4 /* AIChatResponseView.swift */; };
-		B1C2D3E4F5A6B7C8D9E0F1A5 /* PageWithChatBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F5 /* PageWithChatBar.swift */; };
-		B1C2D3E4F5A6B7C8D9E0F1A6 /* BudgetGenerationConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F6 /* BudgetGenerationConfigSheet.swift */; };
+		F968FE301D4F86E6CC980674 /* InsightsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99563DFA1DEEC8CD84301DD2 /* InsightsViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -89,6 +99,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		040FF16290A04B1268873359 /* BankSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankSource.swift; sourceTree = "<group>"; };
+		078CA30B073B997BB4E2E011 /* EbayAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayAuthManager.swift; sourceTree = "<group>"; };
 		0822C2937DCC5ED599DAD1B9 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		094A531E2A0D314BB48D3607 /* ColumnMappingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnMappingView.swift; sourceTree = "<group>"; };
 		0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesSettingsView.swift; sourceTree = "<group>"; };
@@ -97,17 +109,25 @@
 		1BA7808B805B4F38D7302BAE /* LANSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LANSyncEngine.swift; sourceTree = "<group>"; };
 		1C4DB933183AAE503F2BDA58 /* SyncConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConstants.swift; sourceTree = "<group>"; };
 		1CA78E2AB21723326275631B /* SourceCategoryMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceCategoryMapper.swift; sourceTree = "<group>"; };
+		207075BF019B0C8B0CF062E9 /* InsightCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightCardView.swift; sourceTree = "<group>"; };
 		20DF0EA465BF47A908DCDB65 /* BudgetTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTrackingTests.swift; sourceTree = "<group>"; };
+		214F47BAB2196C5F3A3D0684 /* DatabaseManager+Ebay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DatabaseManager+Ebay.swift"; sourceTree = "<group>"; };
 		2296F730746DD13BF04875B5 /* MonthDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthDetector.swift; sourceTree = "<group>"; };
+		25C9165CC6CD0F19498E66FA /* IncomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeView.swift; sourceTree = "<group>"; };
+		28149C9503586624C972BE13 /* PageWithChatBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageWithChatBar.swift; sourceTree = "<group>"; };
 		2CCE676CAB667CD64540FCB0 /* LANSyncProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LANSyncProtocol.swift; sourceTree = "<group>"; };
+		2F5BD0514DFCEDE5098BF5D3 /* EbayAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayAPIService.swift; sourceTree = "<group>"; };
 		307BCBEDFB636BDB931C5D56 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		32F647A3AD0CF01EECA79DAE /* ConflictResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolver.swift; sourceTree = "<group>"; };
 		36204743D3191FAC9750A1EF /* ColumnMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnMapper.swift; sourceTree = "<group>"; };
 		371D0746A64876D4E554C092 /* CategorizationRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategorizationRule.swift; sourceTree = "<group>"; };
+		37D794553C3B7A2870527C9C /* EbayEarningsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayEarningsViewModel.swift; sourceTree = "<group>"; };
+		44DAFFB65E1B8DC4234A95DD /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
 		450EE9D75CEFA6800800FD74 /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
 		46BBD54B27602B78383814BC /* BudgetTrackingTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BudgetTrackingTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		47794CD4CE264DCABF650F6F /* SyncStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStateStore.swift; sourceTree = "<group>"; };
 		483034A4379587D3D92B9DE4 /* ColorThresholds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorThresholds.swift; sourceTree = "<group>"; };
+		49BEC4E6C384AF003FC2308F /* EbayPayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayPayout.swift; sourceTree = "<group>"; };
 		500C712221C092D00861F3F1 /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
 		50183D2237253558FB109BCF /* LANSyncStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LANSyncStateStore.swift; sourceTree = "<group>"; };
 		526F8721F1A64F0D88D2C518 /* BankProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankProfile.swift; sourceTree = "<group>"; };
@@ -116,47 +136,48 @@
 		60C7C8113ED1B9E2730EAAEA /* ShareManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareManager.swift; sourceTree = "<group>"; };
 		65A3B7896DEB2A0E6AEC65D1 /* RuleLearner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleLearner.swift; sourceTree = "<group>"; };
 		69A036733184969414358E31 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
+		6ABB74337E8DADE534BC987F /* InsightsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsEngine.swift; sourceTree = "<group>"; };
+		6B7C1025D2E67B345EF401F4 /* AIChatBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatBar.swift; sourceTree = "<group>"; };
 		6C223CDC9EF1CB212EB74994 /* ParsePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsePreviewView.swift; sourceTree = "<group>"; };
 		6CB5F4483BD61BDCE9951D67 /* TransactionsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsViewModel.swift; sourceTree = "<group>"; };
 		75259CAB67C26E053906C004 /* XLSXParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XLSXParser.swift; sourceTree = "<group>"; };
 		7619A21E784D3733842F06AB /* MonthlySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlySnapshot.swift; sourceTree = "<group>"; };
+		7E95B4A446E484C32A02CE61 /* EbayEarningsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayEarningsView.swift; sourceTree = "<group>"; };
+		7F0A4D4CF27E36301EC7A040 /* EbayFee.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayFee.swift; sourceTree = "<group>"; };
 		814237725B108CA6C713DE5B /* ImportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportViewModel.swift; sourceTree = "<group>"; };
 		850E4467CF4D66BED7921C21 /* HistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewModel.swift; sourceTree = "<group>"; };
 		8DE43370741368E79590623F /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
 		8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedFile.swift; sourceTree = "<group>"; };
+		99563DFA1DEEC8CD84301DD2 /* InsightsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsViewModel.swift; sourceTree = "<group>"; };
+		9A45A6F8375DF9333888ACE9 /* IncomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeViewModel.swift; sourceTree = "<group>"; };
 		9BEA30480C1E86191A7C17DD /* BudgetCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetCategory.swift; sourceTree = "<group>"; };
+		9CED4B6F9C35AB112B90B992 /* AIChatResponseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatResponseView.swift; sourceTree = "<group>"; };
 		A789E73759CED466B7C73C35 /* BudgetTrackingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTrackingApp.swift; sourceTree = "<group>"; };
 		AC763A3C4CF46175AE1AC828 /* OverallBudgetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverallBudgetBar.swift; sourceTree = "<group>"; };
 		AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSettingsView.swift; sourceTree = "<group>"; };
-		D1A0B3C5E7F89012ABCD1234 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B0A492ECA271140AFAF4CED8 /* EbayOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayOrder.swift; sourceTree = "<group>"; };
 		B1F8FA4860B574D29B070358 /* CategoriesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesViewModel.swift; sourceTree = "<group>"; };
+		C32E291AFC07CA3748B3093C /* BudgetGenerationConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetGenerationConfigSheet.swift; sourceTree = "<group>"; };
 		C441C5CCF6F0938AECC87B47 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		CD0F57784E60C0D2712927E7 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
+		CDACD8F8DF659FDD26EF7120 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		CE4F27922798141DF89B8AE6 /* BudgetInsight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetInsight.swift; sourceTree = "<group>"; };
+		CEB7909A9F088E78203DFFCD /* AIChatAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatAction.swift; sourceTree = "<group>"; };
 		D003AE1329BA1C9FCD924629 /* RecordConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordConverter.swift; sourceTree = "<group>"; };
 		D01542F21F15F5E6C42F6502 /* CSVParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVParser.swift; sourceTree = "<group>"; };
 		D71603A8E67893664EA891E2 /* CategoryBudgetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryBudgetBar.swift; sourceTree = "<group>"; };
 		D9C7E858423BCB8EA18EE19F /* DateHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateHelpers.swift; sourceTree = "<group>"; };
 		E057CC4BC6FDC268C283743D /* TransactionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsListView.swift; sourceTree = "<group>"; };
 		E1A01F52CACF433AE1C260BB /* OFXParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OFXParser.swift; sourceTree = "<group>"; };
+		E90B9AD6A8B1C57D3EC57F09 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		EA01A86FF1D3853480318444 /* IncomeSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeSource.swift; sourceTree = "<group>"; };
 		EA1511E4B898F9C603AC8FA7 /* ImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportView.swift; sourceTree = "<group>"; };
 		EA86F8F7A4922668F97DE78D /* CategoryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryEditorView.swift; sourceTree = "<group>"; };
 		F11DFF79231E859813B37A16 /* PDFParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFParser.swift; sourceTree = "<group>"; };
+		F6ABE1557E9F882FFFF72047 /* COGSEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = COGSEditorView.swift; sourceTree = "<group>"; };
 		FBD04A6FF6BEF85B534BDDB5 /* QIFParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QIFParser.swift; sourceTree = "<group>"; };
 		FE0B30CCE20155199B5F3641 /* CategorizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategorizationEngine.swift; sourceTree = "<group>"; };
-		BB1111111111111111111111 /* BudgetInsight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetInsight.swift; sourceTree = "<group>"; };
-		BBAA001122334455667788 /* BankSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankSource.swift; sourceTree = "<group>"; };
-		BB2222222222222222222222 /* InsightsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsEngine.swift; sourceTree = "<group>"; };
-		BB3333333333333333333333 /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
-		BB4444444444444444444444 /* InsightsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsViewModel.swift; sourceTree = "<group>"; };
-		BB5555555555555555555555 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
-		BB6666666666666666666666 /* InsightCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightCardView.swift; sourceTree = "<group>"; };
-		DD9900001111111111111111 /* IncomeSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeSource.swift; sourceTree = "<group>"; };
-		DD9900002222222222222222 /* IncomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeViewModel.swift; sourceTree = "<group>"; };
-		DD9900003333333333333333 /* IncomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeView.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6A7B8C9D0E1F2 /* AIChatAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatAction.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6A7B8C9D0E1F3 /* AIChatBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatBar.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6A7B8C9D0E1F4 /* AIChatResponseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatResponseView.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6A7B8C9D0E1F5 /* PageWithChatBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageWithChatBar.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6A7B8C9D0E1F6 /* BudgetGenerationConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetGenerationConfigSheet.swift; sourceTree = "<group>"; };
+		FFBB5969A6E90269E0E983B6 /* EbayCostOfGoods.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayCostOfGoods.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -177,8 +198,21 @@
 			isa = PBXGroup;
 			children = (
 				500C712221C092D00861F3F1 /* DatabaseManager.swift */,
+				214F47BAB2196C5F3A3D0684 /* DatabaseManager+Ebay.swift */,
 			);
 			path = Database;
+			sourceTree = "<group>";
+		};
+		0FB274FC3C5B1261C4A2EB07 /* AI */ = {
+			isa = PBXGroup;
+			children = (
+				CEB7909A9F088E78203DFFCD /* AIChatAction.swift */,
+				6B7C1025D2E67B345EF401F4 /* AIChatBar.swift */,
+				9CED4B6F9C35AB112B90B992 /* AIChatResponseView.swift */,
+				C32E291AFC07CA3748B3093C /* BudgetGenerationConfigSheet.swift */,
+				28149C9503586624C972BE13 /* PageWithChatBar.swift */,
+			);
+			path = AI;
 			sourceTree = "<group>";
 		};
 		16069F73CB364B8677A15226 /* ViewModels */ = {
@@ -186,10 +220,11 @@
 			children = (
 				B1F8FA4860B574D29B070358 /* CategoriesViewModel.swift */,
 				69A036733184969414358E31 /* DashboardViewModel.swift */,
+				37D794553C3B7A2870527C9C /* EbayEarningsViewModel.swift */,
 				850E4467CF4D66BED7921C21 /* HistoryViewModel.swift */,
 				814237725B108CA6C713DE5B /* ImportViewModel.swift */,
-				DD9900002222222222222222 /* IncomeViewModel.swift */,
-				BB4444444444444444444444 /* InsightsViewModel.swift */,
+				9A45A6F8375DF9333888ACE9 /* IncomeViewModel.swift */,
+				99563DFA1DEEC8CD84301DD2 /* InsightsViewModel.swift */,
 				6CB5F4483BD61BDCE9951D67 /* TransactionsViewModel.swift */,
 			);
 			path = ViewModels;
@@ -204,6 +239,26 @@
 			);
 			sourceTree = "<group>";
 		};
+		3610C10C9998240EAB5F53EA /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				44DAFFB65E1B8DC4234A95DD /* ClaudeAPIService.swift */,
+				2F5BD0514DFCEDE5098BF5D3 /* EbayAPIService.swift */,
+				078CA30B073B997BB4E2E011 /* EbayAuthManager.swift */,
+				6ABB74337E8DADE534BC987F /* InsightsEngine.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		4EA5871B604458E79C57FD75 /* Ebay */ = {
+			isa = PBXGroup;
+			children = (
+				F6ABE1557E9F882FFFF72047 /* COGSEditorView.swift */,
+				7E95B4A446E484C32A02CE61 /* EbayEarningsView.swift */,
+			);
+			path = Ebay;
+			sourceTree = "<group>";
+		};
 		50FFDC941B04DD627C9F4F11 /* Dashboard */ = {
 			isa = PBXGroup;
 			children = (
@@ -212,6 +267,23 @@
 				AC763A3C4CF46175AE1AC828 /* OverallBudgetBar.swift */,
 			);
 			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		531E9A222B7921810E3F81A5 /* Insights */ = {
+			isa = PBXGroup;
+			children = (
+				207075BF019B0C8B0CF062E9 /* InsightCardView.swift */,
+				CD0F57784E60C0D2712927E7 /* InsightsView.swift */,
+			);
+			path = Insights;
+			sourceTree = "<group>";
+		};
+		53459F2D5177FC85BEA66A1F /* Income */ = {
+			isa = PBXGroup;
+			children = (
+				25C9165CC6CD0F19498E66FA /* IncomeView.swift */,
+			);
+			path = Income;
 			sourceTree = "<group>";
 		};
 		6B9E56EA8B00DC307F31E55D /* Products */ = {
@@ -226,8 +298,8 @@
 		6D6CC1085EA6F7479DA64F5D /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				CDACD8F8DF659FDD26EF7120 /* SettingsView.swift */,
 				AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */,
-				D1A0B3C5E7F89012ABCD1234 /* SettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -246,13 +318,17 @@
 			isa = PBXGroup;
 			children = (
 				526F8721F1A64F0D88D2C518 /* BankProfile.swift */,
+				040FF16290A04B1268873359 /* BankSource.swift */,
 				9BEA30480C1E86191A7C17DD /* BudgetCategory.swift */,
+				CE4F27922798141DF89B8AE6 /* BudgetInsight.swift */,
 				371D0746A64876D4E554C092 /* CategorizationRule.swift */,
+				FFBB5969A6E90269E0E983B6 /* EbayCostOfGoods.swift */,
+				7F0A4D4CF27E36301EC7A040 /* EbayFee.swift */,
+				B0A492ECA271140AFAF4CED8 /* EbayOrder.swift */,
+				49BEC4E6C384AF003FC2308F /* EbayPayout.swift */,
 				8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */,
-				DD9900001111111111111111 /* IncomeSource.swift */,
+				EA01A86FF1D3853480318444 /* IncomeSource.swift */,
 				7619A21E784D3733842F06AB /* MonthlySnapshot.swift */,
-				BB1111111111111111111111 /* BudgetInsight.swift */,
-				BBAA001122334455667788 /* BankSource.swift */,
 				8DE43370741368E79590623F /* Transaction.swift */,
 			);
 			path = Models;
@@ -295,11 +371,12 @@
 			children = (
 				A789E73759CED466B7C73C35 /* BudgetTrackingApp.swift */,
 				307BCBEDFB636BDB931C5D56 /* ContentView.swift */,
+				E90B9AD6A8B1C57D3EC57F09 /* Info.plist */,
 				8AD95BBB06A7702115F03891 /* Categorization */,
 				0178EC38A4796ACCE44A4CD0 /* Database */,
 				7786A8392DB1F4F2BC71DA99 /* Models */,
 				8BCB7FB4374A267F76E55C69 /* Parsing */,
-				CC8888888888888888888888 /* Services */,
+				3610C10C9998240EAB5F53EA /* Services */,
 				EAA99397AB5D282A93359D08 /* Sync */,
 				FEC6481ADF380D4AC1264664 /* Utilities */,
 				16069F73CB364B8677A15226 /* ViewModels */,
@@ -319,58 +396,21 @@
 			path = Tests/BudgetTrackingTests;
 			sourceTree = "<group>";
 		};
-		CC8888888888888888888888 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				BB3333333333333333333333 /* ClaudeAPIService.swift */,
-				BB2222222222222222222222 /* InsightsEngine.swift */,
-			);
-			path = Services;
-			sourceTree = "<group>";
-		};
-		CC7777777777777777777777 /* Insights */ = {
-			isa = PBXGroup;
-			children = (
-				BB5555555555555555555555 /* InsightsView.swift */,
-				BB6666666666666666666666 /* InsightCardView.swift */,
-			);
-			path = Insights;
-			sourceTree = "<group>";
-		};
-		C1D2E3F4A5B6C7D8E9F0A1B2 /* AI */ = {
-			isa = PBXGroup;
-			children = (
-				A1B2C3D4E5F6A7B8C9D0E1F2 /* AIChatAction.swift */,
-				A1B2C3D4E5F6A7B8C9D0E1F3 /* AIChatBar.swift */,
-				A1B2C3D4E5F6A7B8C9D0E1F4 /* AIChatResponseView.swift */,
-				A1B2C3D4E5F6A7B8C9D0E1F6 /* BudgetGenerationConfigSheet.swift */,
-				A1B2C3D4E5F6A7B8C9D0E1F5 /* PageWithChatBar.swift */,
-			);
-			path = AI;
-			sourceTree = "<group>";
-		};
 		C74EBA8995F9C78AE52A3F83 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				C1D2E3F4A5B6C7D8E9F0A1B2 /* AI */,
+				0FB274FC3C5B1261C4A2EB07 /* AI */,
 				CBDBD11D1B167B2D16640DE9 /* Categories */,
 				50FFDC941B04DD627C9F4F11 /* Dashboard */,
+				4EA5871B604458E79C57FD75 /* Ebay */,
 				DF89480F8E83603CA222F55F /* History */,
 				6E3ED7D1737E604EE89141DD /* Import */,
-				EE9900004444444444444444 /* Income */,
-				CC7777777777777777777777 /* Insights */,
+				53459F2D5177FC85BEA66A1F /* Income */,
+				531E9A222B7921810E3F81A5 /* Insights */,
 				6D6CC1085EA6F7479DA64F5D /* Settings */,
 				8782EFBBD3C5B11948F3840C /* Transactions */,
 			);
 			path = Views;
-			sourceTree = "<group>";
-		};
-		EE9900004444444444444444 /* Income */ = {
-			isa = PBXGroup;
-			children = (
-				DD9900003333333333333333 /* IncomeView.swift */,
-			);
-			path = Income;
 			sourceTree = "<group>";
 		};
 		CBDBD11D1B167B2D16640DE9 /* Categories */ = {
@@ -504,20 +544,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B1C2D3E4F5A6B7C8D9E0F1A2 /* AIChatAction.swift in Sources */,
-				B1C2D3E4F5A6B7C8D9E0F1A3 /* AIChatBar.swift in Sources */,
-				B1C2D3E4F5A6B7C8D9E0F1A4 /* AIChatResponseView.swift in Sources */,
-				B1C2D3E4F5A6B7C8D9E0F1A6 /* BudgetGenerationConfigSheet.swift in Sources */,
+				3678DBB86AF5CFEF2EBB4ACC /* AIChatAction.swift in Sources */,
+				6E43B473C9B859F833DD3903 /* AIChatBar.swift in Sources */,
+				53DE32AAB74E25F098BD7A3A /* AIChatResponseView.swift in Sources */,
 				71414C7F4B6DC0EFDA2E9634 /* BankProfile.swift in Sources */,
+				AC843B3052010881EE9F4555 /* BankSource.swift in Sources */,
 				00949753B9E96D5C7EF05C84 /* BudgetCategory.swift in Sources */,
-				AA1111111111111111111111 /* BudgetInsight.swift in Sources */,
-				AABB001122334455667788 /* BankSource.swift in Sources */,
-				AA3333333333333333333333 /* ClaudeAPIService.swift in Sources */,
-				AA6666666666666666666666 /* InsightCardView.swift in Sources */,
-				AA2222222222222222222222 /* InsightsEngine.swift in Sources */,
-				AA5555555555555555555555 /* InsightsView.swift in Sources */,
-				AA4444444444444444444444 /* InsightsViewModel.swift in Sources */,
+				28EE3833CBDB15B9E25FC938 /* BudgetGenerationConfigSheet.swift in Sources */,
+				5F6FA71768D8583151739DB3 /* BudgetInsight.swift in Sources */,
 				EC80E2DF1D3F334069C8EE2E /* BudgetTrackingApp.swift in Sources */,
+				A1795BED0494373F2A9BCE7B /* COGSEditorView.swift in Sources */,
 				C313D96517FED3F0274A363B /* CSVParser.swift in Sources */,
 				21EE1C948FB25E41AFA9438B /* CategoriesSettingsView.swift in Sources */,
 				D8D8C67951908DB67031EF63 /* CategoriesViewModel.swift in Sources */,
@@ -525,6 +561,7 @@
 				E53470827328467C88573F4C /* CategorizationRule.swift in Sources */,
 				272104B2FC3606FBEFCC7A82 /* CategoryBudgetBar.swift in Sources */,
 				EC3EEAA146801B8DDC992AB8 /* CategoryEditorView.swift in Sources */,
+				2E0AA0E7463717B068972F27 /* ClaudeAPIService.swift in Sources */,
 				6FB1CC56DA9F81D74E2EF69E /* ColorThresholds.swift in Sources */,
 				CC2887DC361193375756E47A /* ColumnMapper.swift in Sources */,
 				DB6896C55F6286E95A606730 /* ColumnMappingView.swift in Sources */,
@@ -533,16 +570,29 @@
 				E0CEB5468DA58916BB7030D9 /* CurrencyFormatter.swift in Sources */,
 				0753534F76448F6943A73BC8 /* DashboardView.swift in Sources */,
 				BCD801CD70883317A41748C3 /* DashboardViewModel.swift in Sources */,
+				6E0566C5CCCA9B3BF45F3C79 /* DatabaseManager+Ebay.swift in Sources */,
 				1C536B9A9FBAC5B6EEDB408C /* DatabaseManager.swift in Sources */,
 				CA548684785642DD4902FEA3 /* DateHelpers.swift in Sources */,
+				B9C411FEC25252B94B5D6463 /* EbayAPIService.swift in Sources */,
+				76B066C8FDE03F3F385CFA57 /* EbayAuthManager.swift in Sources */,
+				DA8B4F231582A859EDDC9776 /* EbayCostOfGoods.swift in Sources */,
+				746A38C0937480FFC4DF3BAB /* EbayEarningsView.swift in Sources */,
+				AA953FDFC1D12F336EB2EE0D /* EbayEarningsViewModel.swift in Sources */,
+				A250FAA6AA91909BBB3491C0 /* EbayFee.swift in Sources */,
+				82C5DEB0ABE1AA45D2DF8766 /* EbayOrder.swift in Sources */,
+				5B4AFCE461C368F83062E6E5 /* EbayPayout.swift in Sources */,
 				C94186A645D7A1E496FF99AA /* HistoryView.swift in Sources */,
 				512FFF288B12EF51E36DBB8A /* HistoryViewModel.swift in Sources */,
 				F1E746C9970C092EFD2C848F /* ImportView.swift in Sources */,
 				AAB0D77A318B158439549FAD /* ImportViewModel.swift in Sources */,
 				0A095A6B4194BDCF8CEAF4DD /* ImportedFile.swift in Sources */,
-				CC9900001111111111111111 /* IncomeSource.swift in Sources */,
-				CC9900002222222222222222 /* IncomeViewModel.swift in Sources */,
-				CC9900003333333333333333 /* IncomeView.swift in Sources */,
+				16E3BF316E1EBAC92DA52138 /* IncomeSource.swift in Sources */,
+				DF5E85723C46685BEDAF4BA0 /* IncomeView.swift in Sources */,
+				BC2B265AC0576CB39E5D6D69 /* IncomeViewModel.swift in Sources */,
+				9B88872EB416F58730BECA4A /* InsightCardView.swift in Sources */,
+				E8A3702B42005E8CE7A068AB /* InsightsEngine.swift in Sources */,
+				499AF6E0D703784C6A49966A /* InsightsView.swift in Sources */,
+				F968FE301D4F86E6CC980674 /* InsightsViewModel.swift in Sources */,
 				34B5F561DA5DF8F30DA3B425 /* LANSyncEngine.swift in Sources */,
 				8D62D571E3AAB5C7C52B7708 /* LANSyncProtocol.swift in Sources */,
 				578E34AA65E5FD5F944BD4AD /* LANSyncStateStore.swift in Sources */,
@@ -551,18 +601,18 @@
 				B50381A1372095880CBFC715 /* OFXParser.swift in Sources */,
 				4D8B02F05E5A562078C9C534 /* OverallBudgetBar.swift in Sources */,
 				E6D708D14B960CFB3793275A /* PDFParser.swift in Sources */,
-				B1C2D3E4F5A6B7C8D9E0F1A5 /* PageWithChatBar.swift in Sources */,
+				0D43ABEC5941DA199A8F790B /* PageWithChatBar.swift in Sources */,
 				78EF18856F7D9F0257AF4283 /* ParsePreviewView.swift in Sources */,
 				1A383ED322BCD4A92BCD1358 /* QIFParser.swift in Sources */,
 				94A5A04BEECF42B2B47C0C0B /* RecordConverter.swift in Sources */,
 				31B61674E829E73409C0C28B /* RuleLearner.swift in Sources */,
+				902FBFE9D6BEB8617F5329B3 /* SettingsView.swift in Sources */,
 				74AA6D546426CF8564F34E3D /* ShareManager.swift in Sources */,
 				D7008F01D23AE7B946581A0B /* SourceCategoryMapper.swift in Sources */,
 				C344302C539ED66CC5915F73 /* StatementParser.swift in Sources */,
 				7A580A066A36B2FB74E0918C /* SyncConstants.swift in Sources */,
 				6288FC30C05B0F0D344B0761 /* SyncEngine.swift in Sources */,
 				ACB2FE6DD3AD75F0E535C0A9 /* SyncSettingsView.swift in Sources */,
-				D1A0B3C4E7F89012ABCD1234 /* SettingsView.swift in Sources */,
 				BC63EA54D93D3ACD9B197092 /* SyncStateStore.swift in Sources */,
 				C877E5C5F34AC7349C7085CC /* Transaction.swift in Sources */,
 				9E5B026BFA80B5B95CBBEF1A /* TransactionsListView.swift in Sources */,
@@ -676,6 +726,7 @@
 				DEVELOPMENT_TEAM = 98AUV869NF;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sources/BudgetTracking/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Budget Tracking";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSBonjourServices = _budgetsync._tcp;
@@ -701,6 +752,7 @@
 				DEVELOPMENT_TEAM = 98AUV869NF;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sources/BudgetTracking/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Budget Tracking";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSBonjourServices = _budgetsync._tcp;

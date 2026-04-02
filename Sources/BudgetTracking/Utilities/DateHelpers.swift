@@ -55,6 +55,18 @@ enum DateHelpers {
         return f.date(from: string)
     }
 
+    static func startOfMonth(_ monthString: String) -> Date? {
+        guard let date = monthFormatter.date(from: monthString) else { return nil }
+        return Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: date))
+    }
+
+    static func endOfMonth(_ monthString: String) -> Date? {
+        guard let start = startOfMonth(monthString),
+              let end = Calendar.current.date(byAdding: DateComponents(month: 1, second: -1), to: start)
+        else { return nil }
+        return end
+    }
+
     static let commonDateFormats = [
         "MM/dd/yyyy",
         "M/d/yyyy",

@@ -2,7 +2,12 @@ import SwiftUI
 
 struct SettingsView: View {
     @Bindable var aiViewModel: InsightsViewModel
+    var ebayAuthManager: EbayAuthManager
     @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
+    @AppStorage("isEbayPageEnabled") private var isEbayPageEnabled = false
+    @State private var ebayClientId: String = ""
+    @State private var ebayClientSecret: String = ""
+    @State private var ebayRuName: String = ""
 
     var body: some View {
         ScrollView {
@@ -13,6 +18,14 @@ struct SettingsView: View {
                         Toggle("Income Page", isOn: $isIncomePageEnabled)
 
                         Text("Show the Income page in the sidebar for tracking income by source.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Divider()
+
+                        Toggle("eBay Earnings Page", isOn: $isEbayPageEnabled)
+
+                        Text("Show the eBay Earnings page for tracking net profits from eBay sales.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -82,9 +95,71 @@ struct SettingsView: View {
                 } label: {
                     Label("AI Assistant", systemImage: "sparkles")
                 }
+                // MARK: - eBay Configuration
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("eBay Developer Credentials")
+                                .font(.headline)
+
+                            TextField("Client ID (App ID)", text: $ebayClientId)
+                                .textFieldStyle(.roundedBorder)
+                                .onChange(of: ebayClientId) { _, newValue in
+                                    ebayAuthManager.clientId = newValue
+                                }
+
+                            SecureField("Client Secret (Cert ID)", text: $ebayClientSecret)
+                                .textFieldStyle(.roundedBorder)
+                                .onChange(of: ebayClientSecret) { _, newValue in
+                                    ebayAuthManager.clientSecret = newValue
+                                }
+
+                            TextField("RuName (Redirect URL Name)", text: $ebayRuName)
+                                .textFieldStyle(.roundedBorder)
+                                .onChange(of: ebayRuName) { _, newValue in
+                                    ebayAuthManager.ruName = newValue
+                                }
+
+                            if ebayAuthManager.isAuthenticated {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                        .font(.caption)
+                                    Text("Connected to eBay")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                    Spacer()
+                                    Button("Disconnect") {
+                                        ebayAuthManager.disconnect()
+                                    }
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                                }
+                            }
+
+                            Text("Credentials are stored securely in your Keychain. Get them from developer.ebay.com.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Toggle("Use eBay Sandbox", isOn: Binding(
+                                get: { ebayAuthManager.useSandbox },
+                                set: { ebayAuthManager.useSandbox = $0 }
+                            ))
+                            .font(.caption)
+                        }
+                    }
+                    .padding(8)
+                } label: {
+                    Label("eBay Integration", systemImage: "bag.fill")
+                }
             }
             .padding(24)
         }
         .navigationTitle("Settings")
+        .onAppear {
+            ebayClientId = ebayAuthManager.clientId
+            ebayClientSecret = ebayAuthManager.clientSecret
+            ebayRuName = ebayAuthManager.ruName
+        }
     }
 }

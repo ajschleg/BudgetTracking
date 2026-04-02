@@ -7,7 +7,7 @@ final class DatabaseManager {
     let dbQueue: DatabaseQueue
 
     /// Notify the sync engine that local data has changed.
-    private func notifyDataChanged() {
+    func notifyDataChanged() {
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .localDataDidChange, object: nil)
         }
@@ -176,6 +176,70 @@ final class DatabaseManager {
             for table in tables {
                 try db.execute(sql: "UPDATE \"\(table)\" SET cloudKitRecordName = id")
             }
+        }
+
+        migrator.registerMigration("v5_createEbayTables") { db in
+            try db.create(table: "ebayOrder") { t in
+                t.column("id", .text).primaryKey()
+                t.column("ebayOrderId", .text).notNull().unique()
+                t.column("transactionId", .text).notNull()
+                t.column("buyerUsername", .text)
+                t.column("itemTitle", .text).notNull()
+                t.column("itemId", .text)
+                t.column("quantity", .integer).notNull().defaults(to: 1)
+                t.column("saleDate", .datetime).notNull()
+                t.column("saleAmount", .double).notNull()
+                t.column("month", .text).notNull()
+                t.column("lastModifiedAt", .datetime)
+                t.column("cloudKitRecordName", .text)
+                t.column("cloudKitSystemFields", .blob)
+                t.column("isDeleted", .boolean).notNull().defaults(to: false)
+            }
+            try db.create(index: "ebayOrder_month", on: "ebayOrder", columns: ["month"])
+
+            try db.create(table: "ebayFee") { t in
+                t.column("id", .text).primaryKey()
+                t.column("ebayOrderId", .text).notNull()
+                    .references("ebayOrder", onDelete: .cascade)
+                t.column("feeType", .text).notNull()
+                t.column("amount", .double).notNull()
+                t.column("feeMemo", .text)
+                t.column("lastModifiedAt", .datetime)
+                t.column("cloudKitRecordName", .text)
+                t.column("cloudKitSystemFields", .blob)
+                t.column("isDeleted", .boolean).notNull().defaults(to: false)
+            }
+            try db.create(index: "ebayFee_orderId", on: "ebayFee", columns: ["ebayOrderId"])
+
+            try db.create(table: "ebayPayout") { t in
+                t.column("id", .text).primaryKey()
+                t.column("ebayPayoutId", .text).notNull().unique()
+                t.column("payoutDate", .datetime).notNull()
+                t.column("amount", .double).notNull()
+                t.column("status", .text).notNull()
+                t.column("month", .text).notNull()
+                t.column("matchedTransactionId", .text)
+                    .references("transaction", onDelete: .setNull)
+                t.column("lastModifiedAt", .datetime)
+                t.column("cloudKitRecordName", .text)
+                t.column("cloudKitSystemFields", .blob)
+                t.column("isDeleted", .boolean).notNull().defaults(to: false)
+            }
+            try db.create(index: "ebayPayout_month", on: "ebayPayout", columns: ["month"])
+
+            try db.create(table: "ebayCostOfGoods") { t in
+                t.column("id", .text).primaryKey()
+                t.column("ebayOrderId", .text).notNull()
+                    .references("ebayOrder", onDelete: .cascade)
+                t.column("costAmount", .double).notNull().defaults(to: 0)
+                t.column("shippingCost", .double).notNull().defaults(to: 0)
+                t.column("notes", .text)
+                t.column("lastModifiedAt", .datetime)
+                t.column("cloudKitRecordName", .text)
+                t.column("cloudKitSystemFields", .blob)
+                t.column("isDeleted", .boolean).notNull().defaults(to: false)
+            }
+            try db.create(index: "ebayCOGS_orderId", on: "ebayCostOfGoods", columns: ["ebayOrderId"])
         }
 
         try migrator.migrate(dbQueue)

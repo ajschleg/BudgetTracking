@@ -35,6 +35,13 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "BudgetTracking uses the local network to sync budget data with nearby devices."
         INFOPLIST_KEY_NSBonjourServices: "_budgetsync._tcp"
+    info:
+      path: Sources/BudgetTracking/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLName: "eBay OAuth Callback"
+            CFBundleURLSchemes:
+              - budgettracking
     dependencies:
       - package: GRDB.swift
         product: GRDB
