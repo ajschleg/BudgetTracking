@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AddSourcingTransactionSheet: View {
-    @Bindable var viewModel: EbayEarningsViewModel
+    @Bindable var viewModel: SideHustleViewModel
     let month: String
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
@@ -17,7 +17,7 @@ struct AddSourcingTransactionSheet: View {
                     .keyboardShortcut(.defaultAction)
             }
 
-            Text("Select individual transactions to include as eBay sourcing costs. These are added on top of any category-based sourcing.")
+            Text("Select individual transactions to include as sourcing costs. These are added on top of any category-based sourcing.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -61,10 +61,7 @@ struct AddSourcingTransactionSheet: View {
                     }
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        if isCategorySourcing(txn) {
-                            // Can't toggle category-based sourcing from here
-                            return
-                        }
+                        if isCategorySourcing(txn) { return }
                         if viewModel.isManualSourcing(txn.id) {
                             viewModel.removeManualSourcingTransaction(txn.id)
                         } else {
@@ -84,16 +81,14 @@ struct AddSourcingTransactionSheet: View {
     private func loadTransactions() {
         do {
             transactions = try DatabaseManager.shared.fetchTransactions(forMonth: month)
-                .filter { $0.amount < 0 } // Only expenses
+                .filter { $0.amount < 0 }
         } catch {
             transactions = []
         }
     }
 
     private var filteredTransactions: [Transaction] {
-        if searchText.isEmpty {
-            return transactions
-        }
+        if searchText.isEmpty { return transactions }
         return transactions.filter {
             $0.description.localizedCaseInsensitiveContains(searchText)
         }

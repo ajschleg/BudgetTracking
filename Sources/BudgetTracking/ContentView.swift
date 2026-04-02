@@ -3,7 +3,6 @@ import SwiftUI
 enum SidebarItem: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case income = "Income"
-    case ebayEarnings = "eBay Earnings"
     case transactions = "Transactions"
     case importStatements = "Import"
     case categories = "Categories"
@@ -18,7 +17,6 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         switch self {
         case .dashboard: return "chart.bar.fill"
         case .income: return "banknote"
-        case .ebayEarnings: return "bag.fill"
         case .transactions: return "list.bullet.rectangle"
         case .importStatements: return "square.and.arrow.down"
         case .categories: return "folder.fill"
@@ -35,7 +33,6 @@ struct ContentView: View {
     @State private var selectedMonth: String = DateHelpers.monthString()
     @State private var insightsViewModel = InsightsViewModel()
     @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
-    @AppStorage("isEbayPageEnabled") private var isEbayPageEnabled = false
 
     let syncEngine: SyncEngine
     let shareManager: ShareManager
@@ -45,7 +42,6 @@ struct ContentView: View {
     private var visibleSidebarItems: [SidebarItem] {
         SidebarItem.allCases.filter { item in
             if item == .income { return isIncomePageEnabled }
-            if item == .ebayEarnings { return isEbayPageEnabled }
             return true
         }
     }
@@ -95,9 +91,7 @@ struct ContentView: View {
             case .dashboard:
                 DashboardView(selectedMonth: $selectedMonth, selectedItem: $selectedItem, aiViewModel: insightsViewModel)
             case .income:
-                IncomeView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
-            case .ebayEarnings:
-                EbayEarningsView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel, ebayAuthManager: ebayAuthManager)
+                IncomeTabView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel, ebayAuthManager: ebayAuthManager)
             case .transactions:
                 TransactionsListView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
             case .importStatements:

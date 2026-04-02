@@ -14,15 +14,29 @@ final class IncomeViewModel {
     var isManagingSourcesPresented = false
 
     private var currentMonth: String = ""
+    private var currentSourceType: IncomeSourceType?
 
-    func load(month: String) {
+    func load(month: String, sourceType: IncomeSourceType? = nil) {
         currentMonth = month
+        currentSourceType = sourceType
         do {
-            sources = IncomeSource.loadSaved()
+            let allSources = IncomeSource.loadSaved()
+            if let sourceType {
+                sources = allSources.filter { $0.type == sourceType }
+            } else {
+                sources = allSources
+            }
             incomeTransactions = try DatabaseManager.shared.fetchIncomeTransactions(forMonth: month)
-            totalIncome = try DatabaseManager.shared.fetchTotalIncome(forMonth: month)
             sourceAssignments = IncomeSource.loadMappings()
             autoAssignUnmatched()
+            // Compute total from filtered sources only
+            let sourceIds = Set(sources.map(\.id))
+            totalIncome = incomeTransactions
+                .filter { txn in
+                    guard let srcId = sourceAssignments[txn.id] else { return false }
+                    return sourceIds.contains(srcId)
+                }
+                .reduce(0) { $0 + $1.amount }
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription

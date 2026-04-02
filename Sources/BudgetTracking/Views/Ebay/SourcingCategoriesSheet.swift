@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SourcingCategoriesSheet: View {
-    @Bindable var viewModel: EbayEarningsViewModel
+    @Bindable var viewModel: SideHustleViewModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -14,7 +14,7 @@ struct SourcingCategoriesSheet: View {
                     .keyboardShortcut(.defaultAction)
             }
 
-            Text("Select which budget categories contain eBay sourcing costs (e.g. thrift store purchases, wholesale buys). All spending in these categories will be subtracted from your eBay earnings.")
+            Text("Select which budget categories contain sourcing costs (e.g. thrift store purchases, wholesale buys). All spending in these categories will be subtracted from your side hustle earnings.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

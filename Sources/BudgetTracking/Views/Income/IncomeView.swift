@@ -259,8 +259,10 @@ struct IncomeView: View {
 
 struct ManageSourcesSheet: View {
     @Bindable var viewModel: IncomeViewModel
+    @State private var allSources: [IncomeSource] = []
     @State private var newSourceName = ""
     @State private var newSourceKeywords = ""
+    @State private var newSourceType: IncomeSourceType = .employment
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -269,35 +271,28 @@ struct ManageSourcesSheet: View {
                 Text("Manage Income Sources")
                     .font(.title2.weight(.semibold))
                 Spacer()
-                Button("Done") { dismiss() }
-                    .keyboardShortcut(.defaultAction)
+                Button("Done") {
+                    IncomeSource.save(allSources)
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
             }
 
             // Existing sources
             List {
-                ForEach(viewModel.sources) { source in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(source.name)
-                                .font(.body)
-                            Text("Keywords: \(source.keywords.joined(separator: ", "))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                Section("Employment") {
+                    ForEach(allSources.filter { $0.type == .employment }) { source in
+                        sourceRow(source)
+                    }
+                }
 
-                        Spacer()
-
-                        Button(role: .destructive) {
-                            viewModel.deleteSource(source.id)
-                        } label: {
-                            Image(systemName: "trash")
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
+                Section("Side Hustle") {
+                    ForEach(allSources.filter { $0.type == .sideHustle }) { source in
+                        sourceRow(source)
                     }
                 }
             }
-            .frame(minHeight: 150)
+            .frame(minHeight: 200)
 
             Divider()
 
@@ -305,10 +300,16 @@ struct ManageSourcesSheet: View {
             HStack {
                 TextField("Source name", text: $newSourceName)
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 150)
+                    .frame(width: 130)
 
                 TextField("Keywords (comma-separated)", text: $newSourceKeywords)
                     .textFieldStyle(.roundedBorder)
+
+                Picker("Type", selection: $newSourceType) {
+                    Text("Employment").tag(IncomeSourceType.employment)
+                    Text("Side Hustle").tag(IncomeSourceType.sideHustle)
+                }
+                .frame(width: 130)
 
                 Button("Add") {
                     let keywords = newSourceKeywords
@@ -316,10 +317,14 @@ struct ManageSourcesSheet: View {
                         .map { $0.trimmingCharacters(in: .whitespaces).uppercased() }
                         .filter { !$0.isEmpty }
                     guard !newSourceName.isEmpty else { return }
-                    viewModel.addSource(
+                    let source = IncomeSource(
                         name: newSourceName,
-                        keywords: keywords.isEmpty ? [newSourceName.uppercased()] : keywords
+                        keywords: keywords.isEmpty ? [newSourceName.uppercased()] : keywords,
+                        isDefault: false,
+                        type: newSourceType
                     )
+                    allSources.append(source)
+                    IncomeSource.save(allSources)
                     newSourceName = ""
                     newSourceKeywords = ""
                 }
@@ -327,6 +332,49 @@ struct ManageSourcesSheet: View {
             }
         }
         .padding(20)
-        .frame(minWidth: 500, minHeight: 350)
+        .frame(minWidth: 600, minHeight: 400)
+        .onAppear {
+            allSources = IncomeSource.loadSaved()
+        }
+    }
+
+    private func sourceRow(_ source: IncomeSource) -> some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(source.name)
+                    .font(.body)
+                Text("Keywords: \(source.keywords.joined(separator: ", "))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Type toggle
+            Picker("", selection: Binding(
+                get: { source.type },
+                set: { newType in
+                    if let idx = allSources.firstIndex(where: { $0.id == source.id }) {
+                        allSources[idx].type = newType
+                        IncomeSource.save(allSources)
+                    }
+                }
+            )) {
+                Text("Employment").tag(IncomeSourceType.employment)
+                Text("Side Hustle").tag(IncomeSourceType.sideHustle)
+            }
+            .frame(width: 130)
+
+            if !source.isDefault {
+                Button(role: .destructive) {
+                    allSources.removeAll { $0.id == source.id }
+                    IncomeSource.save(allSources)
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }

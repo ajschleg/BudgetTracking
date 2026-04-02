@@ -1,16 +1,26 @@
 import Foundation
 
+enum IncomeSourceType: String, Codable {
+    case employment
+    case sideHustle
+}
+
 struct IncomeSource: Identifiable, Codable {
     var id = UUID()
     var name: String
     var keywords: [String]
     var isDefault: Bool
+    var type: IncomeSourceType = .employment
+
+    var isEbay: Bool {
+        keywords.contains { $0.uppercased() == "EBAY" }
+    }
 
     static let defaults: [IncomeSource] = [
-        IncomeSource(name: "Arthrex", keywords: ["ARTHREX"], isDefault: true),
-        IncomeSource(name: "RCI", keywords: ["RCI"], isDefault: true),
-        IncomeSource(name: "EBay", keywords: ["EBAY"], isDefault: true),
-        IncomeSource(name: "Zelle", keywords: ["ZELLE"], isDefault: true),
+        IncomeSource(name: "Arthrex", keywords: ["ARTHREX"], isDefault: true, type: .employment),
+        IncomeSource(name: "RCI", keywords: ["RCI"], isDefault: true, type: .employment),
+        IncomeSource(name: "EBay", keywords: ["EBAY"], isDefault: true, type: .sideHustle),
+        IncomeSource(name: "Zelle", keywords: ["ZELLE"], isDefault: true, type: .employment),
     ]
 
     private static let storageKey = "incomeSources"
@@ -18,9 +28,20 @@ struct IncomeSource: Identifiable, Codable {
 
     static func loadSaved() -> [IncomeSource] {
         guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let saved = try? JSONDecoder().decode([IncomeSource].self, from: data)
+              var saved = try? JSONDecoder().decode([IncomeSource].self, from: data)
         else {
             return defaults
+        }
+        // Migrate: ensure eBay sources are marked as sideHustle
+        var migrated = false
+        for i in saved.indices {
+            if saved[i].isEbay && saved[i].type == .employment {
+                saved[i].type = .sideHustle
+                migrated = true
+            }
+        }
+        if migrated {
+            save(saved)
         }
         return saved
     }

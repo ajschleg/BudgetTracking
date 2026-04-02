@@ -4,7 +4,6 @@ struct SettingsView: View {
     @Bindable var aiViewModel: InsightsViewModel
     var ebayAuthManager: EbayAuthManager
     @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
-    @AppStorage("isEbayPageEnabled") private var isEbayPageEnabled = false
     @State private var ebayClientId: String = ""
     @State private var ebayClientSecret: String = ""
     @State private var ebayRuName: String = ""
@@ -17,15 +16,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Income Page", isOn: $isIncomePageEnabled)
 
-                        Text("Show the Income page in the sidebar for tracking income by source.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Divider()
-
-                        Toggle("eBay Earnings Page", isOn: $isEbayPageEnabled)
-
-                        Text("Show the eBay Earnings page for tracking net profits from eBay sales.")
+                        Text("Show the Income page in the sidebar with Employment and Side Hustle tabs.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
