@@ -128,12 +128,15 @@ struct IncomeTabView: View {
 
     private func syncEbay() async {
         guard let startDate = DateHelpers.startOfMonth(selectedMonth),
-              let endDate = DateHelpers.endOfMonth(selectedMonth) else { return }
+              let monthEnd = DateHelpers.endOfMonth(selectedMonth) else { return }
+        let endDate = min(monthEnd, Date())
 
         ebayViewModel.isSyncing = true
         ebayViewModel.syncProgress = "Authenticating..."
         defer {
             ebayViewModel.isSyncing = false
+            ebayViewModel.load(month: selectedMonth)
+            ebayViewModel.autoMatchPayouts()
             sideHustleViewModel?.load(month: selectedMonth)
         }
 
@@ -240,8 +243,6 @@ struct IncomeTabView: View {
             try DatabaseManager.shared.saveEbayPayouts(ebayPayouts)
 
             ebayViewModel.syncProgress = "Matching payouts..."
-            ebayViewModel.load(month: selectedMonth)
-            ebayViewModel.autoMatchPayouts()
         } catch {
             ebayViewModel.errorMessage = error.localizedDescription
         }
