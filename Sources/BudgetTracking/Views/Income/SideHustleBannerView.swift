@@ -181,7 +181,7 @@ struct SideHustleBannerView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 if total > 0 {
-                    Text(CurrencyFormatter.format(-total))
+                    Text("Total: \(CurrencyFormatter.format(-total))")
                         .font(.caption.weight(.semibold).monospacedDigit())
                         .foregroundStyle(.red)
                 }
@@ -189,40 +189,49 @@ struct SideHustleBannerView: View {
             .padding(.horizontal)
             .padding(.top, 6)
 
-            ForEach(transactions) { txn in
-                HStack {
-                    Text(DateHelpers.shortDate(txn.date))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 65, alignment: .leading)
-                    Text(txn.description)
-                        .font(.caption)
-                        .lineLimit(1)
-                    Spacer()
-                    Text(CurrencyFormatter.format(txn.amount))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.red)
-                    if showRemoveButton && viewModel.isManualSourcing(txn.id) {
-                        Button {
-                            viewModel.removeManualSourcingTransaction(txn.id)
-                        } label: {
-                            Image(systemName: "xmark.circle")
+            Divider()
+                .padding(.horizontal)
+                .padding(.top, 4)
+
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(transactions) { txn in
+                        HStack {
+                            Text(DateHelpers.shortDate(txn.date))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .frame(width: 65, alignment: .leading)
+                            Text(txn.description)
+                                .font(.caption)
+                                .lineLimit(1)
+                            Spacer()
+                            Text(CurrencyFormatter.format(txn.amount))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.red)
+                            if showRemoveButton && viewModel.isManualSourcing(txn.id) {
+                                Button {
+                                    viewModel.removeManualSourcingTransaction(txn.id)
+                                } label: {
+                                    Image(systemName: "xmark.circle")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        .buttonStyle(.plain)
+                        .padding(.horizontal)
+                        .padding(.vertical, 3)
+                    }
+
+                    if transactions.isEmpty {
+                        Text("No sourcing transactions")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .padding(.vertical, 8)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 3)
             }
-
-            if transactions.isEmpty {
-                Text("No sourcing transactions")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .padding(.vertical, 8)
-            }
+            .frame(maxHeight: 200)
         }
         .padding(.bottom, 4)
     }
