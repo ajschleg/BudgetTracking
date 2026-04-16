@@ -9,6 +9,7 @@ struct BudgetTrackingApp: App {
     @State private var shareManager: ShareManager
     @State private var lanSyncEngine: LANSyncEngine
     @State private var ebayAuthManager = EbayAuthManager()
+    @State private var plaidManager = PlaidSyncManager()
 
     init() {
         _ = DatabaseManager.shared
@@ -22,9 +23,29 @@ struct BudgetTrackingApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine, ebayAuthManager: ebayAuthManager)
+            ContentView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine, ebayAuthManager: ebayAuthManager, plaidManager: plaidManager)
                 .onOpenURL { url in
-                    if url.scheme == "budgettracking" && url.absoluteString.contains("ebay") {
+                    guard url.scheme == "budgettracking" else { return }
+
+                    if url.host == "plaid-oauth" {
+                        // OAuth redirect from bank → bounce page → app
+                        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                           let redirectURI = components.queryItems?.first(where: { $0.name == "redirect_uri" })?.value {
+                            plaidManager.pendingOAuthRedirectURI = redirectURI
+                        }
+                    } else if url.host == "plaid-oauth-success" {
+                        // Direct OAuth success (from local oauth.html opened in browser)
+                        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                            let items = components.queryItems ?? []
+                            let itemId = items.first(where: { $0.name == "item_id" })?.value ?? ""
+                            let institution = items.first(where: { $0.name == "institution" })?.value ?? "Unknown"
+                            if let accountsJSON = items.first(where: { $0.name == "accounts" })?.value,
+                               let data = accountsJSON.data(using: .utf8),
+                               let accounts = try? JSONDecoder().decode([PlaidService.AccountResponse].self, from: data) {
+                                plaidManager.handleLinkSuccess(itemId: itemId, institution: institution, accounts: accounts)
+                            }
+                        }
+                    } else if url.absoluteString.contains("ebay") {
                         ebayAuthManager.handleCallback(url: url)
                     }
                 }

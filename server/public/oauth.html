@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Link Bank Account</title>
+  <title>Completing Connection...</title>
   <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
   <style>
     body {
@@ -16,31 +16,27 @@
       background: #1a1a1a;
       color: #fff;
     }
-    .loading {
-      text-align: center;
-    }
-    .loading p {
-      color: #888;
-      margin-top: 12px;
-    }
-    .error {
-      color: #ff6b6b;
-      text-align: center;
-    }
+    .loading { text-align: center; }
+    .loading p { color: #888; margin-top: 12px; }
+    .error { color: #ff6b6b; text-align: center; }
   </style>
 </head>
 <body>
   <div class="loading" id="status">
-    <p>Initializing bank connection...</p>
+    <p>Completing bank connection...</p>
   </div>
 
   <script>
     const SERVER_URL = window.location.origin;
     const OAUTH_REDIRECT_URI = `${SERVER_URL}/oauth.html`;
 
-    async function startLink() {
+    // Check if WKWebView passed a receivedRedirectUri query param
+    const params = new URLSearchParams(window.location.search);
+    const externalRedirectURI = params.get('receivedRedirectUri');
+
+    async function completeOAuth() {
       try {
-        // Get link token from backend with OAuth redirect URI
+        // Get a new link token with the same redirect_uri used originally
         const response = await fetch(`${SERVER_URL}/api/link/create`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -48,13 +44,16 @@
         });
         const { link_token } = await response.json();
 
-        // Initialize Plaid Link
+        // Use the external redirect URI if passed from the app, otherwise use current URL
+        const receivedURI = externalRedirectURI || window.location.href;
+
+        // Reinitialize Plaid Link in OAuth completion mode
         const handler = Plaid.create({
           token: link_token,
+          receivedRedirectUri: receivedURI,
           onSuccess: async (publicToken, metadata) => {
             document.getElementById('status').innerHTML = '<p>Connecting account...</p>';
 
-            // Exchange token via backend
             const exchangeResponse = await fetch(`${SERVER_URL}/api/link/exchange`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -65,11 +64,14 @@
             });
             const result = await exchangeResponse.json();
 
-            // Notify the macOS app via message handler
+            // Notify the macOS app via message handler (if in WKWebView)
             if (window.webkit?.messageHandlers?.plaidCallback) {
               window.webkit.messageHandlers.plaidCallback.postMessage(
                 JSON.stringify({ event: 'success', data: result })
               );
+            } else {
+              // If opened in browser (production OAuth flow), redirect back to app
+              window.location.href = `budgettracking://plaid-oauth-success?item_id=${encodeURIComponent(result.item_id)}&institution=${encodeURIComponent(result.institution)}&accounts=${encodeURIComponent(JSON.stringify(result.accounts))}`;
             }
           },
           onExit: (err) => {
@@ -77,6 +79,8 @@
               window.webkit.messageHandlers.plaidCallback.postMessage(
                 JSON.stringify({ event: 'exit', error: err?.display_message || null })
               );
+            } else {
+              window.location.href = 'budgettracking://plaid-oauth-exit';
             }
           },
         });
@@ -84,11 +88,11 @@
         handler.open();
       } catch (error) {
         document.getElementById('status').innerHTML =
-          `<div class="error"><p>Failed to initialize: ${error.message}</p></div>`;
+          `<div class="error"><p>Failed to complete connection: ${error.message}</p></div>`;
       }
     }
 
-    startLink();
+    completeOAuth();
   </script>
 </body>
 </html>

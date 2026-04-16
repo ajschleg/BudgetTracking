@@ -3,6 +3,7 @@ import WebKit
 
 struct PlaidLinkView: View {
     @Bindable var plaidManager: PlaidSyncManager
+    var oauthRedirectURI: String?
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -10,7 +11,7 @@ struct PlaidLinkView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Link Bank Account")
+                Text(oauthRedirectURI != nil ? "Completing Connection" : "Link Bank Account")
                     .font(.title2.weight(.semibold))
                 Spacer()
                 Button("Cancel") { dismiss() }
@@ -38,13 +39,14 @@ struct PlaidLinkView: View {
             } else {
                 PlaidLinkWebView(
                     plaidManager: plaidManager,
+                    oauthRedirectURI: oauthRedirectURI,
                     isLoading: $isLoading,
                     errorMessage: $errorMessage,
                     onSuccess: { dismiss() }
                 )
                 .overlay {
                     if isLoading {
-                        ProgressView("Loading...")
+                        ProgressView(oauthRedirectURI != nil ? "Completing connection..." : "Loading...")
                     }
                 }
             }
@@ -55,6 +57,7 @@ struct PlaidLinkView: View {
 
 struct PlaidLinkWebView: NSViewRepresentable {
     let plaidManager: PlaidSyncManager
+    let oauthRedirectURI: String?
     @Binding var isLoading: Bool
     @Binding var errorMessage: String?
     let onSuccess: () -> Void
@@ -64,9 +67,19 @@ struct PlaidLinkWebView: NSViewRepresentable {
         let contentController = config.userContentController
         contentController.add(context.coordinator, name: "plaidCallback")
 
+        // Allow inline media playback (some banks need this)
+        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
-        loadLinkPage(webView)
+
+        if let oauthURI = oauthRedirectURI {
+            // OAuth completion mode: load oauth.html with the received redirect URI
+            loadOAuthCompletionPage(webView, receivedRedirectURI: oauthURI)
+        } else {
+            // Normal mode: load link.html to start a new Link flow
+            loadLinkPage(webView)
+        }
         return webView
     }
 
@@ -85,6 +98,16 @@ struct PlaidLinkWebView: NSViewRepresentable {
         webView.load(URLRequest(url: url))
     }
 
+    private func loadOAuthCompletionPage(_ webView: WKWebView, receivedRedirectURI: String) {
+        let serverURL = UserDefaults.standard.string(forKey: "plaidServerURL") ?? "http://localhost:8080"
+        let encoded = receivedRedirectURI.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? receivedRedirectURI
+        guard let url = URL(string: "\(serverURL)/oauth.html?receivedRedirectUri=\(encoded)") else {
+            errorMessage = "Invalid server URL"
+            return
+        }
+        webView.load(URLRequest(url: url))
+    }
+
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let parent: PlaidLinkWebView
 
@@ -92,7 +115,33 @@ struct PlaidLinkWebView: NSViewRepresentable {
             self.parent = parent
         }
 
-        // Handle messages from JavaScript
+        // MARK: - Navigation Policy (OAuth redirect handling)
+
+        func webView(_ webView: WKWebView,
+                     decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard let url = navigationAction.request.url,
+                  let host = url.host else {
+                decisionHandler(.allow)
+                return
+            }
+
+            // Allow our local server and Plaid CDN
+            let allowedHosts = ["localhost", "127.0.0.1", "cdn.plaid.com"]
+            let isPlaidDomain = host.hasSuffix(".plaid.com")
+            let isAllowed = allowedHosts.contains(host) || isPlaidDomain
+
+            if isAllowed {
+                decisionHandler(.allow)
+            } else {
+                // External URL (bank OAuth page) — open in system browser
+                NSWorkspace.shared.open(url)
+                decisionHandler(.cancel)
+            }
+        }
+
+        // MARK: - Script Message Handler
+
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.name == "plaidCallback",
                   let body = message.body as? String,

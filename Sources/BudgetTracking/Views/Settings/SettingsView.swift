@@ -281,7 +281,7 @@ struct SettingsView: View {
             plaidManager.loadAccounts()
         }
         .sheet(isPresented: $isLinkingAccount) {
-            PlaidLinkView(plaidManager: plaidManager)
+            PlaidLinkView(plaidManager: plaidManager, oauthRedirectURI: nil)
         }
     }
 }

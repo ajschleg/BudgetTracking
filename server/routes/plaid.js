@@ -21,13 +21,22 @@ const plaidClient = new PlaidApi(plaidConfig);
 // POST /api/link/create — Create a link token for Plaid Link
 router.post('/link/create', async (req, res) => {
   try {
-    const response = await plaidClient.linkTokenCreate({
+    const { redirect_uri } = req.body;
+
+    const tokenRequest = {
       user: { client_user_id: 'budget-tracking-user' },
       client_name: 'BudgetTracking',
       products: [Products.Transactions],
       country_codes: [CountryCode.Us],
       language: 'en',
-    });
+    };
+
+    // Include redirect_uri for OAuth bank support
+    if (redirect_uri) {
+      tokenRequest.redirect_uri = redirect_uri;
+    }
+
+    const response = await plaidClient.linkTokenCreate(tokenRequest);
     res.json({ link_token: response.data.link_token });
   } catch (error) {
     console.error('Error creating link token:', error.response?.data || error.message);

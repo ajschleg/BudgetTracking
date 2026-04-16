@@ -38,7 +38,7 @@ struct ContentView: View {
     let shareManager: ShareManager
     let lanSyncEngine: LANSyncEngine
     let ebayAuthManager: EbayAuthManager
-    @State private var plaidManager = PlaidSyncManager()
+    @Bindable var plaidManager: PlaidSyncManager
 
     private var visibleSidebarItems: [SidebarItem] {
         SidebarItem.allCases.filter { item in
@@ -128,6 +128,16 @@ struct ContentView: View {
                 .disabled(lanSyncEngine.connectedPeerName == nil)
                 .help(lanSyncToolbarHelp)
             }
+        }
+        // Plaid OAuth completion sheet — presented when app receives OAuth redirect
+        .sheet(isPresented: Binding(
+            get: { plaidManager.pendingOAuthRedirectURI != nil },
+            set: { if !$0 { plaidManager.pendingOAuthRedirectURI = nil } }
+        )) {
+            PlaidLinkView(
+                plaidManager: plaidManager,
+                oauthRedirectURI: plaidManager.pendingOAuthRedirectURI
+            )
         }
     }
 

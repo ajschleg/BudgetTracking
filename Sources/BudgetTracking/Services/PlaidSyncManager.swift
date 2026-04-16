@@ -8,6 +8,9 @@ final class PlaidSyncManager {
     var errorMessage: String?
     var linkedAccounts: [PlaidAccount] = []
 
+    /// Set when an OAuth redirect is received; triggers PlaidLinkView in completion mode
+    var pendingOAuthRedirectURI: String?
+
     private let plaidService = PlaidService()
 
     // MARK: - Account Management
