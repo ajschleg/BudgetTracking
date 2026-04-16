@@ -123,16 +123,16 @@ struct SideHustleDetailView: View {
                                             .padding(.vertical, 1)
                                             .background(Color.blue.opacity(0.1))
                                             .cornerRadius(3)
-                                    } else {
-                                        Button {
-                                            viewModel.removeManualIncomeTransaction(txn.id, from: source.id)
-                                        } label: {
-                                            Image(systemName: "xmark.circle")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        .buttonStyle(.plain)
                                     }
+
+                                    Button {
+                                        viewModel.removeTransactionFromSource(txn.id, sourceId: source.id)
+                                    } label: {
+                                        Image(systemName: "xmark.circle")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
 
                                     Text(CurrencyFormatter.format(txn.amount))
                                         .font(.caption.monospacedDigit())

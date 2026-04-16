@@ -38,6 +38,7 @@ struct ContentView: View {
     let shareManager: ShareManager
     let lanSyncEngine: LANSyncEngine
     let ebayAuthManager: EbayAuthManager
+    @State private var plaidManager = PlaidSyncManager()
 
     private var visibleSidebarItems: [SidebarItem] {
         SidebarItem.allCases.filter { item in
@@ -105,7 +106,7 @@ struct ContentView: View {
             case .sync:
                 SyncSettingsView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine)
             case .settings:
-                SettingsView(aiViewModel: insightsViewModel, ebayAuthManager: ebayAuthManager)
+                SettingsView(aiViewModel: insightsViewModel, ebayAuthManager: ebayAuthManager, plaidManager: plaidManager)
             case nil:
                 Text("Select an item from the sidebar")
                     .foregroundStyle(.secondary)

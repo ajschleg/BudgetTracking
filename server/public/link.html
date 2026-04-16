@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Link Bank Account</title>
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .loading {
+      text-align: center;
+    }
+    .loading p {
+      color: #888;
+      margin-top: 12px;
+    }
+    .error {
+      color: #ff6b6b;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="status">
+    <p>Initializing bank connection...</p>
+  </div>
+
+  <script>
+    const SERVER_URL = window.location.origin;
+
+    async function startLink() {
+      try {
+        // Get link token from backend
+        const response = await fetch(`${SERVER_URL}/api/link/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const { link_token } = await response.json();
+
+        // Initialize Plaid Link
+        const handler = Plaid.create({
+          token: link_token,
+          onSuccess: async (publicToken, metadata) => {
+            document.getElementById('status').innerHTML = '<p>Connecting account...</p>';
+
+            // Exchange token via backend
+            const exchangeResponse = await fetch(`${SERVER_URL}/api/link/exchange`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                public_token: publicToken,
+                institution: metadata.institution,
+              }),
+            });
+            const result = await exchangeResponse.json();
+
+            // Notify the macOS app via message handler
+            if (window.webkit?.messageHandlers?.plaidCallback) {
+              window.webkit.messageHandlers.plaidCallback.postMessage(
+                JSON.stringify({ event: 'success', data: result })
+              );
+            }
+          },
+          onExit: (err) => {
+            if (window.webkit?.messageHandlers?.plaidCallback) {
+              window.webkit.messageHandlers.plaidCallback.postMessage(
+                JSON.stringify({ event: 'exit', error: err?.display_message || null })
+              );
+            }
+          },
+        });
+
+        handler.open();
+      } catch (error) {
+        document.getElementById('status').innerHTML =
+          `<div class="error"><p>Failed to initialize: ${error.message}</p></div>`;
+      }
+    }
+
+    startLink();
+  </script>
+</body>
+</html>

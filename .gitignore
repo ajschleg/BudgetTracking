@@ -4,6 +4,12 @@
 *.xcworkspace/xcuserdata/
 DerivedData/
 .DS_Store
+Exports/
+
+# Server
+server/node_modules/
+server/.env
+server/plaid.db
 
 # Duplicate Xcode project created manually (not used)
 BudgetTracking/BudgetTracking.xcodeproj/

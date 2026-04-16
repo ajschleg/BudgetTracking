@@ -38,6 +38,7 @@ final class SideHustleViewModel {
     private var currentMonth: String = ""
     private static let sourcingCategoryIdsKey = "sourcingCategoryIds"
     private static let legacySourcingKey = "ebaySourcingCategoryIds"
+    private static let excludedAssignmentsKey = "sideHustleExcludedAssignments"
 
     // Reference to eBay view model for eBay-specific data
     var ebayViewModel: EbayEarningsViewModel
@@ -73,6 +74,7 @@ final class SideHustleViewModel {
             incomeTransactions = []
         }
         sourceAssignments = IncomeSource.loadMappings()
+        loadExcludedAssignments()
         autoAssignUnmatched()
 
         // Load sourcing data
@@ -143,7 +145,18 @@ final class SideHustleViewModel {
             lifetimeSales = ebayLifetime.sales
             lifetimeCosts = ebayLifetime.fees + ebayLifetime.cogs + ebayLifetime.shipping
 
-            // TODO: Add lifetime income from generic side hustles across all months
+            // Generic side hustle income (all months)
+            let sourceIds = Set(sources.filter { !$0.isEbay }.map(\.id))
+            if !sourceIds.isEmpty {
+                let allIncome = try DatabaseManager.shared.fetchAllIncomeTransactions()
+                let genericIncome = allIncome
+                    .filter { txn in
+                        guard let srcId = sourceAssignments[txn.id] else { return false }
+                        return sourceIds.contains(srcId)
+                    }
+                    .reduce(0.0) { $0 + $1.amount }
+                lifetimeSales += genericIncome
+            }
 
             // Sourcing (global lifetime)
             lifetimeCosts += lifetimeSourcingTotal
@@ -162,10 +175,43 @@ final class SideHustleViewModel {
 
     // MARK: - Keyword Auto-Assignment
 
+    private var excludedAssignments: Set<UUID> = []
+
+    private func loadExcludedAssignments() {
+        guard let data = UserDefaults.standard.data(forKey: Self.excludedAssignmentsKey),
+              let ids = try? JSONDecoder().decode([String].self, from: data) else {
+            excludedAssignments = []
+            return
+        }
+        excludedAssignments = Set(ids.compactMap { UUID(uuidString: $0) })
+    }
+
+    private func saveExcludedAssignments() {
+        let strings = excludedAssignments.map(\.uuidString)
+        if let data = try? JSONEncoder().encode(strings) {
+            UserDefaults.standard.set(data, forKey: Self.excludedAssignmentsKey)
+        }
+    }
+
+    func removeTransactionFromSource(_ transactionId: UUID, sourceId: UUID) {
+        // Remove manual link if present
+        if isManualIncome(transactionId, for: sourceId) {
+            removeManualIncomeTransaction(transactionId, from: sourceId)
+            return
+        }
+        // For auto-matched: exclude from future auto-assignment and remove assignment
+        excludedAssignments.insert(transactionId)
+        saveExcludedAssignments()
+        sourceAssignments.removeValue(forKey: transactionId)
+        IncomeSource.saveMappings(sourceAssignments)
+        load(month: currentMonth)
+    }
+
     private func autoAssignUnmatched() {
         var changed = false
         for txn in incomeTransactions {
             guard sourceAssignments[txn.id] == nil else { continue }
+            guard !excludedAssignments.contains(txn.id) else { continue }
             for source in sources {
                 let matched = source.keywords.contains { keyword in
                     txn.description.localizedCaseInsensitiveContains(keyword)

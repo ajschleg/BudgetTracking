@@ -12,6 +12,7 @@ struct Transaction: Identifiable, Codable, Equatable {
     var month: String // "2026-03"
     var importedFileId: UUID
     var importedAt: Date
+    var externalId: String? // Plaid transaction_id for deduplication
 
     // Sync fields
     var lastModifiedAt: Date
@@ -30,6 +31,7 @@ struct Transaction: Identifiable, Codable, Equatable {
         month: String,
         importedFileId: UUID,
         importedAt: Date = Date(),
+        externalId: String? = nil,
         lastModifiedAt: Date = Date(),
         cloudKitRecordName: String? = nil,
         cloudKitSystemFields: Data? = nil,
@@ -45,6 +47,7 @@ struct Transaction: Identifiable, Codable, Equatable {
         self.month = month
         self.importedFileId = importedFileId
         self.importedAt = importedAt
+        self.externalId = externalId
         self.lastModifiedAt = lastModifiedAt
         self.cloudKitRecordName = cloudKitRecordName
         self.cloudKitSystemFields = cloudKitSystemFields
@@ -57,7 +60,7 @@ extension Transaction: FetchableRecord, PersistableRecord {
 
     enum Columns: String, ColumnExpression {
         case id, date, description, merchant, amount, categoryId
-        case isManuallyCategorized, month, importedFileId, importedAt
+        case isManuallyCategorized, month, importedFileId, importedAt, externalId
         case lastModifiedAt, cloudKitRecordName, cloudKitSystemFields, isDeleted
     }
 }

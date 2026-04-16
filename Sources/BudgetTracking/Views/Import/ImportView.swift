@@ -194,6 +194,16 @@ struct ImportView: View {
                     .frame(maxWidth: 300)
                 }
 
+                if viewModel.skippedPlaidDuplicates > 0 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundStyle(.blue)
+                        Text("Skipped \(viewModel.skippedPlaidDuplicates) transactions already synced via Plaid.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Button("Import Another") { viewModel.reset() }
                     .buttonStyle(.bordered)
             }

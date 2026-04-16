@@ -33,6 +33,9 @@ final class ImportViewModel {
     /// When a multi-month file is imported, contains the months and counts.
     var importedMonthBreakdown: [(month: String, count: Int)] = []
 
+    /// Number of transactions skipped during import because they matched Plaid-synced data.
+    var skippedPlaidDuplicates: Int = 0
+
 
     // Column mapping state
     var dateColumnIndex: Int?
@@ -182,10 +185,20 @@ final class ImportViewModel {
             try DatabaseManager.shared.saveImportedFile(importedFile)
 
             var transactions: [Transaction] = []
+            var skippedDuplicates = 0
             for row in rows {
                 guard let date = row.date, let rawAmount = row.amount else { continue }
                 // Normalize: internally negative = money spent, positive = money received
                 let amount = positiveIsSpending ? -rawAmount : rawAmount
+
+                // Skip if a matching Plaid-synced transaction already exists
+                if let _ = try? DatabaseManager.shared.findPlaidDuplicate(
+                    date: date, amount: amount, description: row.description ?? ""
+                ) {
+                    skippedDuplicates += 1
+                    continue
+                }
+
                 // Derive month from the transaction's own date
                 let txnMonth = DateHelpers.monthString(from: date)
                 var txn = Transaction(
@@ -216,6 +229,9 @@ final class ImportViewModel {
             }
 
             try DatabaseManager.shared.saveTransactions(transactions)
+            if skippedDuplicates > 0 {
+                skippedPlaidDuplicates = skippedDuplicates
+            }
 
             if isMultiMonth {
                 importedMonthBreakdown = monthCounts
@@ -249,5 +265,6 @@ final class ImportViewModel {
         positiveIsSpending = false
         detectedMonth = nil
         importedMonthBreakdown = []
+        skippedPlaidDuplicates = 0
     }
 }

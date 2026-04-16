@@ -257,6 +257,37 @@ final class DatabaseManager {
             try db.create(index: "ebaySourcing_txnId", on: "ebaySourcingTransaction", columns: ["transactionId"], unique: true)
         }
 
+        migrator.registerMigration("v7_createPlaidTables") { db in
+            // Plaid linked accounts
+            try db.create(table: "plaidAccount") { t in
+                t.column("id", .text).primaryKey()
+                t.column("plaidAccountId", .text).unique().notNull()
+                t.column("plaidItemId", .text).notNull()
+                t.column("institutionName", .text)
+                t.column("name", .text)
+                t.column("officialName", .text)
+                t.column("type", .text)
+                t.column("subtype", .text)
+                t.column("mask", .text)
+                t.column("lastModifiedAt", .datetime)
+                t.column("cloudKitRecordName", .text)
+                t.column("cloudKitSystemFields", .blob)
+                t.column("isDeleted", .boolean).notNull().defaults(to: false)
+            }
+
+            // External ID on transactions for Plaid deduplication
+            try db.alter(table: "transaction") { t in
+                t.add(column: "externalId", .text)
+            }
+            try db.create(
+                index: "transaction_externalId",
+                on: "transaction",
+                columns: ["externalId"],
+                unique: true,
+                ifNotExists: true
+            )
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -571,6 +602,16 @@ final class DatabaseManager {
         try dbQueue.read { db in
             try Transaction
                 .filter(Transaction.Columns.month == month)
+                .filter(sql: "amount > 0")
+                .filter(Transaction.Columns.isDeleted == false)
+                .order(Transaction.Columns.date.desc)
+                .fetchAll(db)
+        }
+    }
+
+    func fetchAllIncomeTransactions() throws -> [Transaction] {
+        try dbQueue.read { db in
+            try Transaction
                 .filter(sql: "amount > 0")
                 .filter(Transaction.Columns.isDeleted == false)
                 .order(Transaction.Columns.date.desc)

@@ -3,10 +3,13 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var aiViewModel: InsightsViewModel
     var ebayAuthManager: EbayAuthManager
+    @Bindable var plaidManager: PlaidSyncManager
     @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
     @State private var ebayClientId: String = ""
     @State private var ebayClientSecret: String = ""
     @State private var ebayRuName: String = ""
+    @AppStorage("plaidServerURL") private var plaidServerURL = "http://localhost:8080"
+    @State private var isLinkingAccount = false
 
     var body: some View {
         ScrollView {
@@ -86,6 +89,130 @@ struct SettingsView: View {
                 } label: {
                     Label("AI Assistant", systemImage: "sparkles")
                 }
+                // MARK: - Plaid Bank Connection
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Server URL")
+                                .font(.headline)
+
+                            TextField("http://localhost:8080", text: $plaidServerURL)
+                                .textFieldStyle(.roundedBorder)
+
+                            Text("The URL of your Plaid backend server.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Divider()
+
+                        // Linked accounts
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Linked Accounts")
+                                    .font(.headline)
+                                Spacer()
+                                Button {
+                                    isLinkingAccount = true
+                                } label: {
+                                    Label("Link Account", systemImage: "plus.circle")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            }
+
+                            if plaidManager.linkedAccounts.isEmpty {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "building.columns")
+                                        .foregroundStyle(.secondary)
+                                    Text("No bank accounts linked. Click \"Link Account\" to connect your bank.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 4)
+                            } else {
+                                // Group accounts by institution
+                                let grouped = Dictionary(grouping: plaidManager.linkedAccounts) { $0.institutionName ?? "Unknown" }
+                                ForEach(grouped.keys.sorted(), id: \.self) { institution in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack {
+                                            Image(systemName: "building.columns.fill")
+                                                .foregroundStyle(.blue)
+                                                .font(.caption)
+                                            Text(institution)
+                                                .font(.subheadline.weight(.medium))
+                                            Spacer()
+                                            Button {
+                                                if let account = grouped[institution]?.first {
+                                                    Task { await plaidManager.removeAccount(account) }
+                                                }
+                                            } label: {
+                                                Text("Remove")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.red)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+
+                                        ForEach(grouped[institution] ?? []) { account in
+                                            HStack(spacing: 6) {
+                                                Text(account.displayName)
+                                                    .font(.caption)
+                                                if let subtype = account.subtype {
+                                                    Text(subtype.capitalized)
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                        .padding(.horizontal, 4)
+                                                        .padding(.vertical, 1)
+                                                        .background(Color.secondary.opacity(0.1))
+                                                        .cornerRadius(3)
+                                                }
+                                            }
+                                            .padding(.leading, 20)
+                                        }
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                            }
+
+                            if let error = plaidManager.errorMessage {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundStyle(.orange)
+                                        .font(.caption)
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+
+                        Divider()
+
+                        // Sync button
+                        HStack {
+                            if plaidManager.isSyncing {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text(plaidManager.syncProgress)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Button {
+                                    Task { await plaidManager.syncTransactions() }
+                                } label: {
+                                    Label("Sync Transactions", systemImage: "arrow.clockwise")
+                                }
+                                .disabled(plaidManager.linkedAccounts.isEmpty)
+                            }
+                        }
+                    }
+                    .padding(8)
+                } label: {
+                    Label("Bank Connections (Plaid)", systemImage: "building.columns")
+                }
+
                 // MARK: - eBay Configuration
                 GroupBox {
                     VStack(alignment: .leading, spacing: 16) {
@@ -151,6 +278,10 @@ struct SettingsView: View {
             ebayClientId = ebayAuthManager.clientId
             ebayClientSecret = ebayAuthManager.clientSecret
             ebayRuName = ebayAuthManager.ruName
+            plaidManager.loadAccounts()
+        }
+        .sheet(isPresented: $isLinkingAccount) {
+            PlaidLinkView(plaidManager: plaidManager)
         }
     }
 }

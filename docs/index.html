@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BudgetTracking</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8faf9;
+            color: #1a1a1a;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+            padding: 3rem 2rem;
+        }
+        .icon {
+            width: 128px;
+            height: 128px;
+            border-radius: 28px;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .tagline {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+        .feature {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .feature h3 {
+            font-size: 0.95rem;
+            margin-bottom: 0.3rem;
+            color: #10b981;
+        }
+        .feature p {
+            font-size: 0.85rem;
+            color: #555;
+            line-height: 1.4;
+        }
+        .privacy {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e5e5e5;
+        }
+        .privacy h2 {
+            font-size: 1.1rem;
+            margin-bottom: 0.8rem;
+        }
+        .privacy p {
+            font-size: 0.85rem;
+            color: #666;
+            line-height: 1.6;
+            text-align: left;
+        }
+        footer {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="icon.png" alt="BudgetTracking Icon" class="icon">
+        <h1>BudgetTracking</h1>
+        <p class="tagline">Personal finance tracking for macOS</p>
+
+        <div class="features">
+            <div class="feature">
+                <h3>Budget Management</h3>
+                <p>Track spending across categories with monthly budgets and variance analysis.</p>
+            </div>
+            <div class="feature">
+                <h3>Bank Sync</h3>
+                <p>Securely connect bank accounts via Plaid for automatic transaction imports.</p>
+            </div>
+            <div class="feature">
+                <h3>Income Tracking</h3>
+                <p>Monitor employment income and side hustle earnings in one place.</p>
+            </div>
+            <div class="feature">
+                <h3>Local & Private</h3>
+                <p>All data stored locally on your device. No cloud servers, no data sharing.</p>
+            </div>
+        </div>
+
+        <div class="privacy" id="privacy">
+            <h2>Privacy Policy</h2>
+            <p>
+                BudgetTracking is a personal finance application that stores all data locally on your device.
+                We do not collect, transmit, or store any personal or financial data on external servers.
+            </p>
+            <p style="margin-top: 0.8rem;">
+                When you connect a bank account via Plaid, your credentials are handled entirely by Plaid's
+                secure infrastructure. BudgetTracking receives only transaction data and account balances,
+                which are stored locally on your device. We never have access to your bank login credentials.
+            </p>
+            <p style="margin-top: 0.8rem;">
+                You may delete all stored data at any time by removing the application and its associated data
+                from your device. No data is retained after deletion.
+            </p>
+            <p style="margin-top: 0.8rem;">
+                Contact: <a href="https://github.com/ajschleg">github.com/ajschleg</a>
+            </p>
+        </div>
+
+        <footer>&copy; 2026 BudgetTracking</footer>
+    </div>
+</body>
+</html>
