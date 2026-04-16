@@ -106,6 +106,19 @@ actor PlaidService {
         return try await post(path: "/api/link/exchange", body: body)
     }
 
+    /// Exchange token using institution metadata from the native iOS LinkKit SDK.
+    /// Accepts the LinkKit institution type directly for cleaner iOS integration.
+    func exchangeToken(publicToken: String, institution: (name: String, id: String)) async throws -> ExchangeResponse {
+        let body: [String: Any] = [
+            "public_token": publicToken,
+            "institution": [
+                "institution_id": institution.id,
+                "name": institution.name,
+            ],
+        ]
+        return try await post(path: "/api/link/exchange", body: body)
+    }
+
     func syncTransactions() async throws -> SyncResponse {
         return try await post(path: "/api/transactions/sync")
     }

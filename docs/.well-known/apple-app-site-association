@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "98AUV869NF.com.schlegel.BudgetTracking"
+        ],
+        "components": [
+          {
+            "/": "/BudgetTracking/oauth*",
+            "comment": "Plaid OAuth redirect for bank authentication"
+          }
+        ]
+      }
+    ]
+  }
+}

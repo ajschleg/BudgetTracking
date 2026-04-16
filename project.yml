@@ -15,6 +15,9 @@ packages:
   CodableCSV:
     url: https://github.com/dehesa/CodableCSV.git
     from: "0.6.0"
+  plaid-link-ios-spm:
+    url: https://github.com/plaid/plaid-link-ios-spm
+    from: "5.6.0"
 
 targets:
   BudgetTracking:
@@ -47,6 +50,40 @@ targets:
         product: GRDB
       - package: CoreXLSX
       - package: CodableCSV
+
+  BudgetTracking-iOS:
+    type: application
+    platform: iOS
+    sources: [Sources/BudgetTracking]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.schlegel.BudgetTracking
+        CODE_SIGN_ENTITLEMENTS: BudgetTracking-iOS.entitlements
+        DEVELOPMENT_TEAM: 98AUV869NF
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.finance
+        INFOPLIST_KEY_CFBundleDisplayName: Budget Tracking
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.10"
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "BudgetTracking uses the local network to sync budget data with nearby devices."
+        INFOPLIST_KEY_NSBonjourServices: "_budgetsync._tcp"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    info:
+      path: Sources/BudgetTracking/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLName: "OAuth Callback"
+            CFBundleURLSchemes:
+              - budgettracking
+    dependencies:
+      - package: GRDB.swift
+        product: GRDB
+      - package: CoreXLSX
+      - package: CodableCSV
+      - package: plaid-link-ios-spm
+        product: LinkKit
 
   BudgetTrackingTests:
     type: bundle.unit-test
