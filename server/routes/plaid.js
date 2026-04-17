@@ -31,6 +31,30 @@ const plaidConfig = new Configuration({
 });
 const plaidClient = new PlaidApi(plaidConfig);
 
+/**
+ * Resolve which OAuth redirect URI Plaid should send the user back to
+ * after they complete bank OAuth.
+ *
+ *   1. PLAID_REDIRECT_URI env var wins if set (manual override).
+ *   2. Otherwise, in sandbox we can use http://localhost:8080/oauth.html
+ *      (Plaid allows HTTP for sandbox only).
+ *   3. Otherwise (development/production), use the GitHub Pages URL
+ *      which is HTTPS and registered in the Plaid Dashboard. The
+ *      bouncer there redirects back into the macOS app via the
+ *      budgettracking:// URL scheme.
+ */
+function resolveRedirectUri(clientSupplied) {
+  if (process.env.PLAID_REDIRECT_URI) return process.env.PLAID_REDIRECT_URI;
+  const env = process.env.PLAID_ENV || 'sandbox';
+  if (env === 'sandbox') {
+    // Honor the client's localhost URI in sandbox — supports the "change
+    // the PORT in .env" flow without touching the server code.
+    return clientSupplied || 'http://localhost:8080/oauth.html';
+  }
+  // Production / development require HTTPS per Plaid policy.
+  return 'https://ajschleg.github.io/BudgetTracking/oauth.html';
+}
+
 // POST /api/link/create — Create a link token for Plaid Link
 router.post('/link/create', async (req, res) => {
   try {
@@ -55,10 +79,8 @@ router.post('/link/create', async (req, res) => {
       },
     };
 
-    // Include redirect_uri for OAuth bank support
-    if (redirect_uri) {
-      tokenRequest.redirect_uri = redirect_uri;
-    }
+    // Server-resolved redirect_uri enforces HTTPS in non-sandbox envs.
+    tokenRequest.redirect_uri = resolveRedirectUri(redirect_uri);
 
     // Register a webhook URL so Plaid can push updates to our server.
     // PLAID_WEBHOOK_URL must be publicly reachable (use ngrok or similar
@@ -133,8 +155,8 @@ router.post('/link/create-update', async (req, res) => {
       country_codes: [CountryCode.Us],
       language: 'en',
       access_token: tokenOf(item),
+      redirect_uri: resolveRedirectUri(redirect_uri),
     };
-    if (redirect_uri) tokenRequest.redirect_uri = redirect_uri;
     if (process.env.PLAID_WEBHOOK_URL) {
       tokenRequest.webhook = process.env.PLAID_WEBHOOK_URL;
     }
