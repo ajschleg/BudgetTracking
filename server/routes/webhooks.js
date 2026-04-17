@@ -138,49 +138,63 @@ export function createWebhookRouter(plaidClient) {
    *
    * Body: { item_id: <local item_id>, webhook_code: "NEW_ACCOUNTS_AVAILABLE" }
    *
-   * Uses /sandbox/item/fire_webhook under the hood. Only works in the
-   * sandbox Plaid environment.
+   * Uses /sandbox/item/fire_webhook under the hood. Gated to sandbox
+   * only — registering this route in non-sandbox environments would
+   * fail on the Plaid side anyway (sandbox endpoints are 400 on
+   * development/production), so we return a clear 404 upfront instead
+   * of surfacing a confusing Plaid error.
    */
-  router.post('/fire', async (req, res) => {
-    const {
-      item_id,
-      webhook_code = 'NEW_ACCOUNTS_AVAILABLE',
-      webhook_type,
-    } = req.body;
+  if ((process.env.PLAID_ENV || 'sandbox') === 'sandbox') {
+    router.post('/fire', async (req, res) => {
+      const {
+        item_id,
+        webhook_code = 'NEW_ACCOUNTS_AVAILABLE',
+        webhook_type,
+      } = req.body;
 
-    if (!item_id) {
-      return res.status(400).json({ error: 'item_id is required' });
-    }
-
-    const item = db.prepare('SELECT * FROM plaid_items WHERE id = ?').get(item_id);
-    if (!item) {
-      return res.status(404).json({ error: 'Item not found' });
-    }
-
-    try {
-      const request = {
-        access_token: decrypt(item.access_token),
-        webhook_code,
-      };
-      if (webhook_type) {
-        request.webhook_type = webhook_type;
+      if (!item_id) {
+        return res.status(400).json({ error: 'item_id is required' });
       }
 
-      const response = await plaidClient.sandboxItemFireWebhook(request);
-      res.json({
-        webhook_fired: response.data.webhook_fired,
-        request_id: response.data.request_id,
+      const item = db.prepare('SELECT * FROM plaid_items WHERE id = ?').get(item_id);
+      if (!item) {
+        return res.status(404).json({ error: 'Item not found' });
+      }
+
+      try {
+        const request = {
+          access_token: decrypt(item.access_token),
+          webhook_code,
+        };
+        if (webhook_type) {
+          request.webhook_type = webhook_type;
+        }
+
+        const response = await plaidClient.sandboxItemFireWebhook(request);
+        res.json({
+          webhook_fired: response.data.webhook_fired,
+          request_id: response.data.request_id,
+        });
+      } catch (error) {
+        console.error(
+          '[webhook] fire error:',
+          error.response?.data || error.message
+        );
+        res.status(500).json({
+          error: error.response?.data?.error_message || error.message,
+        });
+      }
+    });
+  } else {
+    // In development/production, expose the route but return a clear
+    // 410 Gone so anyone hitting it from a test script sees exactly
+    // why (instead of a generic 404 that looks like a typo).
+    router.post('/fire', (_req, res) => {
+      res.status(410).json({
+        error: `Sandbox endpoints are not available in PLAID_ENV=${process.env.PLAID_ENV}`,
       });
-    } catch (error) {
-      console.error(
-        '[webhook] fire error:',
-        error.response?.data || error.message
-      );
-      res.status(500).json({
-        error: error.response?.data?.error_message || error.message,
-      });
-    }
-  });
+    });
+  }
 
   return router;
 }
