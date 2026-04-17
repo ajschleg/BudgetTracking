@@ -105,6 +105,32 @@ final class PlaidSyncManager {
         }
     }
 
+    /// Disconnect every linked bank. Honors user privacy (revokes
+    /// Plaid access tokens server-side) and stops any further billing.
+    /// Does NOT delete local transaction history — users can keep
+    /// their data. Called from Settings when the user opts out entirely.
+    func disconnectAllBanks() async {
+        do {
+            let response = try await plaidService.removeAllItems()
+
+            // Local cleanup: drop every plaidAccount row (the server
+            // already wiped its copy). Transactions stay put.
+            for account in linkedAccounts {
+                try? DatabaseManager.shared.deletePlaidAccounts(forItemId: account.plaidItemId)
+            }
+            loadAccounts()
+            itemsNeedingUpdate = []
+            itemStatuses = []
+
+            if !response.errors.isEmpty {
+                let first = response.errors.first!
+                errorMessage = "Some banks couldn't be cleanly unlinked (\(first.institution_name ?? "unknown")): \(first.error). Local data was still removed."
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Balance Refresh
 
     /// Pull live balances from Plaid for every linked item. Surfaces

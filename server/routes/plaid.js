@@ -617,7 +617,16 @@ router.post('/balances/refresh', async (req, res) => {
   res.json({ refreshed, skipped, errors });
 });
 
-// DELETE /api/items/:id — Remove a linked institution
+// DELETE /api/items/:id — Disconnect a linked institution.
+//
+// Calls Plaid /item/remove to invalidate the access_token server-side
+// (stops billing, revokes consent), then deletes every row we hold
+// for the item. Cascade drops plaid_accounts and sync_cursors; we
+// manually clean webhook_events too since it does not cascade.
+//
+// Per Plaid offboarding guidance: call /item/remove whenever the user
+// disconnects the account OR we no longer need the Item. This is the
+// authoritative way to stop billing and honor user privacy.
 router.delete('/items/:id', async (req, res) => {
   const { id } = req.params;
   const item = db.prepare('SELECT * FROM plaid_items WHERE id = ?').get(id);
@@ -626,16 +635,60 @@ router.delete('/items/:id', async (req, res) => {
   }
 
   try {
-    // Remove from Plaid
     await plaidClient.itemRemove({ access_token: item.access_token });
   } catch (error) {
-    // Log but continue — we still want to remove from our DB
+    // Log but continue — if the Plaid call fails (access token already
+    // invalidated, rate limit, etc.), we still want to drop our local
+    // rows. Leaving orphaned rows is worse than a best-effort call.
     console.error('Error removing item from Plaid:', error.response?.data || error.message);
   }
 
-  // Remove from local DB (cascades to accounts and cursors)
+  // Remove from local DB (plaid_accounts + sync_cursors cascade via FK).
   db.prepare('DELETE FROM plaid_items WHERE id = ?').run(id);
+  // webhook_events uses Plaid's item_id (not our local uuid) and has
+  // no FK, so clean it up explicitly for data hygiene.
+  db.prepare('DELETE FROM webhook_events WHERE item_id = ?').run(item.item_id);
+
+  console.log(`[offboarding] Removed item ${item.item_id} (${item.institution_name || 'unknown'})`);
   res.json({ success: true });
+});
+
+// DELETE /api/items — Disconnect ALL linked institutions (offboarding).
+//
+// Used when the user wants to remove Plaid entirely from the app.
+// Calls /item/remove for every linked item, then wipes the local
+// Plaid tables. Does not touch app-level data (transactions, budgets)
+// — the user may want to keep their spending history even after
+// unlinking the banks.
+router.delete('/items', async (_req, res) => {
+  const items = db.prepare('SELECT * FROM plaid_items').all();
+  const removed = [];
+  const errors = [];
+
+  for (const item of items) {
+    try {
+      await plaidClient.itemRemove({ access_token: item.access_token });
+      removed.push({ item_id: item.id, institution_name: item.institution_name });
+    } catch (error) {
+      console.error(
+        `[offboarding] /item/remove failed for ${item.id}:`,
+        error.response?.data || error.message
+      );
+      errors.push({
+        item_id: item.id,
+        institution_name: item.institution_name,
+        error: error.response?.data?.error_message || error.message,
+      });
+      // Continue — we still remove locally to honor the user's intent.
+    }
+  }
+
+  db.prepare('DELETE FROM plaid_items').run();
+  db.prepare('DELETE FROM webhook_events').run();
+  // plaid_accounts and sync_cursors cascade from plaid_items.
+
+  console.log(`[offboarding] Bulk remove: ${removed.length} items, ${errors.length} errors`);
+  res.json({ removed, errors });
 });
 
 /**

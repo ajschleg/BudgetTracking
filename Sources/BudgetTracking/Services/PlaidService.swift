@@ -233,6 +233,19 @@ actor PlaidService {
         let _: SuccessResponse = try await delete(path: "/api/items/\(itemId)")
     }
 
+    struct BulkRemoveResponse: Codable {
+        let removed: [RefreshedIdentityItem]  // {item_id, institution_name}
+        let errors: [BalanceError]
+    }
+
+    /// Disconnect EVERY linked institution. Used for user offboarding.
+    /// Calls Plaid /item/remove per item then wipes local Plaid tables.
+    /// Does not touch transaction history — users can keep their data
+    /// even after unlinking banks.
+    func removeAllItems() async throws -> BulkRemoveResponse {
+        try await delete(path: "/api/items")
+    }
+
     /// Fetch live balances from Plaid via the server's /balances/refresh.
     /// Each call bills for every item — surface it behind an explicit user
     /// action. `minAgeSeconds` lets the server skip items we just refreshed.

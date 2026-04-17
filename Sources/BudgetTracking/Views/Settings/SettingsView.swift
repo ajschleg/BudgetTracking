@@ -11,6 +11,10 @@ struct SettingsView: View {
     @AppStorage("plaidServerURL") private var plaidServerURL = "http://localhost:8080"
     @AppStorage("plaidAppToken") private var plaidAppToken = ""
     @State private var isLinkingAccount = false
+    /// The institution currently in the "are you sure you want to
+    /// disconnect?" confirmation dialog, or nil.
+    @State private var pendingDisconnect: (institution: String, account: PlaidAccount)?
+    @State private var showDisconnectAllConfirmation = false
 
     var body: some View {
         ScrollView {
@@ -180,14 +184,15 @@ struct SettingsView: View {
                                             }
                                             Button {
                                                 if let account = grouped[institution]?.first {
-                                                    Task { await plaidManager.removeAccount(account) }
+                                                    pendingDisconnect = (institution: institution, account: account)
                                                 }
                                             } label: {
-                                                Text("Remove")
+                                                Text("Disconnect")
                                                     .font(.caption)
                                                     .foregroundStyle(.red)
                                             }
                                             .buttonStyle(.plain)
+                                            .help("Unlink this bank and stop syncing")
                                         }
                                         if let needsUpdate {
                                             Text(updateReasonMessage(needsUpdate.needs_update_reason))
@@ -280,6 +285,29 @@ struct SettingsView: View {
                                 }
                             }
                         }
+
+                        // Offboarding: disconnect every linked bank at once.
+                        // Does not touch transaction history — users can keep
+                        // their data after unlinking Plaid.
+                        if !plaidManager.linkedAccounts.isEmpty {
+                            Divider()
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Disconnect All Banks")
+                                        .font(.caption.weight(.medium))
+                                    Text("Revokes Plaid access and stops all syncing. Your existing transaction history stays.")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button(role: .destructive) {
+                                    showDisconnectAllConfirmation = true
+                                } label: {
+                                    Text("Disconnect All")
+                                        .font(.caption)
+                                }
+                            }
+                        }
                     }
                     .padding(8)
                 } label: {
@@ -355,6 +383,37 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isLinkingAccount) {
             PlaidLinkView(plaidManager: plaidManager, oauthRedirectURI: nil)
+        }
+        .confirmationDialog(
+            "Disconnect \(pendingDisconnect?.institution ?? "bank")?",
+            isPresented: Binding(
+                get: { pendingDisconnect != nil },
+                set: { if !$0 { pendingDisconnect = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingDisconnect
+        ) { pending in
+            Button("Disconnect", role: .destructive) {
+                Task { await plaidManager.removeAccount(pending.account) }
+                pendingDisconnect = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDisconnect = nil
+            }
+        } message: { pending in
+            Text("This will revoke Plaid's access to \(pending.institution) and stop syncing new transactions. Your existing transaction history will not be deleted. You can reconnect later by clicking Link Account.")
+        }
+        .confirmationDialog(
+            "Disconnect every linked bank?",
+            isPresented: $showDisconnectAllConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Disconnect All", role: .destructive) {
+                Task { await plaidManager.disconnectAllBanks() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will revoke Plaid's access to all linked banks and stop all syncing. Your existing transaction history will not be deleted.")
         }
     }
 
