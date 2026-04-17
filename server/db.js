@@ -128,4 +128,42 @@ addColumnIfMissing('plaid_items', 'needs_update_detected_at', 'TEXT');
   }
 })();
 
+// One-time migration: encrypt any plaintext owners_json blobs. These
+// contain full mailing addresses from Plaid Identity and are our
+// highest PII concentration. Same pattern as access_token: skip rows
+// already encrypted.
+(function migratePlaintextOwners() {
+  const rows = db
+    .prepare('SELECT plaid_account_id, owners_json FROM plaid_accounts WHERE owners_json IS NOT NULL')
+    .all();
+  const update = db.prepare('UPDATE plaid_accounts SET owners_json = ? WHERE plaid_account_id = ?');
+  let migrated = 0;
+  const migrateAll = db.transaction(() => {
+    for (const row of rows) {
+      if (!isEncrypted(row.owners_json)) {
+        update.run(encrypt(row.owners_json), row.plaid_account_id);
+        migrated++;
+      }
+    }
+  });
+  migrateAll();
+  if (migrated > 0) {
+    console.log(`[crypto] Encrypted ${migrated} legacy owners_json blob(s) at rest`);
+  }
+})();
+
+// Retention policy: webhook_events are operational logs, not data the
+// app needs long-term. Keep 30 days for debugging then drop. Runs once
+// on startup and every hour after.
+function pruneOldWebhookEvents() {
+  const result = db
+    .prepare(`DELETE FROM webhook_events WHERE received_at < datetime('now', '-30 days')`)
+    .run();
+  if (result.changes > 0) {
+    console.log(`[retention] Pruned ${result.changes} webhook_events older than 30 days`);
+  }
+}
+pruneOldWebhookEvents();
+setInterval(pruneOldWebhookEvents, 60 * 60 * 1000);
+
 export default db;

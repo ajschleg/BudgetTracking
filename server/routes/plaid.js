@@ -406,9 +406,14 @@ router.post('/link/exchange', async (req, res) => {
 
 /**
  * Call /identity/get and persist the owner info onto plaid_accounts.
- * Plaid returns an array of accounts, each with an `owners` array. We
- * store the primary (first) owner in flat columns for quick display
- * and the full owners array as JSON for future use.
+ * Plaid returns an array of accounts, each with an `owners` array
+ * including full mailing addresses, all emails, and all phones. We
+ * store:
+ *   - Flat columns (owner_name, owner_email, owner_phone) for quick
+ *     UI display. These are the primary values.
+ *   - owners_json as an AES-256-GCM encrypted blob since it contains
+ *     full addresses and all secondary identity values — the highest
+ *     PII concentration anywhere in the DB.
  */
 async function fetchAndStoreIdentity(accessToken, localItemId) {
   const response = await plaidClient.identityGet({ access_token: accessToken });
@@ -440,7 +445,7 @@ async function fetchAndStoreIdentity(accessToken, localItemId) {
       primaryName,
       primaryEmail,
       primaryPhone,
-      JSON.stringify(owners),
+      encrypt(JSON.stringify(owners)),
       acct.account_id
     );
   }
@@ -514,11 +519,23 @@ router.get('/transactions/status', (_req, res) => {
   });
 });
 
-// GET /api/accounts — List all linked accounts (with cached balances)
+// GET /api/accounts — List all linked accounts (with cached balances).
+//
+// Explicitly enumerates columns rather than SELECT * so we do not leak
+// owners_json (the encrypted blob with full addresses) to the app.
+// The flat owner_name / owner_email / owner_phone fields are enough
+// for display; owners_json stays server-side.
 router.get('/accounts', (_req, res) => {
   const accounts = db.prepare(`
-    SELECT a.*, i.institution_name, i.institution_id, i.item_id as plaid_item_id_ref,
-           sc.last_synced_at
+    SELECT
+      a.id, a.plaid_item_id, a.plaid_account_id,
+      a.name, a.official_name, a.type, a.subtype, a.mask,
+      a.balance_current, a.balance_available, a.balance_limit,
+      a.balance_iso_currency_code, a.balance_fetched_at,
+      a.owner_name, a.owner_email, a.owner_phone, a.identity_fetched_at,
+      i.institution_name, i.institution_id,
+      i.item_id as plaid_item_id_ref,
+      sc.last_synced_at
     FROM plaid_accounts a
     JOIN plaid_items i ON a.plaid_item_id = i.id
     LEFT JOIN sync_cursors sc ON sc.plaid_item_id = i.id
