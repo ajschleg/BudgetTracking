@@ -297,6 +297,17 @@ async function handleWebhook(plaidClient, payload) {
       );
       break;
 
+    case 'ITEM:USER_PERMISSION_REVOKED':
+    case 'ITEM:USER_ACCOUNT_REVOKED':
+      // Per Plaid launch checklist: "Listen for revocation webhooks
+      // to prevent unauthorized transfers." The user has revoked
+      // access at their bank (USER_ACCOUNT_REVOKED) or at Plaid
+      // Portal (USER_PERMISSION_REVOKED). The access token is now
+      // invalid server-side; we must stop syncing and surface a
+      // clear state to the user.
+      await handleUserRevocation(plaidClient, item, webhook_code);
+      break;
+
     default:
       console.log(`[webhook] Unhandled: ${webhook_type}/${webhook_code}`);
   }
@@ -370,6 +381,41 @@ function markPendingUpdate(localItemId, { initial = false, historical = false } 
       historical_update_complete = CASE WHEN ? THEN 1 ELSE historical_update_complete END
     WHERE plaid_item_id = ?
   `).run(initial ? 1 : 0, historical ? 1 : 0, localItemId);
+}
+
+/**
+ * Handle a user-initiated revocation (USER_PERMISSION_REVOKED or
+ * USER_ACCOUNT_REVOKED). Per the Plaid launch checklist we must:
+ *
+ * 1. Stop using the access token immediately (it is invalid anyway).
+ * 2. Call /item/remove best-effort to clean up Plaid's side.
+ * 3. Delete our local copies of the item + accounts + webhook events.
+ *
+ * Same flow as a user-initiated disconnect from Settings, just
+ * triggered by Plaid instead of by us.
+ */
+async function handleUserRevocation(plaidClient, item, webhookCode) {
+  console.warn(
+    `[webhook] Honoring ${webhookCode} for item ${item.item_id} — removing item`
+  );
+
+  try {
+    await plaidClient.itemRemove({ access_token: decrypt(item.access_token) });
+  } catch (error) {
+    // Already-invalid tokens throw here — that is fine, we still
+    // want to drop local state.
+    console.warn(
+      '[webhook] itemRemove after revocation:',
+      error.response?.data?.error_code || error.message
+    );
+  }
+
+  db.prepare('DELETE FROM plaid_items WHERE id = ?').run(item.id);
+  db.prepare('DELETE FROM webhook_events WHERE item_id = ? AND id < ?').run(
+    item.item_id,
+    Number.MAX_SAFE_INTEGER
+  );
+  console.log(`[webhook] Revocation cleanup complete for ${item.item_id}`);
 }
 
 /**

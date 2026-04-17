@@ -117,6 +117,32 @@ When in doubt, add a test that proves the gate works (like the rate-limit curl l
 
 ---
 
+## 12. Plaid compliance matrix
+
+This policy is the operational layer *on top of* Plaid's own requirements from the MSA, Developer Policy, and production launch checklist. The table below shows where each Plaid requirement is implemented; anything new we add MUST keep this matrix intact.
+
+| Plaid requirement | Where it lives in our code |
+|---|---|
+| Store access tokens securely, never client-side | `server/lib/crypto.js` encrypts with AES-256-GCM; tokens never leave the server, app sees only `item_id` |
+| Use Production secrets; remove sandbox code | `.env` with `PLAID_ENV=production`; `routes/webhooks.js` gates `sandboxItemFireWebhook` behind `PLAID_ENV === 'sandbox'` with a 410 fallback |
+| Obtain consent + privacy notice | `Sources/BudgetTracking/Views/Plaid/PlaidConsentView.swift` before Link; `docs/index.html` public privacy policy |
+| Accurate `client_name` | Hardcoded `'BudgetTracking'` in `routes/plaid.js` link-token creation |
+| Mask account numbers | Only store `mask` (last 4); `PlaidAccount` model has no full-account-number field |
+| `/item/remove` on offboarding | `DELETE /api/items/:id` (single), `DELETE /api/items?confirm=DISCONNECT_ALL` (bulk), both call Plaid then drop local rows |
+| Update mode for long-term access | `PlaidUpdateBanner.swift` + `update.html` + `/api/link/create-update` |
+| Handle revocation webhooks | `USER_PERMISSION_REVOKED` and `USER_ACCOUNT_REVOKED` → `handleUserRevocation()` in `routes/webhooks.js` |
+| Webhook verification | ES256 JWT signature + 5-minute max-age + SHA-256 body-hash compare in `verifyWebhook()` |
+| HTTPS redirect URIs in production | `resolveRedirectUri()` in `routes/plaid.js` returns `https://ajschleg.github.io/BudgetTracking/oauth.html` when `PLAID_ENV !== 'sandbox'` |
+| Log support identifiers | `item_id`, `request_id`, `webhook_code` logged throughout; sensitive payload is not |
+| Robust to webhook retries | Receiver always returns 200; cursor + lifecycle flags let the next sync catch up |
+
+New Plaid requirements or webhook codes → add a row to this table and a handler before shipping.
+
+Plaid requirements we intentionally *don't* implement (and why):
+- **Webhook IP allowlisting**: JWT signature verification with Plaid's published keys is strictly stronger (IP allowlists can be forged at the network layer; JWTs cannot be forged without Plaid's private key).
+- **Full at-rest encryption of the app's SQLite**: macOS FileVault provides disk-level encryption. Adding SQLCipher would add a dep + perf cost for a personal single-user app; tracked as a future hardening step.
+
 ## Change log
 
 - 2026-04-17: Initial policy alongside server-side encryption, Keychain migration, webhook auth, rate limiting, XSS fixes, and bulk-delete confirmation rail.
+- 2026-04-17: Added Plaid compliance matrix (§12) and handlers for `USER_ACCOUNT_REVOKED` / `USER_PERMISSION_REVOKED`.
