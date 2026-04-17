@@ -51,18 +51,16 @@ enum SourceCategoryMapper {
 
         // Plaid personal_finance_category.primary taxonomy.
         // https://plaid.com/docs/api/products/transactions/#transactions-personal-finance-category-taxonomy
-        // We map the broad "primary" bucket; more specific "detailed"
-        // codes are matched below via the detailed mapper.
+        // Keys that already appear above (medical, transportation,
+        // travel, entertainment) are intentionally NOT duplicated —
+        // Swift dictionary literals crash on duplicate keys. The
+        // existing values already point at the correct app category.
         "food_and_drink": "Dining Out",
         "general_merchandise": "Shopping",
         "general_services": "Shopping",
         "home_improvement": "Home Improvement",
-        "medical": "Health",
         "personal_care": "Health",
         "rent_and_utilities": "Utilities",
-        "transportation": "Transportation",
-        "travel": "Transportation",
-        "entertainment": "Entertainment",
         "loan_payments": "Money Transfers",
         "bank_fees": "Bank Adjustments",
         "transfer_in": "Money Transfers",
