@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reconnect Bank Account</title>
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .loading { text-align: center; }
+    .loading p { color: #888; margin-top: 12px; }
+    .error { color: #ff6b6b; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="loading" id="status">
+    <p>Reconnecting your bank account...</p>
+  </div>
+
+  <script>
+    const SERVER_URL = window.location.origin;
+    const OAUTH_REDIRECT_URI = `${SERVER_URL}/oauth.html`;
+
+    const params = new URLSearchParams(window.location.search);
+    const ITEM_ID = params.get('item_id');
+    const APP_TOKEN = params.get('token');
+
+    function authHeaders(extra = {}) {
+      const headers = { 'Content-Type': 'application/json', ...extra };
+      if (APP_TOKEN) headers['X-App-Token'] = APP_TOKEN;
+      return headers;
+    }
+
+    async function startUpdate() {
+      if (!ITEM_ID) {
+        document.getElementById('status').innerHTML =
+          '<div class="error"><p>Missing item_id</p></div>';
+        return;
+      }
+
+      try {
+        // Update-mode link token — server uses the item's access_token.
+        const response = await fetch(`${SERVER_URL}/api/link/create-update`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            item_id: ITEM_ID,
+            redirect_uri: OAUTH_REDIRECT_URI,
+          }),
+        });
+        const { link_token, error } = await response.json();
+        if (!link_token) throw new Error(error || 'Failed to start update');
+
+        const handler = Plaid.create({
+          token: link_token,
+          onSuccess: async () => {
+            // Access token does NOT change in update mode — just clear
+            // the needs_update flag on the server.
+            document.getElementById('status').innerHTML = '<p>Reconnected!</p>';
+            await fetch(`${SERVER_URL}/api/items/${ITEM_ID}/clear-update`, {
+              method: 'POST',
+              headers: authHeaders(),
+            });
+            if (window.webkit?.messageHandlers?.plaidCallback) {
+              window.webkit.messageHandlers.plaidCallback.postMessage(
+                JSON.stringify({ event: 'success', data: { item_id: ITEM_ID, mode: 'update' } })
+              );
+            }
+          },
+          onExit: (err) => {
+            if (window.webkit?.messageHandlers?.plaidCallback) {
+              window.webkit.messageHandlers.plaidCallback.postMessage(
+                JSON.stringify({ event: 'exit', error: err?.display_message || null })
+              );
+            }
+          },
+        });
+
+        handler.open();
+      } catch (error) {
+        document.getElementById('status').innerHTML =
+          `<div class="error"><p>Failed: ${error.message}</p></div>`;
+      }
+    }
+
+    startUpdate();
+  </script>
+</body>
+</html>

@@ -159,6 +159,23 @@ actor PlaidService {
         let last_synced_at: String?
     }
 
+    // MARK: - Items (Update Mode)
+
+    struct ItemsResponse: Codable {
+        let items: [ItemSummary]
+    }
+
+    struct ItemSummary: Codable {
+        let id: String
+        let item_id: String
+        let institution_id: String?
+        let institution_name: String?
+        let created_at: String?
+        let needs_update: Bool
+        let needs_update_reason: String?
+        let needs_update_detected_at: String?
+    }
+
     // MARK: - Error Types
 
     enum PlaidServiceError: LocalizedError {
@@ -240,6 +257,13 @@ actor PlaidService {
     /// show "still backfilling..." (historical flag not yet set).
     func fetchTransactionsStatus() async throws -> TransactionsStatusResponse {
         try await get(path: "/api/transactions/status")
+    }
+
+    /// Per-item metadata including update-mode (needs_update) flags.
+    /// Called on launch and after webhook-driven events to populate the
+    /// "Reconnect" UI.
+    func fetchItems() async throws -> ItemsResponse {
+        try await get(path: "/api/items")
     }
 
     // MARK: - HTTP Helpers

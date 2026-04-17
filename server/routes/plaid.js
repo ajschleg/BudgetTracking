@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } from 'plaid';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../db.js';
+import { markNeedsUpdate, clearNeedsUpdate } from './webhooks.js';
 
 const router = Router();
 
@@ -62,14 +63,77 @@ router.post('/link/create', async (req, res) => {
   }
 });
 
-// GET /api/items — List linked items (for webhook testing, debugging)
+// GET /api/items — List linked items (includes update-mode state)
 router.get('/items', (_req, res) => {
   const items = db.prepare(`
-    SELECT id, item_id, institution_id, institution_name, created_at
+    SELECT id, item_id, institution_id, institution_name, created_at,
+           COALESCE(needs_update, 0) AS needs_update,
+           needs_update_reason,
+           needs_update_detected_at
     FROM plaid_items
     ORDER BY created_at DESC
   `).all();
-  res.json({ items });
+  res.json({
+    items: items.map((r) => ({
+      ...r,
+      needs_update: !!r.needs_update,
+    })),
+  });
+});
+
+// POST /api/link/create-update — Update-mode link token for re-auth.
+//
+// Body: { item_id: <local item UUID>, redirect_uri?: <oauth redirect> }
+//
+// Per Plaid docs, update mode:
+//   - Uses the existing access_token (NOT exchanged again after)
+//   - Omits the `products` array (the Item already has its products)
+//   - Opens Link pre-bound to the item's institution, user just
+//     re-enters credentials or reconfirms OAuth consent
+router.post('/link/create-update', async (req, res) => {
+  const { item_id, redirect_uri } = req.body || {};
+  if (!item_id) {
+    return res.status(400).json({ error: 'item_id is required' });
+  }
+
+  const item = db.prepare('SELECT * FROM plaid_items WHERE id = ?').get(item_id);
+  if (!item) {
+    return res.status(404).json({ error: 'Item not found' });
+  }
+
+  try {
+    const tokenRequest = {
+      user: { client_user_id: 'budget-tracking-user' },
+      client_name: 'BudgetTracking',
+      country_codes: [CountryCode.Us],
+      language: 'en',
+      access_token: item.access_token,
+    };
+    if (redirect_uri) tokenRequest.redirect_uri = redirect_uri;
+    if (process.env.PLAID_WEBHOOK_URL) {
+      tokenRequest.webhook = process.env.PLAID_WEBHOOK_URL;
+    }
+
+    const response = await plaidClient.linkTokenCreate(tokenRequest);
+    res.json({ link_token: response.data.link_token });
+  } catch (error) {
+    console.error(
+      'Error creating update link token:',
+      error.response?.data || error.message
+    );
+    res.status(500).json({ error: 'Failed to create update link token' });
+  }
+});
+
+// POST /api/items/:id/clear-update — Mark an item as healthy after the
+// user completes update mode. The Swift client calls this after Plaid
+// Link's onSuccess fires in update mode.
+router.post('/items/:id/clear-update', (req, res) => {
+  const { id } = req.params;
+  const item = db.prepare('SELECT * FROM plaid_items WHERE id = ?').get(id);
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+  clearNeedsUpdate(id);
+  res.json({ success: true });
 });
 
 // POST /api/identity/refresh — Refresh identity data from Plaid.
@@ -553,6 +617,11 @@ async function syncTransactionsForItem(item, maxAttempts = 3) {
           `[transactions] Mutation during pagination for item ${item.id}; retry ${attempt}/${maxAttempts - 1}`
         );
         continue; // restart from startingCursor
+      }
+      // ITEM_LOGIN_REQUIRED usually surfaces here before the webhook
+      // arrives. Flag the item so the app can prompt update mode.
+      if (code === 'ITEM_LOGIN_REQUIRED') {
+        markNeedsUpdate(item.id, 'ITEM_LOGIN_REQUIRED');
       }
       throw error;
     }

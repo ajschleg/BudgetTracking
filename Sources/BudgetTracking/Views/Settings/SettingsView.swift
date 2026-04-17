@@ -148,6 +148,11 @@ struct SettingsView: View {
                                 // Group accounts by institution
                                 let grouped = Dictionary(grouping: plaidManager.linkedAccounts) { $0.institutionName ?? "Unknown" }
                                 ForEach(grouped.keys.sorted(), id: \.self) { institution in
+                                    // Look up update-mode state for this institution's item
+                                    let itemIdForInstitution = grouped[institution]?.first?.plaidItemId
+                                    let needsUpdate = itemIdForInstitution.flatMap { plaidItemId in
+                                        plaidManager.itemsNeedingUpdate.first(where: { $0.item_id == plaidItemId })
+                                    }
                                     VStack(alignment: .leading, spacing: 4) {
                                         HStack {
                                             Image(systemName: "building.columns.fill")
@@ -162,6 +167,17 @@ struct SettingsView: View {
                                                     .foregroundStyle(.secondary)
                                             }
                                             Spacer()
+                                            if let needsUpdate {
+                                                Button {
+                                                    plaidManager.startUpdateMode(for: needsUpdate.id)
+                                                } label: {
+                                                    Label("Reconnect", systemImage: "exclamationmark.arrow.triangle.2.circlepath")
+                                                        .font(.caption)
+                                                }
+                                                .buttonStyle(.borderedProminent)
+                                                .controlSize(.small)
+                                                .tint(.orange)
+                                            }
                                             Button {
                                                 if let account = grouped[institution]?.first {
                                                     Task { await plaidManager.removeAccount(account) }
@@ -172,6 +188,12 @@ struct SettingsView: View {
                                                     .foregroundStyle(.red)
                                             }
                                             .buttonStyle(.plain)
+                                        }
+                                        if let needsUpdate {
+                                            Text(updateReasonMessage(needsUpdate.needs_update_reason))
+                                                .font(.caption2)
+                                                .foregroundStyle(.orange)
+                                                .padding(.leading, 20)
                                         }
 
                                         ForEach(grouped[institution] ?? []) { account in
@@ -333,6 +355,20 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isLinkingAccount) {
             PlaidLinkView(plaidManager: plaidManager, oauthRedirectURI: nil)
+        }
+    }
+
+    /// Human-readable hint for the needs_update reason code Plaid sent.
+    private func updateReasonMessage(_ reason: String?) -> String {
+        switch reason {
+        case "ITEM_LOGIN_REQUIRED":
+            return "Your credentials for this bank have expired. Reconnect to resume syncing."
+        case "PENDING_EXPIRATION":
+            return "Consent will expire in under 7 days. Reconnect to avoid interruption."
+        case "PENDING_DISCONNECT":
+            return "This connection will soon be disconnected. Reconnect to keep it active."
+        default:
+            return "This connection needs attention. Please reconnect."
         }
     }
 }

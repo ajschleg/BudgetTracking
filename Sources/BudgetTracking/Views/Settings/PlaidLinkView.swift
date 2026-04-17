@@ -4,14 +4,23 @@ import WebKit
 struct PlaidLinkView: View {
     @Bindable var plaidManager: PlaidSyncManager
     var oauthRedirectURI: String?
+    /// When set, opens Link in update mode for this existing item
+    /// instead of starting a fresh link flow.
+    var updateItemId: String?
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
     @State private var errorMessage: String?
 
+    private var title: String {
+        if updateItemId != nil { return "Reconnect Bank Account" }
+        if oauthRedirectURI != nil { return "Completing Connection" }
+        return "Link Bank Account"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(oauthRedirectURI != nil ? "Completing Connection" : "Link Bank Account")
+                Text(title)
                     .font(.title2.weight(.semibold))
                 Spacer()
                 Button("Cancel") { dismiss() }
@@ -40,6 +49,7 @@ struct PlaidLinkView: View {
                 PlaidLinkWebView(
                     plaidManager: plaidManager,
                     oauthRedirectURI: oauthRedirectURI,
+                    updateItemId: updateItemId,
                     isLoading: $isLoading,
                     errorMessage: $errorMessage,
                     onSuccess: { dismiss() }
@@ -58,6 +68,7 @@ struct PlaidLinkView: View {
 struct PlaidLinkWebView: NSViewRepresentable {
     let plaidManager: PlaidSyncManager
     let oauthRedirectURI: String?
+    let updateItemId: String?
     @Binding var isLoading: Bool
     @Binding var errorMessage: String?
     let onSuccess: () -> Void
@@ -76,6 +87,9 @@ struct PlaidLinkWebView: NSViewRepresentable {
         if let oauthURI = oauthRedirectURI {
             // OAuth completion mode: load oauth.html with the received redirect URI
             loadOAuthCompletionPage(webView, receivedRedirectURI: oauthURI)
+        } else if let itemId = updateItemId {
+            // Update mode: load update.html for an existing item
+            loadUpdatePage(webView, itemId: itemId)
         } else {
             // Normal mode: load link.html to start a new Link flow
             loadLinkPage(webView)
@@ -123,6 +137,22 @@ struct PlaidLinkWebView: NSViewRepresentable {
               let escaped = token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
         else { return "" }
         return "?token=\(escaped)"
+    }
+
+    private func loadUpdatePage(_ webView: WKWebView, itemId: String) {
+        let serverURL = UserDefaults.standard.string(forKey: "plaidServerURL") ?? "http://localhost:8080"
+        var components = URLComponents(string: "\(serverURL)/update.html")
+        var items = [URLQueryItem(name: "item_id", value: itemId)]
+        let token = UserDefaults.standard.string(forKey: "plaidAppToken") ?? ""
+        if !token.isEmpty {
+            items.append(URLQueryItem(name: "token", value: token))
+        }
+        components?.queryItems = items
+        guard let url = components?.url else {
+            errorMessage = "Invalid server URL"
+            return
+        }
+        webView.load(URLRequest(url: url))
     }
 
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {

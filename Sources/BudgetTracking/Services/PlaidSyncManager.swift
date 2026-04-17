@@ -24,6 +24,14 @@ final class PlaidSyncManager {
     /// "still backfilling" and "new transactions waiting".
     var itemStatuses: [PlaidService.TransactionsStatusItem] = []
 
+    /// Items that need update-mode re-auth, per the server's
+    /// needs_update flag (set by webhook handlers or API errors).
+    var itemsNeedingUpdate: [PlaidService.ItemSummary] = []
+
+    /// When non-nil, triggers the OAuth/update sheet in update mode for
+    /// this local item UUID.
+    var pendingUpdateItemId: String?
+
     private let plaidService = PlaidService()
 
     // MARK: - Account Management
@@ -135,6 +143,7 @@ final class PlaidSyncManager {
     /// call (no Plaid API hits); safe to run on app launch. If the server
     /// reports pending updates for any item, auto-kick a transactions sync.
     func checkTransactionsStatus(autoSyncIfPending: Bool = true) async {
+        async let updateCheck: Void = refreshUpdateModeStatus()
         do {
             let response = try await plaidService.fetchTransactionsStatus()
             itemStatuses = response.items
@@ -149,6 +158,7 @@ final class PlaidSyncManager {
             // just because the server is offline. The manual Sync
             // button will still work.
         }
+        _ = await updateCheck
     }
 
     /// True if any linked item is still backfilling historical
@@ -157,6 +167,32 @@ final class PlaidSyncManager {
     var isHistoricalBackfillInProgress: Bool {
         guard !itemStatuses.isEmpty else { return false }
         return itemStatuses.contains { !$0.historical_update_complete }
+    }
+
+    /// Refresh the list of items whose needs_update flag is set. Cheap
+    /// metadata call, no Plaid API hits. Runs alongside the status
+    /// check on app launch.
+    func refreshUpdateModeStatus() async {
+        do {
+            let response = try await plaidService.fetchItems()
+            itemsNeedingUpdate = response.items.filter { $0.needs_update }
+        } catch {
+            // Non-fatal; a stale flag is better than a spurious error.
+        }
+    }
+
+    /// Trigger update-mode Link for the given item. PlaidLinkView will
+    /// present the update.html page, Plaid Link re-auths against the
+    /// existing access_token, and the server clears the needs_update
+    /// flag on success.
+    func startUpdateMode(for itemId: String) {
+        pendingUpdateItemId = itemId
+    }
+
+    /// Called when update-mode Link finishes (success or exit).
+    func finishUpdateMode() {
+        pendingUpdateItemId = nil
+        Task { await refreshUpdateModeStatus() }
     }
 
     // MARK: - Identity Refresh

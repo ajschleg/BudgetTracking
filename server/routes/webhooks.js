@@ -222,9 +222,31 @@ async function handleWebhook(plaidClient, payload) {
       break;
 
     case 'ITEM:PENDING_DISCONNECT':
-    case 'ITEM:ERROR':
+    case 'ITEM:PENDING_EXPIRATION':
+    case 'ITEM:LOGIN_REPAIRED':
+      // LOGIN_REPAIRED is Plaid telling us an item that previously
+      // needed update mode has fixed itself (usually because the user
+      // re-authenticated at the bank directly). Clear the flag.
+      if (webhook_code === 'LOGIN_REPAIRED') {
+        clearNeedsUpdate(item.id);
+      } else {
+        markNeedsUpdate(item.id, webhook_code);
+      }
       console.warn(
-        `[webhook] Item ${item_id} needs attention: ${webhook_code}`,
+        `[webhook] Item ${item_id}: ${webhook_code}`,
+        payload.error || ''
+      );
+      break;
+
+    case 'ITEM:ERROR':
+      // ITEM/ERROR payloads carry a specific error_code. Only treat
+      // ITEM_LOGIN_REQUIRED as needing update mode — other item errors
+      // (rate limits, bank outages) resolve themselves.
+      if (payload.error?.error_code === 'ITEM_LOGIN_REQUIRED') {
+        markNeedsUpdate(item.id, 'ITEM_LOGIN_REQUIRED');
+      }
+      console.warn(
+        `[webhook] Item ${item_id} error:`,
         payload.error
       );
       break;
@@ -257,6 +279,36 @@ function handleTransactionsUpdate(item, payload) {
     `[webhook] SYNC_UPDATES_AVAILABLE for ${item.item_id}` +
       (flags.length ? ` (${flags.join(', ')})` : '')
   );
+}
+
+/**
+ * Mark an item as needing update mode (user re-auth). Called from the
+ * webhook router on ITEM_LOGIN_REQUIRED, PENDING_EXPIRATION,
+ * PENDING_DISCONNECT, and from the API layer when a Plaid call returns
+ * the ITEM_LOGIN_REQUIRED error code.
+ *
+ * Exported so plaid routes can call it when a live /transactions/sync
+ * surfaces the error before the webhook arrives.
+ */
+export function markNeedsUpdate(localItemId, reason) {
+  db.prepare(`
+    UPDATE plaid_items SET
+      needs_update = 1,
+      needs_update_reason = ?,
+      needs_update_detected_at = datetime('now')
+    WHERE id = ?
+  `).run(reason, localItemId);
+}
+
+/** Clear the needs_update flag (e.g., after successful update-mode link). */
+export function clearNeedsUpdate(localItemId) {
+  db.prepare(`
+    UPDATE plaid_items SET
+      needs_update = 0,
+      needs_update_reason = NULL,
+      needs_update_detected_at = NULL
+    WHERE id = ?
+  `).run(localItemId);
 }
 
 /**

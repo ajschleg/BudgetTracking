@@ -88,4 +88,14 @@ addColumnIfMissing('sync_cursors', 'initial_update_complete', 'INTEGER DEFAULT 0
 addColumnIfMissing('sync_cursors', 'historical_update_complete', 'INTEGER DEFAULT 0');
 addColumnIfMissing('sync_cursors', 'pending_update_available', 'INTEGER DEFAULT 0');
 
+// Update-mode flags on the item itself. ITEM_LOGIN_REQUIRED means the
+// user's credentials are broken right now; PENDING_EXPIRATION /
+// PENDING_DISCONNECT are 7-day heads-ups from regulators. We track all
+// three separately so the UI can distinguish "must fix now" from
+// "should fix soon". reason holds the most recent webhook code or
+// error code so we can tell the user why.
+addColumnIfMissing('plaid_items', 'needs_update', 'INTEGER DEFAULT 0');
+addColumnIfMissing('plaid_items', 'needs_update_reason', 'TEXT');
+addColumnIfMissing('plaid_items', 'needs_update_detected_at', 'TEXT');
+
 export default db;

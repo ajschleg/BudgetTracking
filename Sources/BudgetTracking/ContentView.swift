@@ -139,6 +139,17 @@ struct ContentView: View {
                 oauthRedirectURI: plaidManager.pendingOAuthRedirectURI
             )
         }
+        // Plaid update-mode sheet — presented when user clicks Reconnect
+        // on an item whose needs_update flag is set.
+        .sheet(isPresented: Binding(
+            get: { plaidManager.pendingUpdateItemId != nil },
+            set: { if !$0 { plaidManager.finishUpdateMode() } }
+        )) {
+            PlaidLinkView(
+                plaidManager: plaidManager,
+                updateItemId: plaidManager.pendingUpdateItemId
+            )
+        }
         .task {
             // On launch, ask the server whether any items have pending
             // webhook-delivered updates. If yes, auto-sync so the user
