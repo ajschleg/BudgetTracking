@@ -57,6 +57,23 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_webhook_events_item_id ON webhook_events(item_id);
   CREATE INDEX IF NOT EXISTS idx_webhook_events_received_at ON webhook_events(received_at);
+
+  -- Snapshots of account balances over time. Each row records the
+  -- current + available + limit values we got from Plaid on a specific
+  -- fetch. Lets the app show net-worth-over-time and retains balance
+  -- data even if the Plaid connection is later severed.
+  CREATE TABLE IF NOT EXISTS plaid_balance_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    plaid_account_id TEXT NOT NULL,
+    balance_current REAL,
+    balance_available REAL,
+    balance_limit REAL,
+    balance_iso_currency_code TEXT,
+    fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_balance_history_account
+    ON plaid_balance_history(plaid_account_id, fetched_at DESC);
 `);
 
 // Lightweight migration: add balance columns to plaid_accounts if missing.

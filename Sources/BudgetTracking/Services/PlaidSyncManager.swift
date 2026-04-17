@@ -323,6 +323,10 @@ final class PlaidSyncManager {
             if !response.added.isEmpty {
                 syncProgress = "Saving \(response.added.count) new transactions..."
                 var transactions: [Transaction] = []
+                // Parallel arrays so the engine can consult Plaid's
+                // personal_finance_category for each row.
+                var plaidPrimaries: [String?] = []
+                var plaidDetails: [String?] = []
 
                 for plaidTxn in response.added {
                     // Skip pending transactions
@@ -346,15 +350,22 @@ final class PlaidSyncManager {
                         externalId: plaidTxn.transaction_id
                     )
                     transactions.append(transaction)
+                    plaidPrimaries.append(plaidTxn.category)
+                    plaidDetails.append(plaidTxn.category_detailed)
                 }
 
                 if !transactions.isEmpty {
-                    // Auto-categorize before saving
+                    // Auto-categorize before saving. Plaid category hints
+                    // take priority; keyword/learned rules fill the gaps.
                     syncProgress = "Categorizing transactions..."
                     let rules = try DatabaseManager.shared.fetchRules()
                     let categories = try DatabaseManager.shared.fetchCategories()
                     let engine = CategorizationEngine(rules: rules, categories: categories)
-                    engine.categorizeAll(transactions: &transactions)
+                    engine.categorizeAllWithPlaid(
+                        transactions: &transactions,
+                        plaidPrimaryCategories: plaidPrimaries,
+                        plaidDetailedCategories: plaidDetails
+                    )
 
                     try DatabaseManager.shared.saveTransactions(transactions)
                 }

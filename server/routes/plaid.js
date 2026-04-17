@@ -534,6 +534,31 @@ router.get('/transactions/status', (_req, res) => {
   });
 });
 
+// GET /api/balances/history — Balance snapshots over time per account.
+//
+// Query params:
+//   ?days=N (optional) — how far back to look. Default 365.
+//
+// Returns a flat list of { plaid_account_id, balance_current,
+// balance_available, balance_limit, balance_iso_currency_code,
+// fetched_at } ordered by fetched_at ASC. The client groups by
+// account for charting.
+//
+// History rows are NOT cascade-deleted when an item is removed, so
+// this endpoint still returns data for accounts the user has since
+// disconnected — useful as an offline archive of historical net worth.
+router.get('/balances/history', (req, res) => {
+  const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
+  const rows = db.prepare(`
+    SELECT plaid_account_id, balance_current, balance_available,
+           balance_limit, balance_iso_currency_code, fetched_at
+    FROM plaid_balance_history
+    WHERE fetched_at >= datetime('now', ?)
+    ORDER BY fetched_at ASC
+  `).all(`-${days} days`);
+  res.json({ snapshots: rows });
+});
+
 // GET /api/accounts — List all linked accounts (with cached balances).
 //
 // Explicitly enumerates columns rather than SELECT * so we do not leak
@@ -595,6 +620,13 @@ router.post('/balances/refresh', async (req, res) => {
     WHERE plaid_account_id = ?
   `);
 
+  const insertHistory = db.prepare(`
+    INSERT INTO plaid_balance_history
+      (plaid_account_id, balance_current, balance_available,
+       balance_limit, balance_iso_currency_code)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
   for (const item of items) {
     // Optional freshness gate — skip if we refreshed recently.
     if (min_age_seconds && Number.isFinite(min_age_seconds)) {
@@ -627,6 +659,15 @@ router.post('/balances/refresh', async (req, res) => {
           bal.iso_currency_code ?? bal.unofficial_currency_code ?? null,
           bal.last_updated_datetime ?? null,
           acct.account_id
+        );
+        // Snapshot into balance history so we can chart trends and
+        // retain the data even if Plaid is later disconnected.
+        insertHistory.run(
+          acct.account_id,
+          bal.current ?? null,
+          bal.available ?? null,
+          bal.limit ?? null,
+          bal.iso_currency_code ?? bal.unofficial_currency_code ?? null
         );
         updatedAccounts.push({
           plaid_account_id: acct.account_id,

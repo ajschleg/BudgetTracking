@@ -48,6 +48,47 @@ enum SourceCategoryMapper {
         "health & fitness": "Health",
         "bills & utilities": "Utilities",
         "home improvement": "Shopping",
+
+        // Plaid personal_finance_category.primary taxonomy.
+        // https://plaid.com/docs/api/products/transactions/#transactions-personal-finance-category-taxonomy
+        // We map the broad "primary" bucket; more specific "detailed"
+        // codes are matched below via the detailed mapper.
+        "food_and_drink": "Dining Out",
+        "general_merchandise": "Shopping",
+        "general_services": "Shopping",
+        "home_improvement": "Home Improvement",
+        "medical": "Health",
+        "personal_care": "Health",
+        "rent_and_utilities": "Utilities",
+        "transportation": "Transportation",
+        "travel": "Transportation",
+        "entertainment": "Entertainment",
+        "loan_payments": "Money Transfers",
+        "bank_fees": "Bank Adjustments",
+        "transfer_in": "Money Transfers",
+        "transfer_out": "Money Transfers",
+        "income": "Money Transfers",
+
+        // Plaid personal_finance_category.detailed codes that override
+        // the primary bucket when they point to something more specific.
+        "food_and_drink_groceries": "Groceries",
+        "food_and_drink_restaurant": "Dining Out",
+        "food_and_drink_fast_food": "Dining Out",
+        "food_and_drink_coffee": "Dining Out",
+        "food_and_drink_beer_wine_and_liquor": "Dining Out",
+        "general_merchandise_gas_stations": "Gas",
+        "transportation_gas": "Gas",
+        "transportation_public_transit": "Transportation",
+        "transportation_taxis_and_ride_shares": "Transportation",
+        "rent_and_utilities_gas_and_electricity": "Utilities",
+        "rent_and_utilities_internet_and_cable": "Utilities",
+        "rent_and_utilities_telephone": "Utilities",
+        "rent_and_utilities_water": "Utilities",
+        "rent_and_utilities_sewage_and_waste_management": "Utilities",
+        "medical_pharmacies_and_supplements": "Health",
+        "medical_primary_care": "Health",
+        "medical_dental_care": "Health",
+        "home_improvement_hardware": "Home Improvement",
     ]
 
     /// Map a source category string to a BudgetCategory ID.

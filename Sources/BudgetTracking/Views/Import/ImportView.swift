@@ -12,6 +12,9 @@ struct ImportView: View {
     @State private var showAddSource = false
     @State private var newSourceName = ""
     @State private var newSourceURL = ""
+    /// Whether a Plaid bank is linked — drives the "you probably don't
+    /// need to import" banner. Loaded on appear from the local DB.
+    @State private var hasPlaidConnection = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,7 +46,13 @@ struct ImportView: View {
             }
         }
         .navigationTitle("Import Statements")
-        .onAppear { viewModel.loadImportedFiles(month: selectedMonth) }
+        .onAppear {
+            viewModel.loadImportedFiles(month: selectedMonth)
+            // A linked Plaid account (regardless of sync state) means
+            // the user already has automatic transaction delivery —
+            // manual imports are probably just for backfill.
+            hasPlaidConnection = (try? DatabaseManager.shared.fetchPlaidAccounts().isEmpty == false) ?? false
+        }
         .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
             viewModel.loadImportedFiles(month: selectedMonth)
         }
@@ -102,6 +111,11 @@ struct ImportView: View {
     private var importContent: some View {
         switch viewModel.state {
         case .idle:
+            if hasPlaidConnection {
+                plaidPrimaryBanner
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+            }
             dropZone
                 .padding()
             commonSourcesSection
@@ -221,6 +235,33 @@ struct ImportView: View {
             }
             .padding()
         }
+    }
+
+    /// Blue info banner shown when a Plaid connection is active. Tells
+    /// the user that imports are a backfill/fallback tool now, not the
+    /// primary workflow. Non-dismissible by design — it re-appears on
+    /// every Import visit so the hint stays discoverable.
+    private var plaidPrimaryBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "info.circle.fill")
+                .foregroundStyle(.blue)
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("You're already connected via Plaid")
+                    .font(.subheadline.weight(.semibold))
+                Text("Plaid syncs the last year of transactions automatically. Use import only for older history, accounts you haven't linked, or as a fallback if Plaid breaks. Duplicate transactions from Plaid are skipped automatically.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.blue.opacity(0.1)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.blue.opacity(0.3), lineWidth: 1)
+        )
     }
 
     private var dropZone: some View {
