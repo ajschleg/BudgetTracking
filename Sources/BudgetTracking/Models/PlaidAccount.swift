@@ -19,6 +19,12 @@ struct PlaidAccount: Identifiable, Codable, Equatable {
     var balanceCurrencyCode: String?
     var balanceFetchedAt: Date?
 
+    // Identity fields (populated by Plaid Identity product)
+    var ownerName: String?
+    var ownerEmail: String?
+    var ownerPhone: String?
+    var identityFetchedAt: Date?
+
     // Sync fields
     var lastModifiedAt: Date
     var cloudKitRecordName: String?
@@ -40,6 +46,10 @@ struct PlaidAccount: Identifiable, Codable, Equatable {
         balanceLimit: Double? = nil,
         balanceCurrencyCode: String? = nil,
         balanceFetchedAt: Date? = nil,
+        ownerName: String? = nil,
+        ownerEmail: String? = nil,
+        ownerPhone: String? = nil,
+        identityFetchedAt: Date? = nil,
         lastModifiedAt: Date = Date(),
         cloudKitRecordName: String? = nil,
         cloudKitSystemFields: Data? = nil,
@@ -59,6 +69,10 @@ struct PlaidAccount: Identifiable, Codable, Equatable {
         self.balanceLimit = balanceLimit
         self.balanceCurrencyCode = balanceCurrencyCode
         self.balanceFetchedAt = balanceFetchedAt
+        self.ownerName = ownerName
+        self.ownerEmail = ownerEmail
+        self.ownerPhone = ownerPhone
+        self.identityFetchedAt = identityFetchedAt
         self.lastModifiedAt = lastModifiedAt
         self.cloudKitRecordName = cloudKitRecordName
         self.cloudKitSystemFields = cloudKitSystemFields
@@ -82,6 +96,7 @@ extension PlaidAccount: FetchableRecord, PersistableRecord {
         case name, officialName, type, subtype, mask
         case balanceCurrent, balanceAvailable, balanceLimit
         case balanceCurrencyCode, balanceFetchedAt
+        case ownerName, ownerEmail, ownerPhone, identityFetchedAt
         case lastModifiedAt, cloudKitRecordName, cloudKitSystemFields, isDeleted
     }
 }

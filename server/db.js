@@ -70,4 +70,13 @@ addColumnIfMissing('plaid_accounts', 'balance_iso_currency_code', 'TEXT');
 addColumnIfMissing('plaid_accounts', 'balance_last_updated_plaid', 'TEXT');
 addColumnIfMissing('plaid_accounts', 'balance_fetched_at', 'TEXT');
 
+// Identity columns. Plaid returns arrays of owners per account; we keep
+// the primary (first) owner for quick display and stash the full JSON
+// blob so we can render secondary owners or verify details if needed.
+addColumnIfMissing('plaid_accounts', 'owner_name', 'TEXT');
+addColumnIfMissing('plaid_accounts', 'owner_email', 'TEXT');
+addColumnIfMissing('plaid_accounts', 'owner_phone', 'TEXT');
+addColumnIfMissing('plaid_accounts', 'owners_json', 'TEXT');
+addColumnIfMissing('plaid_accounts', 'identity_fetched_at', 'TEXT');
+
 export default db;

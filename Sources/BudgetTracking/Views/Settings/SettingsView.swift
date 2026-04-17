@@ -155,6 +155,12 @@ struct SettingsView: View {
                                                 .font(.caption)
                                             Text(institution)
                                                 .font(.subheadline.weight(.medium))
+                                            // Owner name from Plaid Identity (if available)
+                                            if let owner = grouped[institution]?.compactMap(\.ownerName).first, !owner.isEmpty {
+                                                Text("• \(owner)")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
                                             Spacer()
                                             Button {
                                                 if let account = grouped[institution]?.first {

@@ -298,6 +298,15 @@ final class DatabaseManager {
             }
         }
 
+        migrator.registerMigration("v9_addPlaidIdentityColumns") { db in
+            try db.alter(table: "plaidAccount") { t in
+                t.add(column: "ownerName", .text)
+                t.add(column: "ownerEmail", .text)
+                t.add(column: "ownerPhone", .text)
+                t.add(column: "identityFetchedAt", .datetime)
+            }
+        }
+
         try migrator.migrate(dbQueue)
     }
 

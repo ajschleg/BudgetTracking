@@ -16,6 +16,9 @@ final class PlaidSyncManager {
     /// distinct spinner for balance refresh vs transaction sync.
     var isRefreshingBalances = false
 
+    /// True while a manual /identity/refresh call is in flight.
+    var isRefreshingIdentity = false
+
     private let plaidService = PlaidService()
 
     // MARK: - Account Management
@@ -32,7 +35,7 @@ final class PlaidSyncManager {
         do {
             let serverAccounts = try await plaidService.fetchAccounts()
 
-            // Sync server accounts to local DB
+            // Sync server accounts to local DB (includes balances + identity)
             for account in serverAccounts {
                 let plaidAccount = PlaidAccount(
                     plaidAccountId: account.plaid_account_id,
@@ -42,7 +45,16 @@ final class PlaidSyncManager {
                     officialName: account.official_name,
                     type: account.type,
                     subtype: account.subtype,
-                    mask: account.mask
+                    mask: account.mask,
+                    balanceCurrent: account.balance_current,
+                    balanceAvailable: account.balance_available,
+                    balanceLimit: account.balance_limit,
+                    balanceCurrencyCode: account.balance_iso_currency_code,
+                    balanceFetchedAt: parseISODate(account.balance_fetched_at),
+                    ownerName: account.owner_name,
+                    ownerEmail: account.owner_email,
+                    ownerPhone: account.owner_phone,
+                    identityFetchedAt: parseISODate(account.identity_fetched_at)
                 )
                 try DatabaseManager.shared.savePlaidAccount(plaidAccount)
             }
@@ -51,6 +63,17 @@ final class PlaidSyncManager {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Parse a `yyyy-MM-dd HH:mm:ss` timestamp (SQLite datetime default)
+    /// into a Date. Returns nil for nil/empty/invalid inputs.
+    private func parseISODate(_ string: String?) -> Date? {
+        guard let string, !string.isEmpty else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter.date(from: string)
     }
 
     func removeAccount(_ account: PlaidAccount) async {
@@ -101,6 +124,32 @@ final class PlaidSyncManager {
         }
     }
 
+    // MARK: - Identity Refresh
+
+    /// Manually re-fetch /identity/get for every linked item. Identity
+    /// is already fetched opportunistically on link, so this is a
+    /// fallback for cases where the user changed their info at the bank
+    /// or the initial fetch failed.
+    func refreshIdentity() async {
+        isRefreshingIdentity = true
+        errorMessage = nil
+        defer { isRefreshingIdentity = false }
+
+        do {
+            let response = try await plaidService.refreshIdentity()
+            // Pull the updated rows (with owner_name, email, phone) back
+            // onto the device.
+            await refreshAccountsFromServer()
+
+            if !response.errors.isEmpty {
+                let first = response.errors.first!
+                errorMessage = "Couldn't refresh identity for \(first.institution_name ?? "account"): \(first.error)"
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Link Flow
 
     func createLinkToken() async throws -> String {
@@ -123,6 +172,10 @@ final class PlaidSyncManager {
             try? DatabaseManager.shared.savePlaidAccount(plaidAccount)
         }
         loadAccounts()
+
+        // The server auto-fetched identity during /link/exchange — pull
+        // the enriched rows (with owner_name etc.) back to the device.
+        Task { await refreshAccountsFromServer() }
     }
 
     // MARK: - Transaction Sync

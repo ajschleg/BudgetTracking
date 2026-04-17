@@ -27,6 +27,11 @@ router.post('/link/create', async (req, res) => {
       user: { client_user_id: 'budget-tracking-user' },
       client_name: 'BudgetTracking',
       products: [Products.Transactions],
+      // Identity is added as "required if supported" so banks that do
+      // not offer it (rare) can still link with Transactions-only. The
+      // one-time fee is only billed on institutions that actually return
+      // identity data.
+      required_if_supported_products: [Products.Identity],
       country_codes: [CountryCode.Us],
       language: 'en',
     };
@@ -59,6 +64,49 @@ router.get('/items', (_req, res) => {
     ORDER BY created_at DESC
   `).all();
   res.json({ items });
+});
+
+// POST /api/identity/refresh — Refresh identity data from Plaid.
+//
+// Body (optional): { item_id: <local item UUID> }
+//
+// Calls /identity/get for all linked items (or one) and updates the
+// owner_name, owner_email, owner_phone, owners_json columns. Each call
+// bills a one-time fee per item per Plaid pricing — we cache the result
+// indefinitely since identity rarely changes. Plaid docs note that
+// "Identity data rarely changes; re-fetching is typically unnecessary."
+router.post('/identity/refresh', async (req, res) => {
+  const { item_id } = req.body || {};
+
+  const items = item_id
+    ? db.prepare('SELECT * FROM plaid_items WHERE id = ?').all(item_id)
+    : db.prepare('SELECT * FROM plaid_items').all();
+
+  if (items.length === 0) {
+    return res.json({ refreshed: [], errors: [] });
+  }
+
+  const refreshed = [];
+  const errors = [];
+
+  for (const item of items) {
+    try {
+      await fetchAndStoreIdentity(item.access_token, item.id);
+      refreshed.push({ item_id: item.id, institution_name: item.institution_name });
+    } catch (error) {
+      console.error(
+        `[identity] Refresh failed for item ${item.id}:`,
+        error.response?.data || error.message
+      );
+      errors.push({
+        item_id: item.id,
+        institution_name: item.institution_name,
+        error: error.response?.data?.error_message || error.message,
+      });
+    }
+  }
+
+  res.json({ refreshed, errors });
 });
 
 // POST /api/items/:id/webhook — Update webhook URL on an existing item.
@@ -163,6 +211,20 @@ router.post('/link/exchange', async (req, res) => {
       VALUES (?, NULL, NULL)
     `).run(itemId);
 
+    // Fetch identity data opportunistically. Plaid Identity bills a
+    // one-time fee per item, and on-link is the natural moment to run it
+    // (user is actively connecting the account, knows it is happening).
+    // Failures are logged but don't fail the link — Transactions is the
+    // product we actually need; Identity is a bonus for display.
+    try {
+      await fetchAndStoreIdentity(access_token, itemId);
+    } catch (error) {
+      console.warn(
+        '[identity] Auto-fetch on link failed:',
+        error.response?.data || error.message
+      );
+    }
+
     res.json({
       item_id: itemId,
       institution: institution?.name || 'Unknown',
@@ -173,6 +235,52 @@ router.post('/link/exchange', async (req, res) => {
     res.status(500).json({ error: 'Failed to exchange token' });
   }
 });
+
+/**
+ * Call /identity/get and persist the owner info onto plaid_accounts.
+ * Plaid returns an array of accounts, each with an `owners` array. We
+ * store the primary (first) owner in flat columns for quick display
+ * and the full owners array as JSON for future use.
+ */
+async function fetchAndStoreIdentity(accessToken, localItemId) {
+  const response = await plaidClient.identityGet({ access_token: accessToken });
+
+  const updateStmt = db.prepare(`
+    UPDATE plaid_accounts SET
+      owner_name = ?,
+      owner_email = ?,
+      owner_phone = ?,
+      owners_json = ?,
+      identity_fetched_at = datetime('now')
+    WHERE plaid_account_id = ?
+  `);
+
+  for (const acct of response.data.accounts) {
+    const owners = acct.owners || [];
+    const primary = owners[0] || {};
+    const primaryName = primary.names?.[0] || null;
+    const primaryEmail =
+      primary.emails?.find((e) => e.primary)?.data ||
+      primary.emails?.[0]?.data ||
+      null;
+    const primaryPhone =
+      primary.phone_numbers?.find((p) => p.primary)?.data ||
+      primary.phone_numbers?.[0]?.data ||
+      null;
+
+    updateStmt.run(
+      primaryName,
+      primaryEmail,
+      primaryPhone,
+      JSON.stringify(owners),
+      acct.account_id
+    );
+  }
+
+  console.log(
+    `[identity] Stored identity for ${response.data.accounts.length} accounts on item ${localItemId}`
+  );
+}
 
 // POST /api/transactions/sync — Sync transactions for all linked items
 router.post('/transactions/sync', async (req, res) => {

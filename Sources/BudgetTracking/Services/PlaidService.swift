@@ -52,6 +52,17 @@ actor PlaidService {
         let mask: String?
         let institution_name: String?
         let last_synced_at: String?
+        // Balance columns (nullable; populated by /balances/refresh)
+        let balance_current: Double?
+        let balance_available: Double?
+        let balance_limit: Double?
+        let balance_iso_currency_code: String?
+        let balance_fetched_at: String?
+        // Identity columns (nullable; populated on link or /identity/refresh)
+        let owner_name: String?
+        let owner_email: String?
+        let owner_phone: String?
+        let identity_fetched_at: String?
     }
 
     struct SyncResponse: Codable {
@@ -120,6 +131,18 @@ actor PlaidService {
         let error: String
     }
 
+    // MARK: - Identity Response Types
+
+    struct IdentityRefreshResponse: Codable {
+        let refreshed: [RefreshedIdentityItem]
+        let errors: [BalanceError]
+    }
+
+    struct RefreshedIdentityItem: Codable {
+        let item_id: String
+        let institution_name: String?
+    }
+
     // MARK: - Error Types
 
     enum PlaidServiceError: LocalizedError {
@@ -185,6 +208,15 @@ actor PlaidService {
         if let itemId { body["item_id"] = itemId }
         if let minAgeSeconds { body["min_age_seconds"] = minAgeSeconds }
         return try await post(path: "/api/balances/refresh", body: body.isEmpty ? nil : body)
+    }
+
+    /// Refresh identity data from Plaid. Auto-called on link, so this is
+    /// a manual fallback — for example if the user changes their address
+    /// at the bank. Each call bills the one-time Identity fee per item.
+    func refreshIdentity(itemId: String? = nil) async throws -> IdentityRefreshResponse {
+        var body: [String: Any] = [:]
+        if let itemId { body["item_id"] = itemId }
+        return try await post(path: "/api/identity/refresh", body: body.isEmpty ? nil : body)
     }
 
     // MARK: - HTTP Helpers
