@@ -34,12 +34,21 @@
     const params = new URLSearchParams(window.location.search);
     const externalRedirectURI = params.get('receivedRedirectUri');
 
+    // App auth token from the WKWebView wrapper (same pattern as link.html).
+    const APP_TOKEN = params.get('token');
+
+    function authHeaders(extra = {}) {
+      const headers = { 'Content-Type': 'application/json', ...extra };
+      if (APP_TOKEN) headers['X-App-Token'] = APP_TOKEN;
+      return headers;
+    }
+
     async function completeOAuth() {
       try {
         // Get a new link token with the same redirect_uri used originally
         const response = await fetch(`${SERVER_URL}/api/link/create`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ redirect_uri: OAUTH_REDIRECT_URI }),
         });
         const { link_token } = await response.json();
@@ -56,7 +65,7 @@
 
             const exchangeResponse = await fetch(`${SERVER_URL}/api/link/exchange`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: authHeaders(),
               body: JSON.stringify({
                 public_token: publicToken,
                 institution: metadata.institution,

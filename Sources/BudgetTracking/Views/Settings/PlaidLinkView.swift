@@ -91,7 +91,8 @@ struct PlaidLinkWebView: NSViewRepresentable {
 
     private func loadLinkPage(_ webView: WKWebView) {
         let serverURL = UserDefaults.standard.string(forKey: "plaidServerURL") ?? "http://localhost:8080"
-        guard let url = URL(string: "\(serverURL)/link.html") else {
+        let token = tokenQuery()
+        guard let url = URL(string: "\(serverURL)/link.html\(token)") else {
             errorMessage = "Invalid server URL"
             return
         }
@@ -101,11 +102,27 @@ struct PlaidLinkWebView: NSViewRepresentable {
     private func loadOAuthCompletionPage(_ webView: WKWebView, receivedRedirectURI: String) {
         let serverURL = UserDefaults.standard.string(forKey: "plaidServerURL") ?? "http://localhost:8080"
         let encoded = receivedRedirectURI.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? receivedRedirectURI
-        guard let url = URL(string: "\(serverURL)/oauth.html?receivedRedirectUri=\(encoded)") else {
+        var query = "?receivedRedirectUri=\(encoded)"
+        let tokenValue = UserDefaults.standard.string(forKey: "plaidAppToken") ?? ""
+        if !tokenValue.isEmpty,
+           let escaped = tokenValue.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            query += "&token=\(escaped)"
+        }
+        guard let url = URL(string: "\(serverURL)/oauth.html\(query)") else {
             errorMessage = "Invalid server URL"
             return
         }
         webView.load(URLRequest(url: url))
+    }
+
+    /// Produce a `?token=...` query string (or empty string) for the Link
+    /// HTML pages so they can forward the app token to /api/* calls.
+    private func tokenQuery() -> String {
+        let token = UserDefaults.standard.string(forKey: "plaidAppToken") ?? ""
+        guard !token.isEmpty,
+              let escaped = token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+        else { return "" }
+        return "?token=\(escaped)"
     }
 
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {

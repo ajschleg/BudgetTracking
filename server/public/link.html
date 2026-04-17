@@ -38,12 +38,22 @@
     const SERVER_URL = window.location.origin;
     const OAUTH_REDIRECT_URI = `${SERVER_URL}/oauth.html`;
 
+    // App auth token injected via query param by the macOS WKWebView wrapper.
+    // Forwarded as X-App-Token on all /api/* calls so the server accepts us.
+    const APP_TOKEN = new URLSearchParams(window.location.search).get('token');
+
+    function authHeaders(extra = {}) {
+      const headers = { 'Content-Type': 'application/json', ...extra };
+      if (APP_TOKEN) headers['X-App-Token'] = APP_TOKEN;
+      return headers;
+    }
+
     async function startLink() {
       try {
         // Get link token from backend with OAuth redirect URI
         const response = await fetch(`${SERVER_URL}/api/link/create`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ redirect_uri: OAUTH_REDIRECT_URI }),
         });
         const { link_token } = await response.json();
@@ -57,7 +67,7 @@
             // Exchange token via backend
             const exchangeResponse = await fetch(`${SERVER_URL}/api/link/exchange`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: authHeaders(),
               body: JSON.stringify({
                 public_token: publicToken,
                 institution: metadata.institution,

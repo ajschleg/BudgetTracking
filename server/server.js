@@ -6,6 +6,7 @@ import { dirname, join } from 'path';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import plaidRoutes from './routes/plaid.js';
 import { createWebhookRouter } from './routes/webhooks.js';
+import { requireAppToken } from './middleware/auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -37,10 +38,12 @@ const plaidClient = new PlaidApi(
   })
 );
 
-// Plaid API routes (app-facing)
-app.use('/api', plaidRoutes);
+// Plaid API routes (app-facing) — protected by bearer token.
+// The macOS app sends X-App-Token; other callers get 401.
+app.use('/api', requireAppToken, plaidRoutes);
 
-// Webhook receiver (Plaid-facing)
+// Webhook receiver (Plaid-facing) — unauthenticated, but each request
+// is verified via Plaid JWT signature inside the router.
 app.use('/webhook', createWebhookRouter(plaidClient));
 
 // Health check

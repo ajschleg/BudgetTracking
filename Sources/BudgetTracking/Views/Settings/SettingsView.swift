@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var ebayClientSecret: String = ""
     @State private var ebayRuName: String = ""
     @AppStorage("plaidServerURL") private var plaidServerURL = "http://localhost:8080"
+    @AppStorage("plaidAppToken") private var plaidAppToken = ""
     @State private var isLinkingAccount = false
 
     var body: some View {
@@ -100,6 +101,18 @@ struct SettingsView: View {
                                 .textFieldStyle(.roundedBorder)
 
                             Text("The URL of your Plaid backend server.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("App Auth Token")
+                                .font(.headline)
+
+                            SecureField("Shared secret (matches APP_AUTH_TOKEN on the server)", text: $plaidAppToken)
+                                .textFieldStyle(.roundedBorder)
+
+                            Text("Required if your server has APP_AUTH_TOKEN set. Blocks unauthorized callers on public (e.g. ngrok) URLs.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

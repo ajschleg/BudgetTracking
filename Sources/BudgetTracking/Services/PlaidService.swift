@@ -7,6 +7,14 @@ actor PlaidService {
         return URL(string: urlString)!
     }
 
+    /// Shared secret between this app and the server. Sent as X-App-Token
+    /// on every /api/* request so the server can reject unauthenticated
+    /// callers hitting its public ngrok URL. Stored in UserDefaults for
+    /// simplicity — swap for Keychain if this ever leaves a personal app.
+    static var appToken: String {
+        UserDefaults.standard.string(forKey: "plaidAppToken") ?? ""
+    }
+
     // MARK: - Response Types
 
     struct LinkTokenResponse: Codable {
@@ -139,6 +147,7 @@ actor PlaidService {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        addAuth(&request)
         return try await execute(request)
     }
 
@@ -148,6 +157,7 @@ actor PlaidService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        addAuth(&request)
         if let body {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
@@ -159,7 +169,16 @@ actor PlaidService {
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        addAuth(&request)
         return try await execute(request)
+    }
+
+    /// Attach the shared app token so the server accepts us.
+    private func addAuth(_ request: inout URLRequest) {
+        let token = PlaidService.appToken
+        if !token.isEmpty {
+            request.setValue(token, forHTTPHeaderField: "X-App-Token")
+        }
     }
 
     private func execute<T: Codable>(_ request: URLRequest) async throws -> T {
