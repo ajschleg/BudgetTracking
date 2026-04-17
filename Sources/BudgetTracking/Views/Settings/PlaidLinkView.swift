@@ -90,6 +90,11 @@ struct PlaidLinkWebView: NSViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
+        // UI delegate handles window.open() calls — Plaid Link uses them
+        // to launch bank OAuth pages (e.g. Chase). Without a UI delegate,
+        // WebKit silently drops the request and the "Continue to login"
+        // click does nothing.
+        webView.uiDelegate = context.coordinator
 
         if let oauthURI = oauthRedirectURI {
             // OAuth completion mode: load oauth.html with the received redirect URI
@@ -165,7 +170,7 @@ struct PlaidLinkWebView: NSViewRepresentable {
         webView.load(URLRequest(url: url))
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         let parent: PlaidLinkWebView
 
         init(_ parent: PlaidLinkWebView) {
@@ -195,6 +200,23 @@ struct PlaidLinkWebView: NSViewRepresentable {
                 NSWorkspace.shared.open(url)
                 decisionHandler(.cancel)
             }
+        }
+
+        // MARK: - UI Delegate (window.open handling)
+
+        /// Plaid Link calls `window.open(chaseURL)` to launch OAuth banks.
+        /// WebKit's default is to silently drop the popup, leaving the
+        /// user staring at the "Continue to login" button with no visible
+        /// effect. Route the popup URL to the system browser via the
+        /// same external-navigation path used by decidePolicyFor.
+        func webView(_ webView: WKWebView,
+                     createWebViewWith configuration: WKWebViewConfiguration,
+                     for navigationAction: WKNavigationAction,
+                     windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if let url = navigationAction.request.url {
+                NSWorkspace.shared.open(url)
+            }
+            return nil
         }
 
         // MARK: - Script Message Handler
