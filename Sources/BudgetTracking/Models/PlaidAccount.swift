@@ -12,6 +12,13 @@ struct PlaidAccount: Identifiable, Codable, Equatable {
     var subtype: String? // checking, savings, credit card
     var mask: String? // Last 4 digits
 
+    // Balance fields (populated by Plaid Balance product)
+    var balanceCurrent: Double?
+    var balanceAvailable: Double?
+    var balanceLimit: Double?
+    var balanceCurrencyCode: String?
+    var balanceFetchedAt: Date?
+
     // Sync fields
     var lastModifiedAt: Date
     var cloudKitRecordName: String?
@@ -28,6 +35,11 @@ struct PlaidAccount: Identifiable, Codable, Equatable {
         type: String? = nil,
         subtype: String? = nil,
         mask: String? = nil,
+        balanceCurrent: Double? = nil,
+        balanceAvailable: Double? = nil,
+        balanceLimit: Double? = nil,
+        balanceCurrencyCode: String? = nil,
+        balanceFetchedAt: Date? = nil,
         lastModifiedAt: Date = Date(),
         cloudKitRecordName: String? = nil,
         cloudKitSystemFields: Data? = nil,
@@ -42,6 +54,11 @@ struct PlaidAccount: Identifiable, Codable, Equatable {
         self.type = type
         self.subtype = subtype
         self.mask = mask
+        self.balanceCurrent = balanceCurrent
+        self.balanceAvailable = balanceAvailable
+        self.balanceLimit = balanceLimit
+        self.balanceCurrencyCode = balanceCurrencyCode
+        self.balanceFetchedAt = balanceFetchedAt
         self.lastModifiedAt = lastModifiedAt
         self.cloudKitRecordName = cloudKitRecordName
         self.cloudKitSystemFields = cloudKitSystemFields
@@ -63,6 +80,8 @@ extension PlaidAccount: FetchableRecord, PersistableRecord {
     enum Columns: String, ColumnExpression {
         case id, plaidAccountId, plaidItemId, institutionName
         case name, officialName, type, subtype, mask
+        case balanceCurrent, balanceAvailable, balanceLimit
+        case balanceCurrencyCode, balanceFetchedAt
         case lastModifiedAt, cloudKitRecordName, cloudKitSystemFields, isDeleted
     }
 }

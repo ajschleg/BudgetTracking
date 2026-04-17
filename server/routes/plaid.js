@@ -236,7 +236,7 @@ router.post('/transactions/sync', async (req, res) => {
   }
 });
 
-// GET /api/accounts — List all linked accounts
+// GET /api/accounts — List all linked accounts (with cached balances)
 router.get('/accounts', (_req, res) => {
   const accounts = db.prepare(`
     SELECT a.*, i.institution_name, i.institution_id, i.item_id as plaid_item_id_ref,
@@ -247,6 +247,109 @@ router.get('/accounts', (_req, res) => {
     ORDER BY i.institution_name, a.name
   `).all();
   res.json({ accounts });
+});
+
+// POST /api/balances/refresh — Fetch live balances from Plaid for all items.
+//
+// Hits /accounts/balance/get which forces a real-time pull from the bank
+// (as opposed to /accounts/get which can return cached data). Latency is
+// higher (p50 ~3s) and each call is billed, so this is gated behind an
+// explicit user action — we never refresh on app launch or automatically.
+//
+// Body (optional):
+//   { item_id: <local item UUID> }  — refresh a single item only.
+//   { min_age_seconds: 300 }        — skip items fetched more recently.
+router.post('/balances/refresh', async (req, res) => {
+  const { item_id, min_age_seconds } = req.body || {};
+
+  const items = item_id
+    ? db.prepare('SELECT * FROM plaid_items WHERE id = ?').all(item_id)
+    : db.prepare('SELECT * FROM plaid_items').all();
+
+  if (items.length === 0) {
+    return res.json({ refreshed: [], skipped: [], errors: [] });
+  }
+
+  const refreshed = [];
+  const skipped = [];
+  const errors = [];
+
+  const updateAccount = db.prepare(`
+    UPDATE plaid_accounts SET
+      balance_current = ?,
+      balance_available = ?,
+      balance_limit = ?,
+      balance_iso_currency_code = ?,
+      balance_last_updated_plaid = ?,
+      balance_fetched_at = datetime('now')
+    WHERE plaid_account_id = ?
+  `);
+
+  for (const item of items) {
+    // Optional freshness gate — skip if we refreshed recently.
+    if (min_age_seconds && Number.isFinite(min_age_seconds)) {
+      const stale = db.prepare(`
+        SELECT MIN(balance_fetched_at) AS oldest
+        FROM plaid_accounts
+        WHERE plaid_item_id = ?
+      `).get(item.id);
+      if (stale?.oldest) {
+        const ageMs = Date.now() - new Date(stale.oldest + 'Z').getTime();
+        if (ageMs < min_age_seconds * 1000) {
+          skipped.push({ item_id: item.id, reason: 'fresh' });
+          continue;
+        }
+      }
+    }
+
+    try {
+      const response = await plaidClient.accountsBalanceGet({
+        access_token: item.access_token,
+      });
+
+      const updatedAccounts = [];
+      for (const acct of response.data.accounts) {
+        const bal = acct.balances || {};
+        updateAccount.run(
+          bal.current ?? null,
+          bal.available ?? null,
+          bal.limit ?? null,
+          bal.iso_currency_code ?? bal.unofficial_currency_code ?? null,
+          bal.last_updated_datetime ?? null,
+          acct.account_id
+        );
+        updatedAccounts.push({
+          plaid_account_id: acct.account_id,
+          name: acct.name,
+          type: acct.type,
+          subtype: acct.subtype,
+          mask: acct.mask,
+          balance_current: bal.current ?? null,
+          balance_available: bal.available ?? null,
+          balance_limit: bal.limit ?? null,
+          balance_iso_currency_code: bal.iso_currency_code ?? null,
+        });
+      }
+
+      refreshed.push({
+        item_id: item.id,
+        institution_name: item.institution_name,
+        accounts: updatedAccounts,
+      });
+    } catch (error) {
+      console.error(
+        `[balances] Failed for item ${item.id}:`,
+        error.response?.data || error.message
+      );
+      errors.push({
+        item_id: item.id,
+        institution_name: item.institution_name,
+        error: error.response?.data?.error_message || error.message,
+      });
+    }
+  }
+
+  res.json({ refreshed, skipped, errors });
 });
 
 // DELETE /api/items/:id — Remove a linked institution

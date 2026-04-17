@@ -83,6 +83,43 @@ actor PlaidService {
         let success: Bool
     }
 
+    // MARK: - Balance Response Types
+
+    struct BalancesRefreshResponse: Codable {
+        let refreshed: [RefreshedItem]
+        let skipped: [SkippedItem]
+        let errors: [BalanceError]
+    }
+
+    struct RefreshedItem: Codable {
+        let item_id: String
+        let institution_name: String?
+        let accounts: [RefreshedAccount]
+    }
+
+    struct RefreshedAccount: Codable {
+        let plaid_account_id: String
+        let name: String?
+        let type: String?
+        let subtype: String?
+        let mask: String?
+        let balance_current: Double?
+        let balance_available: Double?
+        let balance_limit: Double?
+        let balance_iso_currency_code: String?
+    }
+
+    struct SkippedItem: Codable {
+        let item_id: String
+        let reason: String
+    }
+
+    struct BalanceError: Codable {
+        let item_id: String
+        let institution_name: String?
+        let error: String
+    }
+
     // MARK: - Error Types
 
     enum PlaidServiceError: LocalizedError {
@@ -138,6 +175,16 @@ actor PlaidService {
 
     func removeItem(_ itemId: String) async throws {
         let _: SuccessResponse = try await delete(path: "/api/items/\(itemId)")
+    }
+
+    /// Fetch live balances from Plaid via the server's /balances/refresh.
+    /// Each call bills for every item — surface it behind an explicit user
+    /// action. `minAgeSeconds` lets the server skip items we just refreshed.
+    func refreshBalances(itemId: String? = nil, minAgeSeconds: Int? = nil) async throws -> BalancesRefreshResponse {
+        var body: [String: Any] = [:]
+        if let itemId { body["item_id"] = itemId }
+        if let minAgeSeconds { body["min_age_seconds"] = minAgeSeconds }
+        return try await post(path: "/api/balances/refresh", body: body.isEmpty ? nil : body)
     }
 
     // MARK: - HTTP Helpers

@@ -36,6 +36,31 @@ extension DatabaseManager {
         }
     }
 
+    /// Update balance fields on a PlaidAccount row identified by the
+    /// Plaid account_id. Silent no-op if the row is missing.
+    func updatePlaidAccountBalance(
+        plaidAccountId: String,
+        current: Double?,
+        available: Double?,
+        limit: Double?,
+        currencyCode: String?,
+        fetchedAt: Date
+    ) throws {
+        try dbQueue.write { db in
+            guard var account = try PlaidAccount
+                .filter(PlaidAccount.Columns.plaidAccountId == plaidAccountId)
+                .fetchOne(db) else { return }
+
+            account.balanceCurrent = current
+            account.balanceAvailable = available
+            account.balanceLimit = limit
+            account.balanceCurrencyCode = currencyCode
+            account.balanceFetchedAt = fetchedAt
+            account.lastModifiedAt = fetchedAt
+            try account.update(db)
+        }
+    }
+
     // MARK: - Transaction Deduplication
 
     func transactionExists(externalId: String) throws -> Bool {

@@ -11,6 +11,11 @@ final class PlaidSyncManager {
     /// Set when an OAuth redirect is received; triggers PlaidLinkView in completion mode
     var pendingOAuthRedirectURI: String?
 
+    /// True while we are awaiting a response from /accounts/balance/get
+    /// via the server. Separate from isSyncing so the UI can show a
+    /// distinct spinner for balance refresh vs transaction sync.
+    var isRefreshingBalances = false
+
     private let plaidService = PlaidService()
 
     // MARK: - Account Management
@@ -53,6 +58,44 @@ final class PlaidSyncManager {
             try await plaidService.removeItem(account.plaidItemId)
             try DatabaseManager.shared.deletePlaidAccounts(forItemId: account.plaidItemId)
             loadAccounts()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Balance Refresh
+
+    /// Pull live balances from Plaid for every linked item. Surfaces
+    /// latency and cost so the UI can expose it behind an explicit button.
+    func refreshBalances() async {
+        isRefreshingBalances = true
+        errorMessage = nil
+        defer { isRefreshingBalances = false }
+
+        do {
+            let response = try await plaidService.refreshBalances()
+
+            // Persist fresh balances to the local DB
+            let fetchedAt = Date()
+            for item in response.refreshed {
+                for acct in item.accounts {
+                    try? DatabaseManager.shared.updatePlaidAccountBalance(
+                        plaidAccountId: acct.plaid_account_id,
+                        current: acct.balance_current,
+                        available: acct.balance_available,
+                        limit: acct.balance_limit,
+                        currencyCode: acct.balance_iso_currency_code,
+                        fetchedAt: fetchedAt
+                    )
+                }
+            }
+
+            loadAccounts()
+
+            if !response.errors.isEmpty {
+                let first = response.errors.first!
+                errorMessage = "Couldn't refresh \(first.institution_name ?? "account"): \(first.error)"
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

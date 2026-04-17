@@ -181,6 +181,12 @@ struct SettingsView: View {
                                                         .background(Color.secondary.opacity(0.1))
                                                         .cornerRadius(3)
                                                 }
+                                                Spacer()
+                                                if let current = account.balanceCurrent {
+                                                    Text(CurrencyFormatter.format(current, code: account.balanceCurrencyCode))
+                                                        .font(.caption.monospacedDigit())
+                                                        .foregroundStyle(.primary)
+                                                }
                                             }
                                             .padding(.leading, 20)
                                         }
@@ -203,8 +209,8 @@ struct SettingsView: View {
 
                         Divider()
 
-                        // Sync button
-                        HStack {
+                        // Action buttons
+                        HStack(spacing: 12) {
                             if plaidManager.isSyncing {
                                 ProgressView()
                                     .controlSize(.small)
@@ -218,6 +224,21 @@ struct SettingsView: View {
                                     Label("Sync Transactions", systemImage: "arrow.clockwise")
                                 }
                                 .disabled(plaidManager.linkedAccounts.isEmpty)
+
+                                if plaidManager.isRefreshingBalances {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Checking balances…")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    Button {
+                                        Task { await plaidManager.refreshBalances() }
+                                    } label: {
+                                        Label("Refresh Balances", systemImage: "dollarsign.arrow.circlepath")
+                                    }
+                                    .disabled(plaidManager.linkedAccounts.isEmpty)
+                                }
                             }
                         }
                     }

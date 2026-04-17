@@ -51,4 +51,23 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_webhook_events_received_at ON webhook_events(received_at);
 `);
 
+// Lightweight migration: add balance columns to plaid_accounts if missing.
+// Balance responses include current/available balance, limit (for credit
+// cards), the account currency, and a timestamp of when Plaid last got
+// the figure from the bank. We also store our own fetched_at so the
+// macOS app can show "last refreshed" text.
+function addColumnIfMissing(table, column, typeDecl) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeDecl}`);
+  }
+}
+
+addColumnIfMissing('plaid_accounts', 'balance_current', 'REAL');
+addColumnIfMissing('plaid_accounts', 'balance_available', 'REAL');
+addColumnIfMissing('plaid_accounts', 'balance_limit', 'REAL');
+addColumnIfMissing('plaid_accounts', 'balance_iso_currency_code', 'TEXT');
+addColumnIfMissing('plaid_accounts', 'balance_last_updated_plaid', 'TEXT');
+addColumnIfMissing('plaid_accounts', 'balance_fetched_at', 'TEXT');
+
 export default db;

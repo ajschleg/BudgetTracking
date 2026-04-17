@@ -288,6 +288,16 @@ final class DatabaseManager {
             )
         }
 
+        migrator.registerMigration("v8_addPlaidBalanceColumns") { db in
+            try db.alter(table: "plaidAccount") { t in
+                t.add(column: "balanceCurrent", .double)
+                t.add(column: "balanceAvailable", .double)
+                t.add(column: "balanceLimit", .double)
+                t.add(column: "balanceCurrencyCode", .text)
+                t.add(column: "balanceFetchedAt", .datetime)
+            }
+        }
+
         try migrator.migrate(dbQueue)
     }
 
