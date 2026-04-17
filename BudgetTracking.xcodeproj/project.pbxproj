@@ -123,6 +123,7 @@
 		A0A7102F9EF100480EA3BEE0 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDACD8F8DF659FDD26EF7120 /* SettingsView.swift */; };
 		A1795BED0494373F2A9BCE7B /* COGSEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6ABE1557E9F882FFFF72047 /* COGSEditorView.swift */; };
 		A250FAA6AA91909BBB3491C0 /* EbayFee.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0A4D4CF27E36301EC7A040 /* EbayFee.swift */; };
+		A7CBE7B8CBDC734BFC9194A1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4C9F057F7944FB5FCD82A062 /* Assets.xcassets */; };
 		A90200F70880D90638893DB9 /* MonthlySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7619A21E784D3733842F06AB /* MonthlySnapshot.swift */; };
 		A99390672F51AD8AAAB0F260 /* LANSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BA7808B805B4F38D7302BAE /* LANSyncEngine.swift */; };
 		AA953FDFC1D12F336EB2EE0D /* EbayEarningsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D794553C3B7A2870527C9C /* EbayEarningsViewModel.swift */; };
@@ -160,6 +161,7 @@
 		D00F9EF69575ABE78788B4CF /* PlaidLinkNativeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C51D6D65076A36BA3B83198F /* PlaidLinkNativeView.swift */; };
 		D1F4ECC3AD1B0068F26DF027 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 307BCBEDFB636BDB931C5D56 /* ContentView.swift */; };
 		D271214CBA02242D39C1858A /* EbayAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F5BD0514DFCEDE5098BF5D3 /* EbayAPIService.swift */; };
+		D33EBA4DFD2DC226997C4FC1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4C9F057F7944FB5FCD82A062 /* Assets.xcassets */; };
 		D3B7601F67FB4CA699F1AC32 /* XLSXParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75259CAB67C26E053906C004 /* XLSXParser.swift */; };
 		D3C509DBC43307381F8393FE /* ConflictResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F647A3AD0CF01EECA79DAE /* ConflictResolver.swift */; };
 		D3EF3082BB548E7585F49415 /* PlaidSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690D8EABCC7787A3941782DA /* PlaidSyncManager.swift */; };
@@ -249,6 +251,7 @@
 		47794CD4CE264DCABF650F6F /* SyncStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStateStore.swift; sourceTree = "<group>"; };
 		483034A4379587D3D92B9DE4 /* ColorThresholds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorThresholds.swift; sourceTree = "<group>"; };
 		49BEC4E6C384AF003FC2308F /* EbayPayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayPayout.swift; sourceTree = "<group>"; };
+		4C9F057F7944FB5FCD82A062 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		500C712221C092D00861F3F1 /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
 		50183D2237253558FB109BCF /* LANSyncStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LANSyncStateStore.swift; sourceTree = "<group>"; };
 		526F8721F1A64F0D88D2C518 /* BankProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankProfile.swift; sourceTree = "<group>"; };
@@ -539,6 +542,7 @@
 		9983E59C0C02407AAF9DE856 /* BudgetTracking */ = {
 			isa = PBXGroup;
 			children = (
+				4C9F057F7944FB5FCD82A062 /* Assets.xcassets */,
 				A789E73759CED466B7C73C35 /* BudgetTrackingApp.swift */,
 				307BCBEDFB636BDB931C5D56 /* ContentView.swift */,
 				E90B9AD6A8B1C57D3EC57F09 /* Info.plist */,
@@ -654,6 +658,7 @@
 			buildConfigurationList = 03AD375517E0FEA51F2C2C3D /* Build configuration list for PBXNativeTarget "BudgetTracking-iOS" */;
 			buildPhases = (
 				2135B7D155568684B5ECFAE3 /* Sources */,
+				D4337962B9EA4D58AD5430B4 /* Resources */,
 				E4B522EC86AD7BE8725C34EB /* Frameworks */,
 			);
 			buildRules = (
@@ -676,6 +681,7 @@
 			buildConfigurationList = 3A71E4504438446C921041B0 /* Build configuration list for PBXNativeTarget "BudgetTracking" */;
 			buildPhases = (
 				32988E60830242F7921B6A62 /* Sources */,
+				E4677EDB0F569B41FB184BB0 /* Resources */,
 				FE55D480B1EA988A60CAC12A /* Frameworks */,
 			);
 			buildRules = (
@@ -737,6 +743,25 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D4337962B9EA4D58AD5430B4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A7CBE7B8CBDC734BFC9194A1 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E4677EDB0F569B41FB184BB0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D33EBA4DFD2DC226997C4FC1 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2135B7D155568684B5ECFAE3 /* Sources */ = {

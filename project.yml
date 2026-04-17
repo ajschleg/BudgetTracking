@@ -36,6 +36,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "5.10"
         ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "BudgetTracking uses the local network to sync budget data with nearby devices."
         INFOPLIST_KEY_NSBonjourServices: "_budgetsync._tcp"
     info:
@@ -70,6 +71,7 @@ targets:
         INFOPLIST_KEY_NSBonjourServices: "_budgetsync._tcp"
         TARGETED_DEVICE_FAMILY: "1,2"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
       path: Sources/BudgetTracking/Info.plist
       properties:
