@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { createHash } from 'crypto';
 import * as jose from 'jose';
 import db from '../db.js';
+import { decrypt } from '../lib/crypto.js';
 
 /**
  * Plaid webhook receiver with signature verification.
@@ -158,7 +159,7 @@ export function createWebhookRouter(plaidClient) {
 
     try {
       const request = {
-        access_token: item.access_token,
+        access_token: decrypt(item.access_token),
         webhook_code,
       };
       if (webhook_type) {
@@ -339,7 +340,7 @@ function markPendingUpdate(localItemId, { initial = false, historical = false } 
  * Fetch the current account list and upsert any new ones.
  */
 async function handleNewAccountsAvailable(plaidClient, item) {
-  const response = await plaidClient.accountsGet({ access_token: item.access_token });
+  const response = await plaidClient.accountsGet({ access_token: decrypt(item.access_token) });
   const accounts = response.data.accounts;
 
   const insertAccount = db.prepare(`

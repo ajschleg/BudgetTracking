@@ -3,6 +3,18 @@ import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } fro
 import { v4 as uuidv4 } from 'uuid';
 import db from '../db.js';
 import { markNeedsUpdate, clearNeedsUpdate } from './webhooks.js';
+import { encrypt, decrypt } from '../lib/crypto.js';
+
+/**
+ * Extract the plaintext access_token from a plaid_items row. The value
+ * is stored encrypted on disk (AES-256-GCM via ../lib/crypto.js) and
+ * must be decrypted before any Plaid API call. Throws on tamper or
+ * wrong key — callers should not swallow the error, since continuing
+ * with a garbled token would result in confusing Plaid responses.
+ */
+function tokenOf(item) {
+  return decrypt(item.access_token);
+}
 
 const router = Router();
 
@@ -120,7 +132,7 @@ router.post('/link/create-update', async (req, res) => {
       client_name: 'BudgetTracking',
       country_codes: [CountryCode.Us],
       language: 'en',
-      access_token: item.access_token,
+      access_token: tokenOf(item),
     };
     if (redirect_uri) tokenRequest.redirect_uri = redirect_uri;
     if (process.env.PLAID_WEBHOOK_URL) {
@@ -161,7 +173,7 @@ router.post('/items/:id/clear-update', async (req, res) => {
   // accounts will no longer be shared with you."
   if (reconcile) {
     try {
-      const response = await plaidClient.accountsGet({ access_token: item.access_token });
+      const response = await plaidClient.accountsGet({ access_token: tokenOf(item) });
       const sharedAccountIds = new Set(response.data.accounts.map((a) => a.account_id));
 
       // Drop accounts that are no longer shared.
@@ -246,7 +258,7 @@ router.post('/identity/refresh', async (req, res) => {
 
   for (const item of items) {
     try {
-      await fetchAndStoreIdentity(item.access_token, item.id);
+      await fetchAndStoreIdentity(tokenOf(item), item.id);
       refreshed.push({ item_id: item.id, institution_name: item.institution_name });
     } catch (error) {
       console.error(
@@ -284,7 +296,7 @@ router.post('/items/:id/webhook', async (req, res) => {
 
   try {
     await plaidClient.itemWebhookUpdate({
-      access_token: item.access_token,
+      access_token: tokenOf(item),
       webhook,
     });
     res.json({ success: true, webhook });
@@ -317,7 +329,8 @@ router.post('/link/exchange', async (req, res) => {
     const accountsResponse = await plaidClient.accountsGet({ access_token });
     const accounts = accountsResponse.data.accounts;
 
-    // Save item to DB
+    // Save item to DB. Access token is encrypted at rest — see
+    // ../lib/crypto.js. Plaintext never touches SQLite.
     const itemId = uuidv4();
     db.prepare(`
       INSERT OR REPLACE INTO plaid_items (id, item_id, access_token, institution_id, institution_name)
@@ -325,7 +338,7 @@ router.post('/link/exchange', async (req, res) => {
     `).run(
       itemId,
       item_id,
-      access_token,
+      encrypt(access_token),
       institution?.institution_id || null,
       institution?.name || null
     );
@@ -569,7 +582,7 @@ router.post('/balances/refresh', async (req, res) => {
 
     try {
       const response = await plaidClient.accountsBalanceGet({
-        access_token: item.access_token,
+        access_token: tokenOf(item),
       });
 
       const updatedAccounts = [];
@@ -635,7 +648,7 @@ router.delete('/items/:id', async (req, res) => {
   }
 
   try {
-    await plaidClient.itemRemove({ access_token: item.access_token });
+    await plaidClient.itemRemove({ access_token: tokenOf(item) });
   } catch (error) {
     // Log but continue — if the Plaid call fails (access token already
     // invalidated, rate limit, etc.), we still want to drop our local
@@ -667,7 +680,7 @@ router.delete('/items', async (_req, res) => {
 
   for (const item of items) {
     try {
-      await plaidClient.itemRemove({ access_token: item.access_token });
+      await plaidClient.itemRemove({ access_token: tokenOf(item) });
       removed.push({ item_id: item.id, institution_name: item.institution_name });
     } catch (error) {
       console.error(
@@ -724,7 +737,7 @@ async function syncTransactionsForItem(item, maxAttempts = 3) {
     try {
       while (hasMore) {
         const response = await plaidClient.transactionsSync({
-          access_token: item.access_token,
+          access_token: tokenOf(item),
           cursor,
           count: 500,
         });

@@ -10,6 +10,9 @@ Exports/
 server/node_modules/
 server/.env
 server/plaid.db
+server/plaid.db-shm
+server/plaid.db-wal
+server/.encryption-key
 
 # Duplicate Xcode project created manually (not used)
 BudgetTracking/BudgetTracking.xcodeproj/

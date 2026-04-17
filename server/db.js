@@ -1,9 +1,17 @@
 import Database from 'better-sqlite3';
+import { chmodSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { encrypt, isEncrypted } from './lib/crypto.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const db = new Database(join(__dirname, 'plaid.db'));
+const dbPath = join(__dirname, 'plaid.db');
+const db = new Database(dbPath);
+
+// Restrict the DB file to owner-only read/write. Even with access-token
+// encryption, other columns (institution_id, webhook history) should not
+// be world-readable.
+try { chmodSync(dbPath, 0o600); } catch { /* best-effort on non-POSIX */ }
 
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
@@ -97,5 +105,27 @@ addColumnIfMissing('sync_cursors', 'pending_update_available', 'INTEGER DEFAULT 
 addColumnIfMissing('plaid_items', 'needs_update', 'INTEGER DEFAULT 0');
 addColumnIfMissing('plaid_items', 'needs_update_reason', 'TEXT');
 addColumnIfMissing('plaid_items', 'needs_update_detected_at', 'TEXT');
+
+// One-time migration: encrypt any plaintext access tokens in place.
+// isEncrypted() detects the v1 blob prefix, so running this multiple
+// times is a no-op. New tokens go in encrypted from the start (see
+// routes/plaid.js).
+(function migratePlaintextTokens() {
+  const rows = db.prepare('SELECT id, access_token FROM plaid_items').all();
+  const update = db.prepare('UPDATE plaid_items SET access_token = ? WHERE id = ?');
+  let migrated = 0;
+  const migrateAll = db.transaction(() => {
+    for (const row of rows) {
+      if (!isEncrypted(row.access_token)) {
+        update.run(encrypt(row.access_token), row.id);
+        migrated++;
+      }
+    }
+  });
+  migrateAll();
+  if (migrated > 0) {
+    console.log(`[crypto] Encrypted ${migrated} legacy access token(s) at rest`);
+  }
+})();
 
 export default db;
