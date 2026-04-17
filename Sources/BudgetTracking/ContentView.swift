@@ -88,29 +88,37 @@ struct ContentView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
         } detail: {
-            switch selectedItem {
-            case .dashboard:
-                DashboardView(selectedMonth: $selectedMonth, selectedItem: $selectedItem, aiViewModel: insightsViewModel)
-            case .income:
-                IncomeTabView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel, ebayAuthManager: ebayAuthManager)
-            case .transactions:
-                TransactionsListView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
-            case .importStatements:
-                ImportView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
-            case .categories:
-                CategoriesSettingsView(aiViewModel: insightsViewModel)
-            case .history:
-                HistoryView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
-            case .insights:
-                InsightsView(selectedMonth: $selectedMonth, viewModel: insightsViewModel)
-            case .sync:
-                SyncSettingsView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine)
-            case .settings:
-                SettingsView(aiViewModel: insightsViewModel, ebayAuthManager: ebayAuthManager, plaidManager: plaidManager)
-            case nil:
-                Text("Select an item from the sidebar")
-                    .foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                // Global banner for any Plaid item needing update mode.
+                // Auto-hides when LOGIN_REPAIRED or successful reconnect
+                // clears the needs_update flag on the server.
+                PlaidUpdateBanner(plaidManager: plaidManager)
+
+                switch selectedItem {
+                case .dashboard:
+                    DashboardView(selectedMonth: $selectedMonth, selectedItem: $selectedItem, aiViewModel: insightsViewModel)
+                case .income:
+                    IncomeTabView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel, ebayAuthManager: ebayAuthManager)
+                case .transactions:
+                    TransactionsListView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
+                case .importStatements:
+                    ImportView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
+                case .categories:
+                    CategoriesSettingsView(aiViewModel: insightsViewModel)
+                case .history:
+                    HistoryView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
+                case .insights:
+                    InsightsView(selectedMonth: $selectedMonth, viewModel: insightsViewModel)
+                case .sync:
+                    SyncSettingsView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine)
+                case .settings:
+                    SettingsView(aiViewModel: insightsViewModel, ebayAuthManager: ebayAuthManager, plaidManager: plaidManager)
+                case nil:
+                    Text("Select an item from the sidebar")
+                        .foregroundStyle(.secondary)
+                }
             }
+            .animation(.snappy, value: plaidManager.itemsNeedingUpdate.map(\.id))
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
