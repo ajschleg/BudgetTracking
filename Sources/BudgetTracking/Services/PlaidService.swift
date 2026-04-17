@@ -143,6 +143,22 @@ actor PlaidService {
         let institution_name: String?
     }
 
+    // MARK: - Transactions Status
+
+    struct TransactionsStatusResponse: Codable {
+        let items: [TransactionsStatusItem]
+    }
+
+    struct TransactionsStatusItem: Codable {
+        let id: String
+        let item_id: String
+        let institution_name: String?
+        let initial_update_complete: Bool
+        let historical_update_complete: Bool
+        let pending_update_available: Bool
+        let last_synced_at: String?
+    }
+
     // MARK: - Error Types
 
     enum PlaidServiceError: LocalizedError {
@@ -217,6 +233,13 @@ actor PlaidService {
         var body: [String: Any] = [:]
         if let itemId { body["item_id"] = itemId }
         return try await post(path: "/api/identity/refresh", body: body.isEmpty ? nil : body)
+    }
+
+    /// Cheap, read-only status of each item's sync lifecycle. Use this
+    /// on app launch to decide whether to auto-sync (pending flag) or
+    /// show "still backfilling..." (historical flag not yet set).
+    func fetchTransactionsStatus() async throws -> TransactionsStatusResponse {
+        try await get(path: "/api/transactions/status")
     }
 
     // MARK: - HTTP Helpers

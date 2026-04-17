@@ -19,6 +19,11 @@ final class PlaidSyncManager {
     /// True while a manual /identity/refresh call is in flight.
     var isRefreshingIdentity = false
 
+    /// Most recent sync-lifecycle status from the server, keyed by item.
+    /// Populated by checkTransactionsStatus(); drives UI hints like
+    /// "still backfilling" and "new transactions waiting".
+    var itemStatuses: [PlaidService.TransactionsStatusItem] = []
+
     private let plaidService = PlaidService()
 
     // MARK: - Account Management
@@ -122,6 +127,36 @@ final class PlaidSyncManager {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - Transactions Status
+
+    /// Poll the server for per-item sync lifecycle state. Cheap, read-only
+    /// call (no Plaid API hits); safe to run on app launch. If the server
+    /// reports pending updates for any item, auto-kick a transactions sync.
+    func checkTransactionsStatus(autoSyncIfPending: Bool = true) async {
+        do {
+            let response = try await plaidService.fetchTransactionsStatus()
+            itemStatuses = response.items
+
+            if autoSyncIfPending,
+               response.items.contains(where: { $0.pending_update_available }),
+               !isSyncing {
+                await syncTransactions()
+            }
+        } catch {
+            // Status is a best-effort signal; don't surface an error
+            // just because the server is offline. The manual Sync
+            // button will still work.
+        }
+    }
+
+    /// True if any linked item is still backfilling historical
+    /// transactions. UI can use this to show a "still fetching history…"
+    /// hint instead of an empty dashboard.
+    var isHistoricalBackfillInProgress: Bool {
+        guard !itemStatuses.isEmpty else { return false }
+        return itemStatuses.contains { !$0.historical_update_complete }
     }
 
     // MARK: - Identity Refresh

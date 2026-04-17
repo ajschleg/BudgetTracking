@@ -201,6 +201,17 @@ struct SettingsView: View {
                                 }
                             }
 
+                            if plaidManager.isHistoricalBackfillInProgress {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                        .foregroundStyle(.blue)
+                                        .font(.caption)
+                                    Text("Plaid is still backfilling historical transactions. Older data will appear over the next few hours.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
                             if let error = plaidManager.errorMessage {
                                 HStack(spacing: 4) {
                                     Image(systemName: "exclamationmark.triangle.fill")

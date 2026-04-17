@@ -34,6 +34,12 @@ router.post('/link/create', async (req, res) => {
       required_if_supported_products: [Products.Identity],
       country_codes: [CountryCode.Us],
       language: 'en',
+      // Ask for a year of history instead of the 90-day default. Budget
+      // tracking benefits from year-over-year comparisons, and backfill
+      // is free (Plaid bills on sync calls, not on history depth).
+      transactions: {
+        days_requested: 365,
+      },
     };
 
     // Include redirect_uri for OAuth bank support
@@ -295,43 +301,17 @@ router.post('/transactions/sync', async (req, res) => {
     const allRemoved = [];
 
     for (const item of items) {
-      // Get current cursor
-      const cursorRow = db.prepare(
-        'SELECT cursor FROM sync_cursors WHERE plaid_item_id = ?'
-      ).get(item.id);
-      let cursor = cursorRow?.cursor || undefined;
-      let hasMore = true;
-
-      while (hasMore) {
-        const response = await plaidClient.transactionsSync({
-          access_token: item.access_token,
-          cursor,
-          count: 500,
-        });
-
-        const data = response.data;
-
-        // Map transactions to a clean format
-        for (const txn of data.added) {
-          allAdded.push(mapTransaction(txn, item));
-        }
-        for (const txn of data.modified) {
-          allModified.push(mapTransaction(txn, item));
-        }
-        for (const id of data.removed) {
-          allRemoved.push({ transaction_id: id.transaction_id, item_id: item.id });
-        }
-
-        cursor = data.next_cursor;
-        hasMore = data.has_more;
-      }
-
-      // Update cursor
-      db.prepare(`
-        UPDATE sync_cursors SET cursor = ?, last_synced_at = datetime('now')
-        WHERE plaid_item_id = ?
-      `).run(cursor, item.id);
+      const result = await syncTransactionsForItem(item);
+      allAdded.push(...result.added);
+      allModified.push(...result.modified);
+      allRemoved.push(...result.removed);
     }
+
+    // Clear the webhook-set "new data pending" flag now that the app
+    // has the latest state. Keep initial/historical completion flags.
+    db.prepare(`
+      UPDATE sync_cursors SET pending_update_available = 0
+    `).run();
 
     res.json({
       added: allAdded,
@@ -342,6 +322,34 @@ router.post('/transactions/sync', async (req, res) => {
     console.error('Error syncing transactions:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to sync transactions' });
   }
+});
+
+// GET /api/transactions/status — Sync lifecycle state per item.
+// The app hits this on launch to decide whether to show "still
+// backfilling..." messaging or automatically trigger a sync because
+// new data is waiting.
+router.get('/transactions/status', (_req, res) => {
+  const rows = db.prepare(`
+    SELECT i.id, i.item_id, i.institution_name,
+           COALESCE(sc.initial_update_complete, 0) AS initial_update_complete,
+           COALESCE(sc.historical_update_complete, 0) AS historical_update_complete,
+           COALESCE(sc.pending_update_available, 0) AS pending_update_available,
+           sc.last_synced_at
+    FROM plaid_items i
+    LEFT JOIN sync_cursors sc ON sc.plaid_item_id = i.id
+  `).all();
+
+  res.json({
+    items: rows.map((r) => ({
+      id: r.id,
+      item_id: r.item_id,
+      institution_name: r.institution_name,
+      initial_update_complete: !!r.initial_update_complete,
+      historical_update_complete: !!r.historical_update_complete,
+      pending_update_available: !!r.pending_update_available,
+      last_synced_at: r.last_synced_at,
+    })),
+  });
 });
 
 // GET /api/accounts — List all linked accounts (with cached balances)
@@ -480,6 +488,79 @@ router.delete('/items/:id', async (req, res) => {
   db.prepare('DELETE FROM plaid_items WHERE id = ?').run(id);
   res.json({ success: true });
 });
+
+/**
+ * Sync transactions for one item via /transactions/sync.
+ *
+ * Handles two subtleties from the Plaid docs:
+ *
+ * 1. Pagination mutation: if Plaid has new data DURING our pagination
+ *    walk, the API returns TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION.
+ *    We catch that, restart from the cursor we started this call with,
+ *    and try again (up to 3 times to avoid infinite loops).
+ *
+ * 2. The cursor we persist is the one from the LAST page. We must not
+ *    persist intermediate cursors — if we crash mid-pagination, we
+ *    should resume from the same starting cursor, not a half-consumed
+ *    middle cursor.
+ */
+async function syncTransactionsForItem(item, maxAttempts = 3) {
+  const cursorRow = db
+    .prepare('SELECT cursor FROM sync_cursors WHERE plaid_item_id = ?')
+    .get(item.id);
+  const startingCursor = cursorRow?.cursor || undefined;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const added = [];
+    const modified = [];
+    const removed = [];
+
+    let cursor = startingCursor;
+    let hasMore = true;
+    let finalCursor = startingCursor;
+
+    try {
+      while (hasMore) {
+        const response = await plaidClient.transactionsSync({
+          access_token: item.access_token,
+          cursor,
+          count: 500,
+        });
+        const data = response.data;
+
+        for (const txn of data.added) added.push(mapTransaction(txn, item));
+        for (const txn of data.modified) modified.push(mapTransaction(txn, item));
+        for (const id of data.removed) {
+          removed.push({ transaction_id: id.transaction_id, item_id: item.id });
+        }
+
+        cursor = data.next_cursor;
+        finalCursor = cursor;
+        hasMore = data.has_more;
+      }
+
+      // Pagination finished cleanly — persist the final cursor.
+      db.prepare(`
+        UPDATE sync_cursors SET cursor = ?, last_synced_at = datetime('now')
+        WHERE plaid_item_id = ?
+      `).run(finalCursor, item.id);
+
+      return { added, modified, removed };
+    } catch (error) {
+      const code = error.response?.data?.error_code;
+      if (code === 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION' && attempt < maxAttempts) {
+        console.warn(
+          `[transactions] Mutation during pagination for item ${item.id}; retry ${attempt}/${maxAttempts - 1}`
+        );
+        continue; // restart from startingCursor
+      }
+      throw error;
+    }
+  }
+
+  // Shouldn't reach here (loop returns or throws), but satisfy the linter
+  return { added: [], modified: [], removed: [] };
+}
 
 // Map a Plaid transaction to our clean format
 function mapTransaction(txn, item) {

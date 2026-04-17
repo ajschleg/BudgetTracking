@@ -139,6 +139,12 @@ struct ContentView: View {
                 oauthRedirectURI: plaidManager.pendingOAuthRedirectURI
             )
         }
+        .task {
+            // On launch, ask the server whether any items have pending
+            // webhook-delivered updates. If yes, auto-sync so the user
+            // sees fresh transactions without touching Settings.
+            await plaidManager.checkTransactionsStatus(autoSyncIfPending: true)
+        }
     }
 
     // MARK: - Toolbar Sync Button

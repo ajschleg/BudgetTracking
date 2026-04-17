@@ -79,4 +79,13 @@ addColumnIfMissing('plaid_accounts', 'owner_phone', 'TEXT');
 addColumnIfMissing('plaid_accounts', 'owners_json', 'TEXT');
 addColumnIfMissing('plaid_accounts', 'identity_fetched_at', 'TEXT');
 
+// Transactions lifecycle flags (per item). Plaid fetches history in two
+// phases — a fast "last 30 days" pass (initial_update_complete) and a
+// slower full backfill (historical_update_complete). We surface both to
+// the app so the UI can show "still backfilling, check back later"
+// messaging instead of a misleading empty state.
+addColumnIfMissing('sync_cursors', 'initial_update_complete', 'INTEGER DEFAULT 0');
+addColumnIfMissing('sync_cursors', 'historical_update_complete', 'INTEGER DEFAULT 0');
+addColumnIfMissing('sync_cursors', 'pending_update_available', 'INTEGER DEFAULT 0');
+
 export default db;

@@ -204,9 +204,21 @@ async function handleWebhook(plaidClient, payload) {
 
     case 'TRANSACTIONS:SYNC_UPDATES_AVAILABLE':
     case 'TRANSACTIONS:DEFAULT_UPDATE':
-      // The next /transactions/sync call will pick up the new data
-      // via the cursor. Nothing to do synchronously.
-      console.log(`[webhook] Transactions updates available for ${item_id}`);
+      handleTransactionsUpdate(item, payload);
+      break;
+
+    case 'TRANSACTIONS:INITIAL_UPDATE':
+      // Legacy (/transactions/get) webhook — we use /transactions/sync,
+      // but some institutions still send this. Treat it like a generic
+      // update: mark pending and note initial completion.
+      markPendingUpdate(item.id, { initial: true });
+      break;
+
+    case 'TRANSACTIONS:HISTORICAL_UPDATE':
+      // Legacy historical-completion signal for /transactions/get. Mark
+      // historical complete so the UI can drop any "still backfilling"
+      // messaging.
+      markPendingUpdate(item.id, { historical: true });
       break;
 
     case 'ITEM:PENDING_DISCONNECT':
@@ -220,6 +232,46 @@ async function handleWebhook(plaidClient, payload) {
     default:
       console.log(`[webhook] Unhandled: ${webhook_type}/${webhook_code}`);
   }
+}
+
+/**
+ * Handle a TRANSACTIONS:SYNC_UPDATES_AVAILABLE webhook.
+ *
+ * Plaid includes two flags we care about:
+ *   - initial_update_complete: the fast 30-day sync finished
+ *   - historical_update_complete: the full backfill finished
+ *
+ * We persist both flags per item and mark pending_update_available so
+ * the app can show "new transactions waiting" and pull them on its next
+ * /api/transactions/sync call.
+ */
+function handleTransactionsUpdate(item, payload) {
+  const initial = payload.initial_update_complete === true;
+  const historical = payload.historical_update_complete === true;
+  markPendingUpdate(item.id, { initial, historical });
+
+  const flags = [];
+  if (initial) flags.push('initial_complete');
+  if (historical) flags.push('historical_complete');
+  console.log(
+    `[webhook] SYNC_UPDATES_AVAILABLE for ${item.item_id}` +
+      (flags.length ? ` (${flags.join(', ')})` : '')
+  );
+}
+
+/**
+ * Flip per-item lifecycle flags without clobbering the cursor. The flags
+ * are sticky (once true, stay true) because Plaid will not re-send the
+ * completion webhook for an item.
+ */
+function markPendingUpdate(localItemId, { initial = false, historical = false } = {}) {
+  db.prepare(`
+    UPDATE sync_cursors SET
+      pending_update_available = 1,
+      initial_update_complete = CASE WHEN ? THEN 1 ELSE initial_update_complete END,
+      historical_update_complete = CASE WHEN ? THEN 1 ELSE historical_update_complete END
+    WHERE plaid_item_id = ?
+  `).run(initial ? 1 : 0, historical ? 1 : 0, localItemId);
 }
 
 /**
