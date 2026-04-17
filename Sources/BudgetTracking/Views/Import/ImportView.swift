@@ -17,92 +17,123 @@ struct ImportView: View {
     @State private var hasPlaidConnection = false
 
     var body: some View {
+        // No .navigationTitle here — this view is embedded inside
+        // AccountsView which sets the title for the whole page.
+        baseLayout
+            .onAppear { handleAppear() }
+            .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
+                viewModel.loadImportedFiles(month: selectedMonth)
+            }
+            .onChange(of: selectedMonth) { _, newMonth in handleMonthChanged(newMonth) }
+            .onChange(of: viewModel.detectedMonth) { _, detected in handleDetectedMonthChanged(detected) }
+            .alert("Duplicate File Detected", isPresented: $viewModel.showDuplicateAlert) {
+                duplicateAlertButtons
+            } message: {
+                duplicateAlertMessage
+            }
+            .alert("Delete Statement?", isPresented: $showDeleteConfirmation) {
+                deleteAlertButtons
+            } message: {
+                deleteAlertMessage
+            }
+    }
+
+    @ViewBuilder
+    private var baseLayout: some View {
         VStack(spacing: 0) {
             HSplitView {
-                // Left: Import area
                 VStack(spacing: 16) {
                     MonthSelectorView(selectedMonth: $selectedMonth)
                         .padding(.top, 8)
-
                     importContent
                 }
                 .frame(minWidth: 400)
-
-                // Right: Imported files list
                 importedFilesList
                     .frame(minWidth: 250, idealWidth: 300)
             }
-
             if aiViewModel.isAPIKeyConfigured {
                 AIChatBar(
                     viewModel: aiViewModel,
                     actions: [
                         AIChatAction(label: "Help with Import", icon: "sparkles") {
-                            await aiViewModel.askAI(page: .importStatements)
+                            await aiViewModel.askAI(page: .accounts)
                         }
                     ],
-                    page: .importStatements
+                    page: .accounts
                 )
             }
         }
-        .navigationTitle("Import Statements")
-        .onAppear {
-            viewModel.loadImportedFiles(month: selectedMonth)
-            // A linked Plaid account (regardless of sync state) means
-            // the user already has automatic transaction delivery —
-            // manual imports are probably just for backfill.
-            hasPlaidConnection = (try? DatabaseManager.shared.fetchPlaidAccounts().isEmpty == false) ?? false
+    }
+
+    // MARK: - Lifecycle handlers
+
+    private func handleAppear() {
+        viewModel.loadImportedFiles(month: selectedMonth)
+        // A linked Plaid account (regardless of sync state) means the
+        // user already has automatic transaction delivery — manual
+        // imports are probably just for backfill.
+        hasPlaidConnection = (try? DatabaseManager.shared.fetchPlaidAccounts().isEmpty == false) ?? false
+    }
+
+    private func handleMonthChanged(_ newMonth: String) {
+        viewModel.loadImportedFiles(month: newMonth)
+        // Only reset when no import is actively in progress. Prevents
+        // auto-detection month changes from destroying the preview
+        // while still resetting on manual month changes.
+        switch viewModel.state {
+        case .idle, .done, .error:
+            viewModel.reset()
+        default:
+            break
         }
-        .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
-            viewModel.loadImportedFiles(month: selectedMonth)
+    }
+
+    private func handleDetectedMonthChanged(_ detected: String?) {
+        if let detected, detected != selectedMonth {
+            selectedMonth = detected
+            viewModel.loadImportedFiles(month: detected)
         }
-        .onChange(of: selectedMonth) { _, newMonth in
-            viewModel.loadImportedFiles(month: newMonth)
-            // Only reset when no import is actively in progress.
-            // This prevents auto-detection month changes from destroying
-            // the preview, while still resetting on manual month changes.
-            switch viewModel.state {
-            case .idle, .done, .error:
-                viewModel.reset()
-            default:
-                break
-            }
+    }
+
+    // MARK: - Alert content
+
+    @ViewBuilder
+    private var duplicateAlertButtons: some View {
+        Button("Import Anyway") {
+            viewModel.handleDuplicateAction(.importAnyway, month: selectedMonth)
         }
-        .onChange(of: viewModel.detectedMonth) { _, detected in
-            if let detected, detected != selectedMonth {
-                selectedMonth = detected
-                viewModel.loadImportedFiles(month: detected)
-            }
+        Button("Replace Existing") {
+            viewModel.handleDuplicateAction(.replace, month: selectedMonth)
         }
-        .alert("Duplicate File Detected", isPresented: $viewModel.showDuplicateAlert) {
-            Button("Import Anyway") {
-                viewModel.handleDuplicateAction(.importAnyway, month: selectedMonth)
-            }
-            Button("Replace Existing") {
-                viewModel.handleDuplicateAction(.replace, month: selectedMonth)
-            }
-            Button("Cancel", role: .cancel) {
-                viewModel.handleDuplicateAction(.cancel, month: selectedMonth)
-            }
-        } message: {
-            if let dup = viewModel.duplicateFile {
-                Text("A file named \"\(dup.fileName)\" was already imported on \(DateHelpers.shortDate(dup.importedAt)). What would you like to do?")
-            }
+        Button("Cancel", role: .cancel) {
+            viewModel.handleDuplicateAction(.cancel, month: selectedMonth)
         }
-        .alert("Delete Statement?", isPresented: $showDeleteConfirmation) {
-            Button("Delete", role: .destructive) {
-                if let file = fileToDelete {
-                    viewModel.deleteImportedFile(file, month: selectedMonth)
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
+    }
+
+    @ViewBuilder
+    private var duplicateAlertMessage: some View {
+        if let dup = viewModel.duplicateFile {
+            Text("A file named \"\(dup.fileName)\" was already imported on \(DateHelpers.shortDate(dup.importedAt)). What would you like to do?")
+        }
+    }
+
+    @ViewBuilder
+    private var deleteAlertButtons: some View {
+        Button("Delete", role: .destructive) {
             if let file = fileToDelete {
-                if file.isMultiMonth {
-                    Text("This will remove \"\(file.fileName)\" and all \(file.transactionCount) transactions across all months from your budget.")
-                } else {
-                    Text("This will remove \"\(file.fileName)\" and its \(file.transactionCount) transactions from your budget.")
-                }
+                viewModel.deleteImportedFile(file, month: selectedMonth)
+            }
+        }
+        Button("Cancel", role: .cancel) {}
+    }
+
+    @ViewBuilder
+    private var deleteAlertMessage: some View {
+        if let file = fileToDelete {
+            if file.isMultiMonth {
+                Text("This will remove \"\(file.fileName)\" and all \(file.transactionCount) transactions across all months from your budget.")
+            } else {
+                Text("This will remove \"\(file.fileName)\" and its \(file.transactionCount) transactions from your budget.")
             }
         }
     }

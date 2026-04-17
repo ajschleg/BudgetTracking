@@ -4,7 +4,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case income = "Income"
     case transactions = "Transactions"
-    case importStatements = "Import"
+    case accounts = "Accounts"
     case categories = "Categories"
     case history = "History"
     case insights = "Insights"
@@ -18,7 +18,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .dashboard: return "chart.bar.fill"
         case .income: return "banknote"
         case .transactions: return "list.bullet.rectangle"
-        case .importStatements: return "square.and.arrow.down"
+        case .accounts: return "building.columns.fill"
         case .categories: return "folder.fill"
         case .history: return "clock.fill"
         case .insights: return "lightbulb.fill"
@@ -101,8 +101,12 @@ struct ContentView: View {
                     IncomeTabView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel, ebayAuthManager: ebayAuthManager)
                 case .transactions:
                     TransactionsListView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
-                case .importStatements:
-                    ImportView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
+                case .accounts:
+                    AccountsView(
+                        selectedMonth: $selectedMonth,
+                        aiViewModel: insightsViewModel,
+                        plaidManager: plaidManager
+                    )
                 case .categories:
                     CategoriesSettingsView(aiViewModel: insightsViewModel)
                 case .history:
