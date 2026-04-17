@@ -109,21 +109,60 @@
 
         <div class="privacy" id="privacy">
             <h2>Privacy Policy</h2>
+            <p style="font-size: 0.75rem; color: #999;">Last updated: April 17, 2026</p>
+
+            <h3 style="font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.4rem;">Summary</h3>
             <p>
                 BudgetTracking is a personal finance application that stores all data locally on your device.
-                We do not collect, transmit, or store any personal or financial data on external servers.
+                We do not collect, sell, or share your data with advertisers. Bank connectivity is provided
+                by Plaid Inc.
             </p>
-            <p style="margin-top: 0.8rem;">
-                When you connect a bank account via Plaid, your credentials are handled entirely by Plaid's
-                secure infrastructure. BudgetTracking receives only transaction data and account balances,
-                which are stored locally on your device. We never have access to your bank login credentials.
+
+            <h3 style="font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.4rem;">What we collect</h3>
+            <p>
+                When you connect a bank account via Plaid, BudgetTracking receives from Plaid:
             </p>
-            <p style="margin-top: 0.8rem;">
-                You may delete all stored data at any time by removing the application and its associated data
-                from your device. No data is retained after deletion.
+            <ul style="margin-top: 0.4rem; font-size: 0.85rem; color: #666; padding-left: 1.5rem;">
+                <li>Account metadata (name, type, subtype, last 4 digits of the account number, institution)</li>
+                <li>Current and available balances (refreshed only when you request it)</li>
+                <li>Transaction history (description, merchant, amount, date, category)</li>
+                <li>Account owner identity (name, email, phone) as held by your bank</li>
+            </ul>
+
+            <h3 style="font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.4rem;">How we store it</h3>
+            <p>
+                All data is stored in a local SQLite database on your device. Plaid access tokens are
+                encrypted at rest using AES-256-GCM with a key stored outside the database. If you enable
+                iCloud sync, an encrypted copy is stored in your own private iCloud account using CloudKit.
             </p>
-            <p style="margin-top: 0.8rem;">
-                Contact: <a href="https://github.com/ajschleg">github.com/ajschleg</a>
+
+            <h3 style="font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.4rem;">Your bank credentials</h3>
+            <p>
+                Your bank username and password go directly to Plaid and are never seen or stored by
+                BudgetTracking. Plaid handles all authentication and maintains the connection to your
+                financial institution. See <a href="https://plaid.com/legal/#end-user-privacy-policy">Plaid's
+                End User Privacy Policy</a> for how Plaid handles your data.
+            </p>
+
+            <h3 style="font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.4rem;">Third parties</h3>
+            <ul style="margin-top: 0.4rem; font-size: 0.85rem; color: #666; padding-left: 1.5rem;">
+                <li><strong>Plaid Inc.</strong> — provides the bank data connection. Governed by your consent at link time and <a href="https://plaid.com/legal/#end-user-privacy-policy">Plaid's Privacy Policy</a>.</li>
+                <li><strong>Apple iCloud</strong> — only if you enable sync, and only to your own iCloud account.</li>
+                <li><strong>Anthropic (Claude API)</strong> — only if you enable the AI insights feature. Aggregated category totals are sent; individual transactions are not.</li>
+                <li>We do not use advertising networks, analytics providers, or data brokers.</li>
+            </ul>
+
+            <h3 style="font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.4rem;">Your rights</h3>
+            <ul style="margin-top: 0.4rem; font-size: 0.85rem; color: #666; padding-left: 1.5rem;">
+                <li><strong>Disconnect a bank</strong> at any time from the Settings page. We call Plaid's <code>/item/remove</code> endpoint immediately to revoke access.</li>
+                <li><strong>Disconnect all banks</strong> at once from the same Settings page.</li>
+                <li><strong>Delete all data</strong> by removing the application and its data from your device (and, if enabled, from iCloud via Settings → Apple ID → iCloud → Manage Storage).</li>
+                <li><strong>Request Plaid data deletion</strong> directly from Plaid using <a href="https://my.plaid.com">my.plaid.com</a>.</li>
+            </ul>
+
+            <h3 style="font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.4rem;">Contact</h3>
+            <p>
+                Questions about this policy: <a href="https://github.com/ajschleg">github.com/ajschleg</a>
             </p>
         </div>
 

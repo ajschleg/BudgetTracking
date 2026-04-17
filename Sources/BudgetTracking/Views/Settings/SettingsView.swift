@@ -10,6 +10,12 @@ struct SettingsView: View {
     @State private var ebayRuName: String = ""
     @AppStorage("plaidServerURL") private var plaidServerURL = "http://localhost:8080"
     @AppStorage("plaidAppToken") private var plaidAppToken = ""
+    /// Tracks whether the user has seen and accepted the pre-Link
+    /// consent screen. Persisted so we do not ask on every link attempt;
+    /// reset to false if the user disconnects everything (the reset
+    /// happens implicitly — linkedAccounts.isEmpty is the signal).
+    @AppStorage("plaidConsentAcknowledged") private var plaidConsentAcknowledged = false
+    @State private var isShowingConsent = false
     @State private var isLinkingAccount = false
     /// The institution currently in the "are you sure you want to
     /// disconnect?" confirmation dialog, or nil.
@@ -130,7 +136,14 @@ struct SettingsView: View {
                                     .font(.headline)
                                 Spacer()
                                 Button {
-                                    isLinkingAccount = true
+                                    // Require consent acknowledgement before opening Plaid
+                                    // Link. Once granted, subsequent links skip the consent
+                                    // screen but the Privacy Policy link remains in the app.
+                                    if plaidConsentAcknowledged {
+                                        isLinkingAccount = true
+                                    } else {
+                                        isShowingConsent = true
+                                    }
                                 } label: {
                                     Label("Link Account", systemImage: "plus.circle")
                                         .font(.caption)
@@ -383,6 +396,16 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isLinkingAccount) {
             PlaidLinkView(plaidManager: plaidManager, oauthRedirectURI: nil)
+        }
+        .sheet(isPresented: $isShowingConsent) {
+            PlaidConsentView(onContinue: {
+                plaidConsentAcknowledged = true
+                isShowingConsent = false
+                // Open the Link sheet on the next runloop so SwiftUI can
+                // animate the consent sheet closed before the Link sheet
+                // opens.
+                DispatchQueue.main.async { isLinkingAccount = true }
+            })
         }
         .confirmationDialog(
             "Disconnect \(pendingDisconnect?.institution ?? "bank")?",

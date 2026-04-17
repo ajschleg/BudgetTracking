@@ -37,6 +37,7 @@
 		1DF63C07F0BBB5278863766C /* LANSyncProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CCE676CAB667CD64540FCB0 /* LANSyncProtocol.swift */; };
 		1FC009FAE63AD3A8AD09A393 /* BudgetInsight.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE4F27922798141DF89B8AE6 /* BudgetInsight.swift */; };
 		1FFA73C71FDD64B7C994F4A6 /* SideHustleDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3514E7A7650D04504D7EF4DA /* SideHustleDetailView.swift */; };
+		2052F7B2DE5212B3AA247133 /* PlaidConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927D8DC7F8205C22399386AD /* PlaidConsentView.swift */; };
 		20AE2902FC34169022100E38 /* CategorizationRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371D0746A64876D4E554C092 /* CategorizationRule.swift */; };
 		21EE1C948FB25E41AFA9438B /* CategoriesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */; };
 		2262254EC1D204794A7FAE5B /* CategorizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0B30CCE20155199B5F3641 /* CategorizationEngine.swift */; };
@@ -195,6 +196,7 @@
 		F1E746C9970C092EFD2C848F /* ImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA1511E4B898F9C603AC8FA7 /* ImportView.swift */; };
 		F6E8F45BE6EA541B8BD6792C /* EbayEarningsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D794553C3B7A2870527C9C /* EbayEarningsViewModel.swift */; };
 		F968FE301D4F86E6CC980674 /* InsightsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99563DFA1DEEC8CD84301DD2 /* InsightsViewModel.swift */; };
+		FA5F402E1B4B2021A6D74689 /* PlaidConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927D8DC7F8205C22399386AD /* PlaidConsentView.swift */; };
 		FA8FDBA894FAC75052AE1232 /* ConflictResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F647A3AD0CF01EECA79DAE /* ConflictResolver.swift */; };
 		FB3DBC0CE257574DD434A391 /* MonthDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2296F730746DD13BF04875B5 /* MonthDetector.swift */; };
 		FDC5CB7DA74FE273EEA66C7E /* AIChatResponseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CED4B6F9C35AB112B90B992 /* AIChatResponseView.swift */; };
@@ -271,6 +273,7 @@
 		850E4467CF4D66BED7921C21 /* HistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewModel.swift; sourceTree = "<group>"; };
 		8DE43370741368E79590623F /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
 		8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedFile.swift; sourceTree = "<group>"; };
+		927D8DC7F8205C22399386AD /* PlaidConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaidConsentView.swift; sourceTree = "<group>"; };
 		99563DFA1DEEC8CD84301DD2 /* InsightsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsViewModel.swift; sourceTree = "<group>"; };
 		9A45A6F8375DF9333888ACE9 /* IncomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeViewModel.swift; sourceTree = "<group>"; };
 		9BEA30480C1E86191A7C17DD /* BudgetCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetCategory.swift; sourceTree = "<group>"; };
@@ -527,6 +530,7 @@
 		9927C87F7FDF860D2031749B /* Plaid */ = {
 			isa = PBXGroup;
 			children = (
+				927D8DC7F8205C22399386AD /* PlaidConsentView.swift */,
 				39458BD03D87744C0464548D /* PlaidUpdateBanner.swift */,
 			);
 			path = Plaid;
@@ -804,6 +808,7 @@
 				DF6F13ADC1542E44A8D937FA /* PageWithChatBar.swift in Sources */,
 				5C43296D7E7843641834B7D2 /* ParsePreviewView.swift in Sources */,
 				194D70AEF83FC3EF9565EF5B /* PlaidAccount.swift in Sources */,
+				2052F7B2DE5212B3AA247133 /* PlaidConsentView.swift in Sources */,
 				E908E65F2C578DDCE5DAE568 /* PlaidLinkNativeView.swift in Sources */,
 				AE0CACE551805C1D7D01B362 /* PlaidLinkView.swift in Sources */,
 				E10477AFCE861B1B8C043435 /* PlaidService.swift in Sources */,
@@ -902,6 +907,7 @@
 				0D43ABEC5941DA199A8F790B /* PageWithChatBar.swift in Sources */,
 				78EF18856F7D9F0257AF4283 /* ParsePreviewView.swift in Sources */,
 				B89F9371722F0FCC7B904D40 /* PlaidAccount.swift in Sources */,
+				FA5F402E1B4B2021A6D74689 /* PlaidConsentView.swift in Sources */,
 				D00F9EF69575ABE78788B4CF /* PlaidLinkNativeView.swift in Sources */,
 				56DF614788284C67BA173774 /* PlaidLinkView.swift in Sources */,
 				AC2FC88E1A32DBB071A21160 /* PlaidService.swift in Sources */,
