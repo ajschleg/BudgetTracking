@@ -9,11 +9,30 @@ actor PlaidService {
 
     /// Shared secret between this app and the server. Sent as X-App-Token
     /// on every /api/* request so the server can reject unauthenticated
-    /// callers hitting its public ngrok URL. Stored in UserDefaults for
-    /// simplicity — swap for Keychain if this ever leaves a personal app.
+    /// callers hitting its public ngrok URL. Stored in the macOS Keychain
+    /// so it is OS-encrypted and survives app reinstalls.
+    ///
+    /// Migrates from the legacy UserDefaults location on first read so
+    /// existing installs do not have to re-enter the token.
     static var appToken: String {
-        UserDefaults.standard.string(forKey: "plaidAppToken") ?? ""
+        get {
+            if let keychain = KeychainStore.get(forKey: Self.appTokenKey) {
+                return keychain
+            }
+            // Legacy migration: promote any value in UserDefaults into
+            // the Keychain, then clear the plaintext copy.
+            if let legacy = UserDefaults.standard.string(forKey: "plaidAppToken"),
+               !legacy.isEmpty {
+                KeychainStore.set(legacy, forKey: Self.appTokenKey)
+                UserDefaults.standard.removeObject(forKey: "plaidAppToken")
+                return legacy
+            }
+            return ""
+        }
+        set { KeychainStore.set(newValue, forKey: Self.appTokenKey) }
     }
+
+    private static let appTokenKey = "com.schlegel.BudgetTracking.plaidAppToken"
 
     // MARK: - Response Types
 
@@ -242,8 +261,12 @@ actor PlaidService {
     /// Calls Plaid /item/remove per item then wipes local Plaid tables.
     /// Does not touch transaction history — users can keep their data
     /// even after unlinking banks.
+    ///
+    /// The ?confirm=DISCONNECT_ALL query flag is the server-side
+    /// safety rail — a stray DELETE without it returns 400 instead of
+    /// silently wiping every token.
     func removeAllItems() async throws -> BulkRemoveResponse {
-        try await delete(path: "/api/items")
+        try await delete(path: "/api/items?confirm=DISCONNECT_ALL")
     }
 
     /// Fetch live balances from Plaid via the server's /balances/refresh.

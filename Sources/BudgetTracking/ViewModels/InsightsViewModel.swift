@@ -59,8 +59,29 @@ final class InsightsViewModel {
         didSet { UserDefaults.standard.set(monthlyCap, forKey: "claudeMonthlyCapUSD") }
     }
 
-    var apiKey: String = UserDefaults.standard.string(forKey: "claudeAPIKey") ?? "" {
-        didSet { UserDefaults.standard.set(apiKey, forKey: "claudeAPIKey") }
+    /// Anthropic API key for Claude. Stored in the macOS Keychain so it
+    /// is OS-encrypted rather than sitting plaintext in UserDefaults.
+    /// Migrates from the legacy UserDefaults location on first read.
+    var apiKey: String = InsightsViewModel.loadAPIKey() {
+        didSet { KeychainStore.set(apiKey, forKey: InsightsViewModel.apiKeyKey) }
+    }
+
+    private static let apiKeyKey = "com.schlegel.BudgetTracking.claudeAPIKey"
+
+    private static func loadAPIKey() -> String {
+        if let fromKeychain = KeychainStore.get(forKey: apiKeyKey) {
+            return fromKeychain
+        }
+        // One-time migration of any plaintext key stored under the old
+        // UserDefaults key. Clear the UserDefaults copy afterwards so
+        // only the OS-encrypted one remains.
+        if let legacy = UserDefaults.standard.string(forKey: "claudeAPIKey"),
+           !legacy.isEmpty {
+            KeychainStore.set(legacy, forKey: apiKeyKey)
+            UserDefaults.standard.removeObject(forKey: "claudeAPIKey")
+            return legacy
+        }
+        return ""
     }
 
     var isAPIKeyConfigured: Bool {

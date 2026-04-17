@@ -108,6 +108,7 @@
 		8FA6F796425C232692814152 /* EbayAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078CA30B073B997BB4E2E011 /* EbayAuthManager.swift */; };
 		902FBFE9D6BEB8617F5329B3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDACD8F8DF659FDD26EF7120 /* SettingsView.swift */; };
 		911EBF67095502AE2A1B187B /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = B1DB69D28DCA99819C197986 /* GRDB */; };
+		919AE3773FFBBEB21C8F9A87 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97374E69A19F0E9E413B36EB /* KeychainStore.swift */; };
 		92837EAB0E1395EFDDCE49E8 /* SideHustleDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3514E7A7650D04504D7EF4DA /* SideHustleDetailView.swift */; };
 		944FDAE37193D6B845B53EF8 /* ShareManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C7C8113ED1B9E2730EAAEA /* ShareManager.swift */; };
 		94A5A04BEECF42B2B47C0C0B /* RecordConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D003AE1329BA1C9FCD924629 /* RecordConverter.swift */; };
@@ -183,6 +184,7 @@
 		E10477AFCE861B1B8C043435 /* PlaidService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 471195F22DD6A3121E90FA12 /* PlaidService.swift */; };
 		E11793438FF54F0290B68ECD /* BudgetGenerationConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32E291AFC07CA3748B3093C /* BudgetGenerationConfigSheet.swift */; };
 		E16C4772EDA4363E23E9BF2C /* AIChatAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB7909A9F088E78203DFFCD /* AIChatAction.swift */; };
+		E1981C0F64FB9485DC720A27 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97374E69A19F0E9E413B36EB /* KeychainStore.swift */; };
 		E53470827328467C88573F4C /* CategorizationRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371D0746A64876D4E554C092 /* CategorizationRule.swift */; };
 		E6D708D14B960CFB3793275A /* PDFParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11DFF79231E859813B37A16 /* PDFParser.swift */; };
 		E8A3702B42005E8CE7A068AB /* InsightsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ABB74337E8DADE534BC987F /* InsightsEngine.swift */; };
@@ -277,6 +279,7 @@
 		8DE43370741368E79590623F /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
 		8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedFile.swift; sourceTree = "<group>"; };
 		927D8DC7F8205C22399386AD /* PlaidConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaidConsentView.swift; sourceTree = "<group>"; };
+		97374E69A19F0E9E413B36EB /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		99563DFA1DEEC8CD84301DD2 /* InsightsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsViewModel.swift; sourceTree = "<group>"; };
 		9A45A6F8375DF9333888ACE9 /* IncomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeViewModel.swift; sourceTree = "<group>"; };
 		9BEA30480C1E86191A7C17DD /* BudgetCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetCategory.swift; sourceTree = "<group>"; };
@@ -627,6 +630,7 @@
 				483034A4379587D3D92B9DE4 /* ColorThresholds.swift */,
 				13ADAAEEDA6767ED5825AFB5 /* CurrencyFormatter.swift */,
 				D9C7E858423BCB8EA18EE19F /* DateHelpers.swift */,
+				97374E69A19F0E9E413B36EB /* KeychainStore.swift */,
 				2296F730746DD13BF04875B5 /* MonthDetector.swift */,
 			);
 			path = Utilities;
@@ -822,6 +826,7 @@
 				56906CD6035CE89C4BB01267 /* InsightsEngine.swift in Sources */,
 				456277934CE23476350B660C /* InsightsView.swift in Sources */,
 				312CE90253221F347623EB60 /* InsightsViewModel.swift in Sources */,
+				E1981C0F64FB9485DC720A27 /* KeychainStore.swift in Sources */,
 				A99390672F51AD8AAAB0F260 /* LANSyncEngine.swift in Sources */,
 				1DF63C07F0BBB5278863766C /* LANSyncProtocol.swift in Sources */,
 				BA7D387AFE15FFCBAFD209D7 /* LANSyncStateStore.swift in Sources */,
@@ -921,6 +926,7 @@
 				E8A3702B42005E8CE7A068AB /* InsightsEngine.swift in Sources */,
 				499AF6E0D703784C6A49966A /* InsightsView.swift in Sources */,
 				F968FE301D4F86E6CC980674 /* InsightsViewModel.swift in Sources */,
+				919AE3773FFBBEB21C8F9A87 /* KeychainStore.swift in Sources */,
 				34B5F561DA5DF8F30DA3B425 /* LANSyncEngine.swift in Sources */,
 				8D62D571E3AAB5C7C52B7708 /* LANSyncProtocol.swift in Sources */,
 				578E34AA65E5FD5F944BD4AD /* LANSyncStateStore.swift in Sources */,

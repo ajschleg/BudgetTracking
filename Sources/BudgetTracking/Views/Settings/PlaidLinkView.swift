@@ -83,8 +83,10 @@ struct PlaidLinkWebView: NSViewRepresentable {
         let contentController = config.userContentController
         contentController.add(context.coordinator, name: "plaidCallback")
 
-        // Allow inline media playback (some banks need this)
-        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+        // NOTE: do NOT enable allowFileAccessFromFileURLs here. Loading
+        // file:// from within remote-loaded HTML would let a compromised
+        // page read local files. We load exclusively from our own
+        // http(s) origins and the cdn.plaid.com domain.
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -122,7 +124,7 @@ struct PlaidLinkWebView: NSViewRepresentable {
         let serverURL = UserDefaults.standard.string(forKey: "plaidServerURL") ?? "http://localhost:8080"
         let encoded = receivedRedirectURI.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? receivedRedirectURI
         var query = "?receivedRedirectUri=\(encoded)"
-        let tokenValue = UserDefaults.standard.string(forKey: "plaidAppToken") ?? ""
+        let tokenValue = PlaidService.appToken
         if !tokenValue.isEmpty,
            let escaped = tokenValue.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             query += "&token=\(escaped)"
@@ -137,7 +139,7 @@ struct PlaidLinkWebView: NSViewRepresentable {
     /// Produce a `?token=...` query string (or empty string) for the Link
     /// HTML pages so they can forward the app token to /api/* calls.
     private func tokenQuery() -> String {
-        let token = UserDefaults.standard.string(forKey: "plaidAppToken") ?? ""
+        let token = PlaidService.appToken
         guard !token.isEmpty,
               let escaped = token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
         else { return "" }
@@ -148,7 +150,7 @@ struct PlaidLinkWebView: NSViewRepresentable {
         let serverURL = UserDefaults.standard.string(forKey: "plaidServerURL") ?? "http://localhost:8080"
         var components = URLComponents(string: "\(serverURL)/update.html")
         var items = [URLQueryItem(name: "item_id", value: itemId)]
-        let token = UserDefaults.standard.string(forKey: "plaidAppToken") ?? ""
+        let token = PlaidService.appToken
         if !token.isEmpty {
             items.append(URLQueryItem(name: "token", value: token))
         }

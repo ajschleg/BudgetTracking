@@ -61,7 +61,7 @@
           token: link_token,
           receivedRedirectUri: receivedURI,
           onSuccess: async (publicToken, metadata) => {
-            document.getElementById('status').innerHTML = '<p>Connecting account...</p>';
+            document.getElementById('status').textContent = 'Connecting account...';
 
             const exchangeResponse = await fetch(`${SERVER_URL}/api/link/exchange`, {
               method: 'POST',
@@ -96,8 +96,14 @@
 
         handler.open();
       } catch (error) {
-        document.getElementById('status').innerHTML =
-          `<div class="error"><p>Failed to complete connection: ${error.message}</p></div>`;
+        const status = document.getElementById('status');
+        status.textContent = '';
+        const box = document.createElement('div');
+        box.className = 'error';
+        const p = document.createElement('p');
+        p.textContent = `Failed to complete connection: ${error.message}`;
+        box.appendChild(p);
+        status.appendChild(box);
       }
     }
 

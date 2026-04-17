@@ -46,8 +46,14 @@
 
     async function startUpdate() {
       if (!ITEM_ID) {
-        document.getElementById('status').innerHTML =
-          '<div class="error"><p>Missing item_id</p></div>';
+        const status = document.getElementById('status');
+        status.textContent = '';
+        const box = document.createElement('div');
+        box.className = 'error';
+        const p = document.createElement('p');
+        p.textContent = 'Missing item_id';
+        box.appendChild(p);
+        status.appendChild(box);
         return;
       }
 
@@ -72,7 +78,7 @@
             // the needs_update flag on the server. When the user ran
             // account selection, also ask the server to reconcile the
             // account list (add newly selected, remove deselected).
-            document.getElementById('status').innerHTML = '<p>Reconnected!</p>';
+            document.getElementById('status').textContent = 'Reconnected!';
             await fetch(`${SERVER_URL}/api/items/${ITEM_ID}/clear-update`, {
               method: 'POST',
               headers: authHeaders(),
@@ -95,8 +101,14 @@
 
         handler.open();
       } catch (error) {
-        document.getElementById('status').innerHTML =
-          `<div class="error"><p>Failed: ${error.message}</p></div>`;
+        const status = document.getElementById('status');
+        status.textContent = '';
+        const box = document.createElement('div');
+        box.className = 'error';
+        const p = document.createElement('p');
+        p.textContent = `Failed: ${error.message}`;
+        box.appendChild(p);
+        status.appendChild(box);
       }
     }
 

@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import * as jose from 'jose';
 import db from '../db.js';
 import { decrypt } from '../lib/crypto.js';
+import { requireAppToken } from '../middleware/auth.js';
 
 /**
  * Plaid webhook receiver with signature verification.
@@ -78,14 +79,27 @@ export function createWebhookRouter(plaidClient) {
     // req.rawBody is populated by the express.json verify hook (see server.js)
     const rawBody = req.rawBody || JSON.stringify(req.body);
     const jwtToken = req.headers['plaid-verification'];
+    const env = process.env.PLAID_ENV || 'sandbox';
 
     let verified = false;
     if (jwtToken) {
       verified = await verifyWebhook(rawBody, jwtToken);
-    } else {
-      // In development, Plaid may not send a JWT if the webhook URL is not HTTPS
-      // (e.g., localhost via ngrok). We log but still accept the webhook.
-      console.warn('[webhook] No Plaid-Verification header (dev mode?)');
+    }
+
+    // Reject unsigned / failed-verification webhooks in any non-sandbox
+    // environment. Sandbox allows unsigned to support local testing
+    // without a real Plaid → server delivery path, but production and
+    // development webhooks must be signed by Plaid.
+    if (!verified) {
+      if (env !== 'sandbox') {
+        console.warn(
+          `[webhook] Rejecting unverified webhook in ${env} (no valid Plaid-Verification JWT)`
+        );
+        return res.status(401).json({ error: 'Unverified webhook' });
+      }
+      if (!jwtToken) {
+        console.warn('[webhook] No Plaid-Verification header — sandbox test mode');
+      }
     }
 
     const payload = req.body;
@@ -120,8 +134,12 @@ export function createWebhookRouter(plaidClient) {
 
   /**
    * GET /webhook/events — Recent webhook events (for debugging / UI).
+   *
+   * Protected by the same X-App-Token as /api/*. Historical payloads
+   * can contain item_ids, institution names, and error details that
+   * do not belong on a public ngrok URL.
    */
-  router.get('/events', (_req, res) => {
+  router.get('/events', requireAppToken, (_req, res) => {
     const events = db
       .prepare(
         `SELECT id, webhook_type, webhook_code, item_id, verified, received_at, payload
@@ -145,7 +163,10 @@ export function createWebhookRouter(plaidClient) {
    * of surfacing a confusing Plaid error.
    */
   if ((process.env.PLAID_ENV || 'sandbox') === 'sandbox') {
-    router.post('/fire', async (req, res) => {
+    // Also gated by the app-token — this endpoint can trigger real
+    // Plaid webhooks against any linked item, so random ngrok callers
+    // must not be able to hit it.
+    router.post('/fire', requireAppToken, async (req, res) => {
       const {
         item_id,
         webhook_code = 'NEW_ACCOUNTS_AVAILABLE',
@@ -188,8 +209,10 @@ export function createWebhookRouter(plaidClient) {
   } else {
     // In development/production, expose the route but return a clear
     // 410 Gone so anyone hitting it from a test script sees exactly
-    // why (instead of a generic 404 that looks like a typo).
-    router.post('/fire', (_req, res) => {
+    // why (instead of a generic 404 that looks like a typo). Still
+    // gated by app-token auth so the 410 is only exposed to
+    // legitimate callers and unauthenticated probes get 401 first.
+    router.post('/fire', requireAppToken, (_req, res) => {
       res.status(410).json({
         error: `Sandbox endpoints are not available in PLAID_ENV=${process.env.PLAID_ENV}`,
       });

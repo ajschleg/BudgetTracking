@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import db from '../db.js';
 import { markNeedsUpdate, clearNeedsUpdate } from './webhooks.js';
 import { encrypt, decrypt } from '../lib/crypto.js';
+import { logAndSanitize } from '../lib/errors.js';
 
 /**
  * Extract the plaintext access_token from a plaid_items row. The value
@@ -283,14 +284,10 @@ router.post('/identity/refresh', async (req, res) => {
       await fetchAndStoreIdentity(tokenOf(item), item.id);
       refreshed.push({ item_id: item.id, institution_name: item.institution_name });
     } catch (error) {
-      console.error(
-        `[identity] Refresh failed for item ${item.id}:`,
-        error.response?.data || error.message
-      );
       errors.push({
         item_id: item.id,
         institution_name: item.institution_name,
-        error: error.response?.data?.error_message || error.message,
+        error: logAndSanitize(`identity/${item.id}`, error, 'Failed to refresh identity'),
       });
     }
   }
@@ -323,12 +320,8 @@ router.post('/items/:id/webhook', async (req, res) => {
     });
     res.json({ success: true, webhook });
   } catch (error) {
-    console.error(
-      'Error updating webhook:',
-      error.response?.data || error.message
-    );
     res.status(500).json({
-      error: error.response?.data?.error_message || error.message,
+      error: logAndSanitize('itemWebhookUpdate', error, 'Failed to update webhook URL'),
     });
   }
 });
@@ -654,14 +647,10 @@ router.post('/balances/refresh', async (req, res) => {
         accounts: updatedAccounts,
       });
     } catch (error) {
-      console.error(
-        `[balances] Failed for item ${item.id}:`,
-        error.response?.data || error.message
-      );
       errors.push({
         item_id: item.id,
         institution_name: item.institution_name,
-        error: error.response?.data?.error_message || error.message,
+        error: logAndSanitize(`balances/${item.id}`, error, 'Failed to refresh balance'),
       });
     }
   }
@@ -712,7 +701,18 @@ router.delete('/items/:id', async (req, res) => {
 // Plaid tables. Does not touch app-level data (transactions, budgets)
 // — the user may want to keep their spending history even after
 // unlinking the banks.
-router.delete('/items', async (_req, res) => {
+//
+// Requires ?confirm=DISCONNECT_ALL as a safety rail: a typo-driven
+// stray DELETE is otherwise catastrophic (revokes every access token
+// and wipes local Plaid state). The Swift app sends this flag
+// explicitly after the user confirms the destructive dialog.
+router.delete('/items', async (req, res) => {
+  if (req.query.confirm !== 'DISCONNECT_ALL') {
+    return res.status(400).json({
+      error: 'Bulk disconnect requires ?confirm=DISCONNECT_ALL',
+    });
+  }
+
   const items = db.prepare('SELECT * FROM plaid_items').all();
   const removed = [];
   const errors = [];
@@ -722,14 +722,10 @@ router.delete('/items', async (_req, res) => {
       await plaidClient.itemRemove({ access_token: tokenOf(item) });
       removed.push({ item_id: item.id, institution_name: item.institution_name });
     } catch (error) {
-      console.error(
-        `[offboarding] /item/remove failed for ${item.id}:`,
-        error.response?.data || error.message
-      );
       errors.push({
         item_id: item.id,
         institution_name: item.institution_name,
-        error: error.response?.data?.error_message || error.message,
+        error: logAndSanitize(`offboarding/${item.id}`, error, 'Failed to disconnect'),
       });
       // Continue — we still remove locally to honor the user's intent.
     }

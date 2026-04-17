@@ -9,7 +9,10 @@ struct SettingsView: View {
     @State private var ebayClientSecret: String = ""
     @State private var ebayRuName: String = ""
     @AppStorage("plaidServerURL") private var plaidServerURL = "http://localhost:8080"
-    @AppStorage("plaidAppToken") private var plaidAppToken = ""
+    /// Keychain-backed; @State copy here binds to the SecureField and
+    /// is synced on change rather than on every keystroke writing to
+    /// the Keychain (which would spam SecItemAdd).
+    @State private var plaidAppToken: String = PlaidService.appToken
     /// Tracks whether the user has seen and accepted the pre-Link
     /// consent screen. Persisted so we do not ask on every link attempt;
     /// reset to false if the user disconnects everything (the reset
@@ -121,8 +124,13 @@ struct SettingsView: View {
 
                             SecureField("Shared secret (matches APP_AUTH_TOKEN on the server)", text: $plaidAppToken)
                                 .textFieldStyle(.roundedBorder)
+                                .onChange(of: plaidAppToken) { _, newValue in
+                                    // Persist to Keychain (OS-encrypted) rather
+                                    // than UserDefaults (plaintext on disk).
+                                    PlaidService.appToken = newValue
+                                }
 
-                            Text("Required if your server has APP_AUTH_TOKEN set. Blocks unauthorized callers on public (e.g. ngrok) URLs.")
+                            Text("Stored in the macOS Keychain. Required if your server has APP_AUTH_TOKEN set — blocks unauthorized callers on public (e.g. ngrok) URLs.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

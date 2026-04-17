@@ -62,7 +62,7 @@
         const handler = Plaid.create({
           token: link_token,
           onSuccess: async (publicToken, metadata) => {
-            document.getElementById('status').innerHTML = '<p>Connecting account...</p>';
+            document.getElementById('status').textContent = 'Connecting account...';
 
             // Exchange token via backend
             const exchangeResponse = await fetch(`${SERVER_URL}/api/link/exchange`, {
@@ -93,8 +93,16 @@
 
         handler.open();
       } catch (error) {
-        document.getElementById('status').innerHTML =
-          `<div class="error"><p>Failed to initialize: ${error.message}</p></div>`;
+        // Use textContent to defuse any HTML/script injection the
+        // error message might carry (e.g. from a compromised network).
+        const status = document.getElementById('status');
+        status.textContent = '';
+        const box = document.createElement('div');
+        box.className = 'error';
+        const p = document.createElement('p');
+        p.textContent = `Failed to initialize: ${error.message}`;
+        box.appendChild(p);
+        status.appendChild(box);
       }
     }
 
