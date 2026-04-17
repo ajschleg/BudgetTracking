@@ -36,6 +36,19 @@ db.exec(`
     last_synced_at TEXT,
     FOREIGN KEY (plaid_item_id) REFERENCES plaid_items(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS webhook_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    webhook_type TEXT NOT NULL,
+    webhook_code TEXT NOT NULL,
+    item_id TEXT,
+    payload TEXT NOT NULL,
+    verified INTEGER DEFAULT 0,
+    received_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_item_id ON webhook_events(item_id);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_received_at ON webhook_events(received_at);
 `);
 
 export default db;

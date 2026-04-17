@@ -3,18 +3,45 @@ import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import plaidRoutes from './routes/plaid.js';
+import { createWebhookRouter } from './routes/webhooks.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 8080;
 
 app.use(cors());
-app.use(express.json());
+
+// Capture raw body for webhook signature verification
+// express.json with verify hook runs before body parsing, preserving the raw bytes
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = buf.toString('utf8');
+  },
+}));
+
 app.use(express.static(join(__dirname, 'public')));
 
-// Plaid API routes
+// Shared Plaid API client
+const plaidClient = new PlaidApi(
+  new Configuration({
+    basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
+    baseOptions: {
+      headers: {
+        'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
+        'PLAID-SECRET': process.env.PLAID_SECRET,
+        'Plaid-Version': '2020-09-14',
+      },
+    },
+  })
+);
+
+// Plaid API routes (app-facing)
 app.use('/api', plaidRoutes);
+
+// Webhook receiver (Plaid-facing)
+app.use('/webhook', createWebhookRouter(plaidClient));
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -24,4 +51,5 @@ app.get('/health', (_req, res) => {
 app.listen(PORT, () => {
   console.log(`BudgetTracking server running on http://localhost:${PORT}`);
   console.log(`Plaid environment: ${process.env.PLAID_ENV || 'sandbox'}`);
+  console.log(`Webhook receiver: POST /webhook`);
 });

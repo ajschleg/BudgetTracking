@@ -36,11 +36,63 @@ router.post('/link/create', async (req, res) => {
       tokenRequest.redirect_uri = redirect_uri;
     }
 
+    // Register a webhook URL so Plaid can push updates to our server.
+    // PLAID_WEBHOOK_URL must be publicly reachable (use ngrok or similar
+    // for local development). Omit in dev to disable webhooks cleanly.
+    if (process.env.PLAID_WEBHOOK_URL) {
+      tokenRequest.webhook = process.env.PLAID_WEBHOOK_URL;
+    }
+
     const response = await plaidClient.linkTokenCreate(tokenRequest);
     res.json({ link_token: response.data.link_token });
   } catch (error) {
     console.error('Error creating link token:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to create link token' });
+  }
+});
+
+// GET /api/items — List linked items (for webhook testing, debugging)
+router.get('/items', (_req, res) => {
+  const items = db.prepare(`
+    SELECT id, item_id, institution_id, institution_name, created_at
+    FROM plaid_items
+    ORDER BY created_at DESC
+  `).all();
+  res.json({ items });
+});
+
+// POST /api/items/:id/webhook — Update webhook URL on an existing item.
+// Required before /sandbox/item/fire_webhook works for items created
+// without a webhook URL. Body: { webhook?: string } — defaults to env.
+router.post('/items/:id/webhook', async (req, res) => {
+  const { id } = req.params;
+  const webhook = req.body?.webhook || process.env.PLAID_WEBHOOK_URL;
+
+  if (!webhook) {
+    return res.status(400).json({
+      error: 'No webhook URL provided. Set PLAID_WEBHOOK_URL or pass webhook in body.',
+    });
+  }
+
+  const item = db.prepare('SELECT * FROM plaid_items WHERE id = ?').get(id);
+  if (!item) {
+    return res.status(404).json({ error: 'Item not found' });
+  }
+
+  try {
+    await plaidClient.itemWebhookUpdate({
+      access_token: item.access_token,
+      webhook,
+    });
+    res.json({ success: true, webhook });
+  } catch (error) {
+    console.error(
+      'Error updating webhook:',
+      error.response?.data || error.message
+    );
+    res.status(500).json({
+      error: error.response?.data?.error_message || error.message,
+    });
   }
 });
 

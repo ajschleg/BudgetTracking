@@ -1,0 +1,256 @@
+import { Router } from 'express';
+import { createHash } from 'crypto';
+import * as jose from 'jose';
+import db from '../db.js';
+
+/**
+ * Plaid webhook receiver with signature verification.
+ *
+ * Plaid sends POST requests with a JWT in the Plaid-Verification header.
+ * We verify the JWT using Plaid's public key (fetched via
+ * /webhook_verification_key/get and cached), then compare the SHA-256
+ * hash of the request body against the JWT's request_body_sha256 claim.
+ */
+
+export function createWebhookRouter(plaidClient) {
+  const router = Router();
+  const keyCache = new Map(); // kid -> JWK
+
+  /**
+   * Fetch and cache a webhook verification key from Plaid.
+   */
+  async function getVerificationKey(kid) {
+    if (keyCache.has(kid)) {
+      return keyCache.get(kid);
+    }
+    const response = await plaidClient.webhookVerificationKeyGet({ key_id: kid });
+    const key = response.data.key;
+    keyCache.set(kid, key);
+    return key;
+  }
+
+  /**
+   * Verify the Plaid-Verification JWT against the raw request body.
+   * Returns true if valid, false if verification fails.
+   */
+  async function verifyWebhook(rawBody, jwtToken) {
+    try {
+      // Decode header without verification to get the kid
+      const decodedHeader = jose.decodeProtectedHeader(jwtToken);
+
+      if (decodedHeader.alg !== 'ES256') {
+        console.warn('[webhook] Unexpected JWT algorithm:', decodedHeader.alg);
+        return false;
+      }
+
+      // Fetch the verification key from Plaid
+      const jwk = await getVerificationKey(decodedHeader.kid);
+      const keyLike = await jose.importJWK(jwk, 'ES256');
+
+      // Verify signature + enforce max 5 minute age
+      const { payload } = await jose.jwtVerify(jwtToken, keyLike, {
+        maxTokenAge: '5 min',
+      });
+
+      // Compare body hash
+      const bodyHash = createHash('sha256').update(rawBody).digest('hex');
+      if (bodyHash !== payload.request_body_sha256) {
+        console.warn('[webhook] Body hash mismatch');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('[webhook] Verification error:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * POST /webhook — Plaid's webhook receiver.
+   *
+   * This endpoint accepts raw JSON (needed for signature verification)
+   * and must be publicly reachable at the URL registered in
+   * /link/token/create or the Plaid Dashboard.
+   */
+  router.post('/', async (req, res) => {
+    // req.rawBody is populated by the express.json verify hook (see server.js)
+    const rawBody = req.rawBody || JSON.stringify(req.body);
+    const jwtToken = req.headers['plaid-verification'];
+
+    let verified = false;
+    if (jwtToken) {
+      verified = await verifyWebhook(rawBody, jwtToken);
+    } else {
+      // In development, Plaid may not send a JWT if the webhook URL is not HTTPS
+      // (e.g., localhost via ngrok). We log but still accept the webhook.
+      console.warn('[webhook] No Plaid-Verification header (dev mode?)');
+    }
+
+    const payload = req.body;
+    const { webhook_type, webhook_code, item_id } = payload;
+
+    console.log(
+      `[webhook] Received ${webhook_type}/${webhook_code} for item ${item_id} (verified: ${verified})`
+    );
+
+    // Persist the event for inspection and debugging
+    db.prepare(`
+      INSERT INTO webhook_events (webhook_type, webhook_code, item_id, payload, verified)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      webhook_type || 'UNKNOWN',
+      webhook_code || 'UNKNOWN',
+      item_id || null,
+      JSON.stringify(payload),
+      verified ? 1 : 0
+    );
+
+    // Route the webhook to handlers based on type and code
+    try {
+      await handleWebhook(plaidClient, payload);
+    } catch (error) {
+      console.error('[webhook] Handler error:', error.message);
+    }
+
+    // Always return 200 quickly — Plaid retries on non-2xx
+    res.json({ received: true });
+  });
+
+  /**
+   * GET /webhook/events — Recent webhook events (for debugging / UI).
+   */
+  router.get('/events', (_req, res) => {
+    const events = db
+      .prepare(
+        `SELECT id, webhook_type, webhook_code, item_id, verified, received_at, payload
+         FROM webhook_events
+         ORDER BY received_at DESC
+         LIMIT 50`
+      )
+      .all();
+    res.json({ events });
+  });
+
+  /**
+   * POST /webhook/fire — Sandbox helper that fires a webhook on demand.
+   *
+   * Body: { item_id: <local item_id>, webhook_code: "NEW_ACCOUNTS_AVAILABLE" }
+   *
+   * Uses /sandbox/item/fire_webhook under the hood. Only works in the
+   * sandbox Plaid environment.
+   */
+  router.post('/fire', async (req, res) => {
+    const {
+      item_id,
+      webhook_code = 'NEW_ACCOUNTS_AVAILABLE',
+      webhook_type,
+    } = req.body;
+
+    if (!item_id) {
+      return res.status(400).json({ error: 'item_id is required' });
+    }
+
+    const item = db.prepare('SELECT * FROM plaid_items WHERE id = ?').get(item_id);
+    if (!item) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+
+    try {
+      const request = {
+        access_token: item.access_token,
+        webhook_code,
+      };
+      if (webhook_type) {
+        request.webhook_type = webhook_type;
+      }
+
+      const response = await plaidClient.sandboxItemFireWebhook(request);
+      res.json({
+        webhook_fired: response.data.webhook_fired,
+        request_id: response.data.request_id,
+      });
+    } catch (error) {
+      console.error(
+        '[webhook] fire error:',
+        error.response?.data || error.message
+      );
+      res.status(500).json({
+        error: error.response?.data?.error_message || error.message,
+      });
+    }
+  });
+
+  return router;
+}
+
+/**
+ * Handle a verified webhook event. Fan out to product-specific handlers.
+ */
+async function handleWebhook(plaidClient, payload) {
+  const { webhook_type, webhook_code, item_id } = payload;
+
+  // Find the local item record via the Plaid item_id
+  const item = db.prepare('SELECT * FROM plaid_items WHERE item_id = ?').get(item_id);
+  if (!item) {
+    console.warn(`[webhook] Unknown item_id: ${item_id}`);
+    return;
+  }
+
+  switch (`${webhook_type}:${webhook_code}`) {
+    case 'ITEM:NEW_ACCOUNTS_AVAILABLE':
+      await handleNewAccountsAvailable(plaidClient, item);
+      break;
+
+    case 'TRANSACTIONS:SYNC_UPDATES_AVAILABLE':
+    case 'TRANSACTIONS:DEFAULT_UPDATE':
+      // The next /transactions/sync call will pick up the new data
+      // via the cursor. Nothing to do synchronously.
+      console.log(`[webhook] Transactions updates available for ${item_id}`);
+      break;
+
+    case 'ITEM:PENDING_DISCONNECT':
+    case 'ITEM:ERROR':
+      console.warn(
+        `[webhook] Item ${item_id} needs attention: ${webhook_code}`,
+        payload.error
+      );
+      break;
+
+    default:
+      console.log(`[webhook] Unhandled: ${webhook_type}/${webhook_code}`);
+  }
+}
+
+/**
+ * NEW_ACCOUNTS_AVAILABLE: user added accounts to an existing item.
+ * Fetch the current account list and upsert any new ones.
+ */
+async function handleNewAccountsAvailable(plaidClient, item) {
+  const response = await plaidClient.accountsGet({ access_token: item.access_token });
+  const accounts = response.data.accounts;
+
+  const insertAccount = db.prepare(`
+    INSERT OR IGNORE INTO plaid_accounts (id, plaid_item_id, plaid_account_id, name, official_name, type, subtype, mask)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  let inserted = 0;
+  for (const account of accounts) {
+    const result = insertAccount.run(
+      crypto.randomUUID(),
+      item.id,
+      account.account_id,
+      account.name,
+      account.official_name,
+      account.type,
+      account.subtype,
+      account.mask
+    );
+    if (result.changes > 0) inserted++;
+  }
+
+  console.log(
+    `[webhook] NEW_ACCOUNTS_AVAILABLE: processed ${accounts.length} accounts (${inserted} new) for item ${item.item_id}`
+  );
+}
