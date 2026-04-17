@@ -216,6 +216,17 @@ struct PlaidLinkWebView: NSViewRepresentable {
         }
 
         private func handleSuccess(_ data: [String: Any]) {
+            // Update mode returns { item_id, mode: "update" } — the
+            // existing access_token is unchanged, the server already
+            // cleared the needs_update flag via /items/:id/clear-update,
+            // so there's nothing to persist here. Just dismiss and
+            // let finishUpdateMode() refresh the banner state.
+            if (data["mode"] as? String) == "update" {
+                parent.onSuccess()
+                return
+            }
+
+            // Normal link flow: persist the newly linked accounts.
             guard let itemId = data["item_id"] as? String,
                   let institution = data["institution"] as? String else { return }
 

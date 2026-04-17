@@ -163,6 +163,16 @@ struct ContentView: View {
             // webhook-delivered updates. If yes, auto-sync so the user
             // sees fresh transactions without touching Settings.
             await plaidManager.checkTransactionsStatus(autoSyncIfPending: true)
+
+            // Then keep the update-mode banner in sync with server
+            // state while the app is open. Plaid may clear a flag via
+            // LOGIN_REPAIRED webhook while the app is running — polling
+            // here makes the banner disappear within 30s without
+            // requiring the user to restart. Cheap read-only call.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                await plaidManager.refreshUpdateModeStatus()
+            }
         }
     }
 
