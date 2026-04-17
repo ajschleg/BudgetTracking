@@ -83,15 +83,28 @@ router.get('/items', (_req, res) => {
 
 // POST /api/link/create-update — Update-mode link token for re-auth.
 //
-// Body: { item_id: <local item UUID>, redirect_uri?: <oauth redirect> }
+// Body: {
+//   item_id: <local item UUID>,
+//   redirect_uri?: <oauth redirect>,
+//   account_selection_enabled?: bool   // true when called in response
+//                                      // to NEW_ACCOUNTS_AVAILABLE
+// }
 //
 // Per Plaid docs, update mode:
 //   - Uses the existing access_token (NOT exchanged again after)
 //   - Omits the `products` array (the Item already has its products)
 //   - Opens Link pre-bound to the item's institution, user just
 //     re-enters credentials or reconfirms OAuth consent
+//
+// When account_selection_enabled=true, Link also shows the account
+// picker so the user can add newly-discovered accounts (or deselect
+// ones they no longer want shared).
 router.post('/link/create-update', async (req, res) => {
-  const { item_id, redirect_uri } = req.body || {};
+  const {
+    item_id,
+    redirect_uri,
+    account_selection_enabled = false,
+  } = req.body || {};
   if (!item_id) {
     return res.status(400).json({ error: 'item_id is required' });
   }
@@ -113,6 +126,11 @@ router.post('/link/create-update', async (req, res) => {
     if (process.env.PLAID_WEBHOOK_URL) {
       tokenRequest.webhook = process.env.PLAID_WEBHOOK_URL;
     }
+    if (account_selection_enabled) {
+      // Plaid docs: update.account_selection_enabled lets the user
+      // pick new accounts inside the existing item during update mode.
+      tokenRequest.update = { account_selection_enabled: true };
+    }
 
     const response = await plaidClient.linkTokenCreate(tokenRequest);
     res.json({ link_token: response.data.link_token });
@@ -126,13 +144,80 @@ router.post('/link/create-update', async (req, res) => {
 });
 
 // POST /api/items/:id/clear-update — Mark an item as healthy after the
-// user completes update mode. The Swift client calls this after Plaid
-// Link's onSuccess fires in update mode.
-router.post('/items/:id/clear-update', (req, res) => {
+// user completes update mode. If reconcile=true, also re-fetches the
+// current account list from Plaid and upserts it so newly-selected
+// accounts appear and deselected ones drop out.
+router.post('/items/:id/clear-update', async (req, res) => {
   const { id } = req.params;
+  const { reconcile = false } = req.body || {};
   const item = db.prepare('SELECT * FROM plaid_items WHERE id = ?').get(id);
   if (!item) return res.status(404).json({ error: 'Item not found' });
+
   clearNeedsUpdate(id);
+
+  // Reconcile the account list after an account-selection update.
+  // Plaid docs: "all selected accounts will be shared in the `accounts`
+  // field in the onSuccess() callback from Link. Any de-selected
+  // accounts will no longer be shared with you."
+  if (reconcile) {
+    try {
+      const response = await plaidClient.accountsGet({ access_token: item.access_token });
+      const sharedAccountIds = new Set(response.data.accounts.map((a) => a.account_id));
+
+      // Drop accounts that are no longer shared.
+      const existing = db
+        .prepare('SELECT plaid_account_id FROM plaid_accounts WHERE plaid_item_id = ?')
+        .all(id);
+      const deleteStmt = db.prepare(
+        'DELETE FROM plaid_accounts WHERE plaid_account_id = ?'
+      );
+      let removedCount = 0;
+      for (const row of existing) {
+        if (!sharedAccountIds.has(row.plaid_account_id)) {
+          deleteStmt.run(row.plaid_account_id);
+          removedCount++;
+        }
+      }
+
+      // Upsert current shared accounts.
+      const insertStmt = db.prepare(`
+        INSERT OR REPLACE INTO plaid_accounts
+          (id, plaid_item_id, plaid_account_id, name, official_name, type, subtype, mask)
+        VALUES (
+          COALESCE((SELECT id FROM plaid_accounts WHERE plaid_account_id = ?), ?),
+          ?, ?, ?, ?, ?, ?, ?
+        )
+      `);
+      let addedCount = 0;
+      for (const acct of response.data.accounts) {
+        const existingRow = db
+          .prepare('SELECT 1 FROM plaid_accounts WHERE plaid_account_id = ?')
+          .get(acct.account_id);
+        insertStmt.run(
+          acct.account_id,
+          uuidv4(),
+          id,
+          acct.account_id,
+          acct.name,
+          acct.official_name,
+          acct.type,
+          acct.subtype,
+          acct.mask
+        );
+        if (!existingRow) addedCount++;
+      }
+
+      console.log(
+        `[update-mode] Reconciled item ${id}: +${addedCount} new, -${removedCount} removed`
+      );
+    } catch (error) {
+      console.error(
+        '[update-mode] Reconcile failed:',
+        error.response?.data || error.message
+      );
+    }
+  }
+
   res.json({ success: true });
 });
 

@@ -367,6 +367,8 @@ struct SettingsView: View {
             return "Consent will expire in under 7 days. Reconnect to avoid interruption."
         case "PENDING_DISCONNECT":
             return "This connection will soon be disconnected. Reconnect to keep it active."
+        case "NEW_ACCOUNTS_AVAILABLE":
+            return "New accounts are available. Reconnect to choose which to share."
         default:
             return "This connection needs attention. Please reconnect."
         }

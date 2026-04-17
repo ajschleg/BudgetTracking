@@ -33,6 +33,10 @@
     const params = new URLSearchParams(window.location.search);
     const ITEM_ID = params.get('item_id');
     const APP_TOKEN = params.get('token');
+    // account_selection=true opens Link with the account picker so the
+    // user can opt-in newly-discovered accounts. Used in response to
+    // the NEW_ACCOUNTS_AVAILABLE webhook.
+    const ACCOUNT_SELECTION = params.get('account_selection') === 'true';
 
     function authHeaders(extra = {}) {
       const headers = { 'Content-Type': 'application/json', ...extra };
@@ -55,6 +59,7 @@
           body: JSON.stringify({
             item_id: ITEM_ID,
             redirect_uri: OAUTH_REDIRECT_URI,
+            account_selection_enabled: ACCOUNT_SELECTION,
           }),
         });
         const { link_token, error } = await response.json();
@@ -64,11 +69,14 @@
           token: link_token,
           onSuccess: async () => {
             // Access token does NOT change in update mode — just clear
-            // the needs_update flag on the server.
+            // the needs_update flag on the server. When the user ran
+            // account selection, also ask the server to reconcile the
+            // account list (add newly selected, remove deselected).
             document.getElementById('status').innerHTML = '<p>Reconnected!</p>';
             await fetch(`${SERVER_URL}/api/items/${ITEM_ID}/clear-update`, {
               method: 'POST',
               headers: authHeaders(),
+              body: JSON.stringify({ reconcile: ACCOUNT_SELECTION }),
             });
             if (window.webkit?.messageHandlers?.plaidCallback) {
               window.webkit.messageHandlers.plaidCallback.postMessage(

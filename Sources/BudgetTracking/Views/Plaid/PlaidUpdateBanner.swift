@@ -47,7 +47,7 @@ private struct PlaidUpdateBannerRow: View {
             Spacer()
 
             Button(action: onReconnect) {
-                Text("Reconnect")
+                Text(ctaLabel)
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 6)
@@ -70,6 +70,8 @@ private struct PlaidUpdateBannerRow: View {
             return "exclamationmark.triangle.fill"
         case "PENDING_EXPIRATION", "PENDING_DISCONNECT":
             return "clock.badge.exclamationmark.fill"
+        case "NEW_ACCOUNTS_AVAILABLE":
+            return "plus.circle.fill"
         default:
             return "exclamationmark.circle.fill"
         }
@@ -81,6 +83,8 @@ private struct PlaidUpdateBannerRow: View {
             return .red
         case "PENDING_EXPIRATION", "PENDING_DISCONNECT":
             return .orange
+        case "NEW_ACCOUNTS_AVAILABLE":
+            return .blue
         default:
             return .orange
         }
@@ -95,6 +99,8 @@ private struct PlaidUpdateBannerRow: View {
             return "\(name) access expires soon"
         case "PENDING_DISCONNECT":
             return "\(name) will disconnect soon"
+        case "NEW_ACCOUNTS_AVAILABLE":
+            return "New accounts available at \(name)"
         default:
             return "\(name) needs attention"
         }
@@ -108,8 +114,16 @@ private struct PlaidUpdateBannerRow: View {
             return "Plaid consent expires within 7 days. Reconnect to keep syncing."
         case "PENDING_DISCONNECT":
             return "This connection will stop syncing within 7 days. Reconnect now."
+        case "NEW_ACCOUNTS_AVAILABLE":
+            return "You opened a new account. Tap to choose which accounts to share."
         default:
             return "Tap Reconnect to restore this connection."
         }
+    }
+
+    /// NEW_ACCOUNTS_AVAILABLE is informational — the CTA is "Add Accounts"
+    /// rather than "Reconnect" because nothing is broken.
+    var ctaLabel: String {
+        item.needs_update_reason == "NEW_ACCOUNTS_AVAILABLE" ? "Add Accounts" : "Reconnect"
     }
 }

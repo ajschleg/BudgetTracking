@@ -32,6 +32,12 @@ final class PlaidSyncManager {
     /// this local item UUID.
     var pendingUpdateItemId: String?
 
+    /// When true, the pending update sheet should open Plaid Link with
+    /// the account picker enabled (account_selection_enabled=true).
+    /// Set automatically when the user reconnects an item whose
+    /// needs_update_reason is NEW_ACCOUNTS_AVAILABLE.
+    var pendingUpdateAccountSelection = false
+
     private let plaidService = PlaidService()
 
     // MARK: - Account Management
@@ -185,14 +191,28 @@ final class PlaidSyncManager {
     /// present the update.html page, Plaid Link re-auths against the
     /// existing access_token, and the server clears the needs_update
     /// flag on success.
+    ///
+    /// When the item was flagged with NEW_ACCOUNTS_AVAILABLE, we open
+    /// Link with the account picker so the user can opt-in the newly
+    /// discovered accounts.
     func startUpdateMode(for itemId: String) {
+        let isNewAccounts = itemsNeedingUpdate
+            .first(where: { $0.id == itemId })?
+            .needs_update_reason == "NEW_ACCOUNTS_AVAILABLE"
+        pendingUpdateAccountSelection = isNewAccounts
         pendingUpdateItemId = itemId
     }
 
     /// Called when update-mode Link finishes (success or exit).
     func finishUpdateMode() {
         pendingUpdateItemId = nil
-        Task { await refreshUpdateModeStatus() }
+        pendingUpdateAccountSelection = false
+        Task {
+            await refreshUpdateModeStatus()
+            // Pull the reconciled account list down to the app so newly
+            // selected accounts appear immediately.
+            await refreshAccountsFromServer()
+        }
     }
 
     // MARK: - Identity Refresh

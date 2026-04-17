@@ -7,6 +7,9 @@ struct PlaidLinkView: View {
     /// When set, opens Link in update mode for this existing item
     /// instead of starting a fresh link flow.
     var updateItemId: String?
+    /// When true and updateItemId is set, opens Link with the account
+    /// picker so the user can add newly-discovered accounts.
+    var updateAccountSelection: Bool = false
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -50,6 +53,7 @@ struct PlaidLinkView: View {
                     plaidManager: plaidManager,
                     oauthRedirectURI: oauthRedirectURI,
                     updateItemId: updateItemId,
+                    updateAccountSelection: updateAccountSelection,
                     isLoading: $isLoading,
                     errorMessage: $errorMessage,
                     onSuccess: { dismiss() }
@@ -69,6 +73,7 @@ struct PlaidLinkWebView: NSViewRepresentable {
     let plaidManager: PlaidSyncManager
     let oauthRedirectURI: String?
     let updateItemId: String?
+    let updateAccountSelection: Bool
     @Binding var isLoading: Bool
     @Binding var errorMessage: String?
     let onSuccess: () -> Void
@@ -89,7 +94,7 @@ struct PlaidLinkWebView: NSViewRepresentable {
             loadOAuthCompletionPage(webView, receivedRedirectURI: oauthURI)
         } else if let itemId = updateItemId {
             // Update mode: load update.html for an existing item
-            loadUpdatePage(webView, itemId: itemId)
+            loadUpdatePage(webView, itemId: itemId, accountSelection: updateAccountSelection)
         } else {
             // Normal mode: load link.html to start a new Link flow
             loadLinkPage(webView)
@@ -139,13 +144,16 @@ struct PlaidLinkWebView: NSViewRepresentable {
         return "?token=\(escaped)"
     }
 
-    private func loadUpdatePage(_ webView: WKWebView, itemId: String) {
+    private func loadUpdatePage(_ webView: WKWebView, itemId: String, accountSelection: Bool) {
         let serverURL = UserDefaults.standard.string(forKey: "plaidServerURL") ?? "http://localhost:8080"
         var components = URLComponents(string: "\(serverURL)/update.html")
         var items = [URLQueryItem(name: "item_id", value: itemId)]
         let token = UserDefaults.standard.string(forKey: "plaidAppToken") ?? ""
         if !token.isEmpty {
             items.append(URLQueryItem(name: "token", value: token))
+        }
+        if accountSelection {
+            items.append(URLQueryItem(name: "account_selection", value: "true"))
         }
         components?.queryItems = items
         guard let url = components?.url else {

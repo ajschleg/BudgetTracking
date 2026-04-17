@@ -199,6 +199,14 @@ async function handleWebhook(plaidClient, payload) {
 
   switch (`${webhook_type}:${webhook_code}`) {
     case 'ITEM:NEW_ACCOUNTS_AVAILABLE':
+      // Per Plaid docs, NEW_ACCOUNTS_AVAILABLE means we should prompt
+      // the user to re-enter Link in update mode with
+      // account_selection_enabled=true so they can opt-in the new
+      // accounts. We flag the item the same way as ITEM_LOGIN_REQUIRED
+      // but with a distinct reason so the UI can style it differently
+      // (informational, not urgent). We still call accountsGet as a
+      // best-effort preview so the server knows what's available.
+      markNeedsUpdate(item.id, 'NEW_ACCOUNTS_AVAILABLE');
       await handleNewAccountsAvailable(plaidClient, item);
       break;
 

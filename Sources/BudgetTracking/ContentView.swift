@@ -155,7 +155,8 @@ struct ContentView: View {
         )) {
             PlaidLinkView(
                 plaidManager: plaidManager,
-                updateItemId: plaidManager.pendingUpdateItemId
+                updateItemId: plaidManager.pendingUpdateItemId,
+                updateAccountSelection: plaidManager.pendingUpdateAccountSelection
             )
         }
         .task {
