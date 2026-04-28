@@ -86,6 +86,21 @@ struct PlaidAccount: Identifiable, Codable, Equatable {
         }
         return accountName
     }
+
+    /// Returns a copy with Plaid Identity PII (owner name, email, phone)
+    /// stripped. Per `SECURITY_POLICY.md` §10, PII beyond what the app
+    /// renders to its own owner does not leave this device — when a
+    /// PlaidAccount is shipped over CloudKit or LAN sync to a peer
+    /// device, the sender calls this so the peer only sees the
+    /// non-PII account metadata (institution, name, mask, balances).
+    func sanitizedForSync() -> PlaidAccount {
+        var copy = self
+        copy.ownerName = nil
+        copy.ownerEmail = nil
+        copy.ownerPhone = nil
+        copy.identityFetchedAt = nil
+        return copy
+    }
 }
 
 extension PlaidAccount: FetchableRecord, PersistableRecord {

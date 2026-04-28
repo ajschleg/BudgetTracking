@@ -13,6 +13,14 @@ struct AccountsView: View {
     @State private var pendingDisconnect: (institution: String, account: PlaidAccount)?
     @State private var showDisconnectAllConfirmation = false
 
+    /// True when this Mac has no Plaid app token in the Keychain — i.e.
+    /// it's not configured to talk to a Plaid server. The intended
+    /// audience is a peer Mac that's viewing accounts shared via LAN
+    /// sync from the host Mac. All Plaid management actions get hidden.
+    private var isPlaidViewerOnly: Bool {
+        PlaidService.appToken.isEmpty
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -76,19 +84,24 @@ struct AccountsView: View {
     private var plaidSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 16) {
+                if isPlaidViewerOnly {
+                    viewerOnlyHint
+                }
                 linkedAccountsHeader
                 linkedAccountsBody
-                if plaidManager.isHistoricalBackfillInProgress {
+                if !isPlaidViewerOnly && plaidManager.isHistoricalBackfillInProgress {
                     backfillHint
                 }
-                if let error = plaidManager.errorMessage {
+                if let error = plaidManager.errorMessage, !isPlaidViewerOnly {
                     errorHint(error)
                 }
-                Divider()
-                actionButtons
-                if !plaidManager.linkedAccounts.isEmpty {
+                if !isPlaidViewerOnly {
                     Divider()
-                    disconnectAllRow
+                    actionButtons
+                    if !plaidManager.linkedAccounts.isEmpty {
+                        Divider()
+                        disconnectAllRow
+                    }
                 }
             }
             .padding(8)
@@ -97,24 +110,46 @@ struct AccountsView: View {
         }
     }
 
+    /// Banner shown on the peer Mac that's viewing accounts shared over
+    /// LAN sync. Explains why management actions are missing here.
+    private var viewerOnlyHint: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "eye")
+                .foregroundStyle(.blue)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Read-only view")
+                    .font(.subheadline.weight(.medium))
+                Text("These accounts are synced from another Mac. Linking, syncing, and disconnecting all happen on the host.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(10)
+        .background(Color.blue.opacity(0.08))
+        .cornerRadius(8)
+    }
+
     private var linkedAccountsHeader: some View {
         HStack {
             Text("Linked Accounts")
                 .font(.headline)
             Spacer()
-            Button {
-                // Enforce one-time consent before opening Plaid Link.
-                if plaidConsentAcknowledged {
-                    isLinkingAccount = true
-                } else {
-                    isShowingConsent = true
+            if !isPlaidViewerOnly {
+                Button {
+                    // Enforce one-time consent before opening Plaid Link.
+                    if plaidConsentAcknowledged {
+                        isLinkingAccount = true
+                    } else {
+                        isShowingConsent = true
+                    }
+                } label: {
+                    Label("Link Bank Account", systemImage: "plus.circle")
+                        .font(.caption)
                 }
-            } label: {
-                Label("Link Bank Account", systemImage: "plus.circle")
-                    .font(.caption)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
         }
     }
 
@@ -155,7 +190,7 @@ struct AccountsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                if let needsUpdate {
+                if !isPlaidViewerOnly, let needsUpdate {
                     Button {
                         plaidManager.startUpdateMode(for: needsUpdate.id)
                     } label: {
@@ -166,19 +201,21 @@ struct AccountsView: View {
                     .controlSize(.small)
                     .tint(.orange)
                 }
-                Button {
-                    if let account = accounts.first {
-                        pendingDisconnect = (institution: institution, account: account)
+                if !isPlaidViewerOnly {
+                    Button {
+                        if let account = accounts.first {
+                            pendingDisconnect = (institution: institution, account: account)
+                        }
+                    } label: {
+                        Text("Disconnect")
+                            .font(.caption)
+                            .foregroundStyle(.red)
                     }
-                } label: {
-                    Text("Disconnect")
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    .buttonStyle(.plain)
+                    .help("Unlink this bank and stop syncing")
                 }
-                .buttonStyle(.plain)
-                .help("Unlink this bank and stop syncing")
             }
-            if let needsUpdate {
+            if !isPlaidViewerOnly, let needsUpdate {
                 Text(updateReasonMessage(needsUpdate.needs_update_reason))
                     .font(.caption2)
                     .foregroundStyle(.orange)

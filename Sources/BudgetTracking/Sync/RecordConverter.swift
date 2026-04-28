@@ -316,4 +316,70 @@ enum RecordConverter {
             isDeleted: record["isDeleted"] as? Bool ?? false
         )
     }
+
+    // MARK: - PlaidAccount
+
+    /// Encode the account metadata that flows to peer devices: institution
+    /// name, account name, type, mask, balance fields. Plaid Identity PII
+    /// (owner name / email / phone) is intentionally NOT written to the
+    /// CKRecord — callers must hand in a `sanitizedForSync()` copy, but
+    /// even if they don't, this encoder drops those fields.
+    static func ckRecord(from account: PlaidAccount) -> CKRecord {
+        let record = record(
+            type: SyncConstants.RecordType.plaidAccount,
+            recordName: account.cloudKitRecordName ?? account.id.uuidString,
+            systemFields: account.cloudKitSystemFields
+        )
+        record["id"] = account.id.uuidString
+        record["plaidAccountId"] = account.plaidAccountId
+        record["plaidItemId"] = account.plaidItemId
+        record["institutionName"] = account.institutionName
+        record["name"] = account.name
+        record["officialName"] = account.officialName
+        record["type"] = account.type
+        record["subtype"] = account.subtype
+        record["mask"] = account.mask
+        record["balanceCurrent"] = account.balanceCurrent
+        record["balanceAvailable"] = account.balanceAvailable
+        record["balanceLimit"] = account.balanceLimit
+        record["balanceCurrencyCode"] = account.balanceCurrencyCode
+        record["balanceFetchedAt"] = account.balanceFetchedAt
+        record["isDeleted"] = account.isDeleted
+        record["lastModifiedAt"] = account.lastModifiedAt
+        return record
+    }
+
+    static func plaidAccount(from record: CKRecord) -> PlaidAccount? {
+        guard let idString = record["id"] as? String,
+              let id = UUID(uuidString: idString),
+              let plaidAccountId = record["plaidAccountId"] as? String,
+              let plaidItemId = record["plaidItemId"] as? String
+        else { return nil }
+        return PlaidAccount(
+            id: id,
+            plaidAccountId: plaidAccountId,
+            plaidItemId: plaidItemId,
+            institutionName: record["institutionName"] as? String,
+            name: record["name"] as? String,
+            officialName: record["officialName"] as? String,
+            type: record["type"] as? String,
+            subtype: record["subtype"] as? String,
+            mask: record["mask"] as? String,
+            balanceCurrent: record["balanceCurrent"] as? Double,
+            balanceAvailable: record["balanceAvailable"] as? Double,
+            balanceLimit: record["balanceLimit"] as? Double,
+            balanceCurrencyCode: record["balanceCurrencyCode"] as? String,
+            balanceFetchedAt: record["balanceFetchedAt"] as? Date,
+            // Identity PII intentionally not read from the CKRecord —
+            // even if a misbehaving peer wrote it, this side ignores it.
+            ownerName: nil,
+            ownerEmail: nil,
+            ownerPhone: nil,
+            identityFetchedAt: nil,
+            lastModifiedAt: record["lastModifiedAt"] as? Date ?? Date(),
+            cloudKitRecordName: record.recordID.recordName,
+            cloudKitSystemFields: archiveSystemFields(of: record),
+            isDeleted: record["isDeleted"] as? Bool ?? false
+        )
+    }
 }

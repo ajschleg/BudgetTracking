@@ -94,7 +94,7 @@ Rules that future code changes must follow. Treat this as a gate: a change that 
 ## 10. What stays on the local machine
 
 - **Never sent to anyone else** (beyond the intended third party): Plaid access tokens, Plaid PII (owner addresses, emails, phones beyond what the app renders itself), bank credentials (they never even come to us — they go directly to Plaid).
-- **Sent only to the user's own iCloud** via CloudKit: transactions, budgets, categories, learned rules.
+- **Sent only to the user's own iCloud or paired-device LAN sync**: transactions, budgets, categories, learned rules, and `PlaidAccount` *metadata* (institution, name, mask, balances). PlaidAccount Identity PII (`ownerName`, `ownerEmail`, `ownerPhone`, `identityFetchedAt`) is stripped at the sync boundary by `PlaidAccount.sanitizedForSync()` and on the receiving side by `DatabaseManager.upsertFromPeer(_:PlaidAccount)` — defense in depth so a misbehaving peer cannot push PII into your DB.
 - **Sent to Plaid** only: access tokens (server→Plaid), public tokens (server→Plaid for exchange).
 - **Sent to Anthropic** only if the user enables AI insights: aggregated category totals. Never individual transactions unless the user explicitly runs AI categorization on a batch.
 

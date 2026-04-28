@@ -13,5 +13,10 @@ enum SyncConstants {
         static let categorizationRule = "CategorizationRule"
         static let monthlySnapshot = "MonthlySnapshot"
         static let bankProfile = "BankProfile"
+        /// Read-only view of Plaid-linked accounts (institution, name,
+        /// mask, balances) — sent to a peer Mac so it can see what's
+        /// linked without holding a Plaid access token. Owner PII is
+        /// stripped at the boundary; see `PlaidAccount.sanitizedForSync()`.
+        static let plaidAccount = "PlaidAccount"
     }
 }
