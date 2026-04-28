@@ -163,6 +163,7 @@ private struct TransactionCategoryPicker: View {
         .labelsHidden()
         .frame(width: 130)
         .controlSize(.small)
+        .disabled(onCategoryChange == nil)
         .onAppear { selectedCategoryId = transaction.categoryId }
         .onChange(of: selectedCategoryId) { _, newValue in
             if let newId = newValue, newId != transaction.categoryId {
