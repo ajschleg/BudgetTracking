@@ -1,15 +1,8 @@
 import SwiftUI
 
-/// Accounts page: the single place users manage where their data comes
-/// from. Top half is Plaid-linked banks (primary source); bottom half
-/// is manual file imports (backfill / fallback / unlinked accounts).
-///
-/// Replaced the old Import-only page. The Plaid content used to live
-/// under Settings → Bank Connections; moving it here keeps Settings
-/// focused on app configuration and puts account management where
-/// users naturally look for it.
+/// Accounts page: where users manage Plaid-linked banks. File-based
+/// imports live on the separate Imports page.
 struct AccountsView: View {
-    @Binding var selectedMonth: String
     @Bindable var aiViewModel: InsightsViewModel
     @Bindable var plaidManager: PlaidSyncManager
 
@@ -21,28 +14,11 @@ struct AccountsView: View {
     @State private var showDisconnectAllConfirmation = false
 
     var body: some View {
-        VSplitView {
-            // Top pane: Plaid connections. Scrolls internally when a
-            // user has many linked accounts. Default height sized so
-            // the Link button, account list, and action row are all
-            // visible on first load without resizing.
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    plaidSection
-                }
-                .padding(24)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                plaidSection
             }
-            .frame(minHeight: 200, idealHeight: 340)
-
-            // Bottom pane: manual imports. Label + ImportView.
-            VStack(alignment: .leading, spacing: 0) {
-                importSectionLabel
-                    .padding(.horizontal, 24)
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
-                ImportView(selectedMonth: $selectedMonth, aiViewModel: aiViewModel)
-            }
-            .frame(minHeight: 280)
+            .padding(24)
         }
         .navigationTitle("Accounts")
         .onAppear {
@@ -323,14 +299,4 @@ struct AccountsView: View {
         }
     }
 
-    // MARK: - Manual Imports
-
-    private var importSectionLabel: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "square.and.arrow.down")
-                .foregroundStyle(.secondary)
-            Text("Manual Imports")
-                .font(.headline)
-        }
-    }
 }
