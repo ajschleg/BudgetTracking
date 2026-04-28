@@ -553,6 +553,21 @@ final class LANSyncEngine: @unchecked Sendable {
             }
             logger.debug("Gathered \(profiles.count) bankProfile records since \(sinceDate)")
 
+            // PlaidAccount is sanitized at the gather boundary — owner
+            // identity (name/email/phone) is stripped before the JSON
+            // encoder ever sees the row, so peer devices receive only
+            // the institution + balance metadata.
+            let plaidAccounts = try DatabaseManager.shared.fetchAllRecords(
+                type: PlaidAccount.self, since: sinceDate
+            )
+            for account in plaidAccounts {
+                let sanitized = account.sanitizedForSync()
+                records.append(.from(sanitized, tableName: "plaidAccount",
+                                     id: account.id.uuidString, isDeleted: account.isDeleted,
+                                     lastModifiedAt: account.lastModifiedAt))
+            }
+            logger.debug("Gathered \(plaidAccounts.count) plaidAccount records since \(sinceDate)")
+
             let response = SyncResponse(records: records, syncTimestamp: now)
             sendMessage(.syncResponse(response), on: connection)
             logger.info("Sent \(records.count) total records to \(peerId)")
@@ -620,6 +635,15 @@ final class LANSyncEngine: @unchecked Sendable {
                         appliedCount += 1
                     }
 
+                case "plaidAccount":
+                    // Defense in depth: even if the peer didn't sanitize
+                    // before sending, drop owner PII at the receive
+                    // boundary so it never lands in this device's DB.
+                    let model = try decoder.decode(PlaidAccount.self, from: record.jsonData).sanitizedForSync()
+                    if try DatabaseManager.shared.upsertFromPeer(model) {
+                        appliedCount += 1
+                    }
+
                 default:
                     logger.warning("Unknown table in sync record: \(record.tableName)")
                 }
@@ -683,6 +707,7 @@ final class LANSyncEngine: @unchecked Sendable {
             if !(try db.fetchAllRecords(type: CategorizationRule.self, since: sinceDate)).isEmpty { return true }
             if !(try db.fetchAllRecords(type: MonthlySnapshot.self, since: sinceDate)).isEmpty { return true }
             if !(try db.fetchAllRecords(type: BankProfile.self, since: sinceDate)).isEmpty { return true }
+            if !(try db.fetchAllRecords(type: PlaidAccount.self, since: sinceDate)).isEmpty { return true }
         } catch {
             logger.error("Failed to check for local changes: \(error)")
         }

@@ -1453,6 +1453,31 @@ final class DatabaseManager {
         }
     }
 
+    /// Upsert a PlaidAccount with dedup on `plaidAccountId`. Owner PII
+    /// is stripped at this boundary as a defense-in-depth in case a
+    /// peer sent more than the sanitizer should have allowed.
+    @discardableResult
+    func upsertFromPeer(_ incoming: PlaidAccount) throws -> Bool {
+        let sanitized = incoming.sanitizedForSync()
+        return try dbQueue.write { db in
+            if let existing = try PlaidAccount.fetchOne(db, key: sanitized.id) {
+                return try Self.applyPeerRecord(sanitized, existing: existing, in: db)
+            }
+            // Match by Plaid's stable account id so reinstall / fresh
+            // device id collisions don't create duplicate rows.
+            if let existing = try PlaidAccount
+                .filter(PlaidAccount.Columns.plaidAccountId == sanitized.plaidAccountId)
+                .filter(PlaidAccount.Columns.isDeleted == false)
+                .fetchOne(db)
+            {
+                var merged = sanitized
+                merged.id = existing.id
+                return try Self.applyPeerRecord(merged, existing: existing, in: db)
+            }
+            return try Self.applyPeerRecord(sanitized, existing: nil, in: db)
+        }
+    }
+
     /// Upsert a BankProfile with dedup on `name`.
     @discardableResult
     func upsertFromPeer(_ incoming: BankProfile) throws -> Bool {

@@ -52,6 +52,12 @@ Bank credentials are **never** seen by the app — they go directly from the use
 
 If the user enables sync, the app replicates records via CloudKit into their private iCloud container. CloudKit encrypts records in transit and at rest in Apple's infrastructure; only devices signed into the user's Apple ID can decrypt.
 
+### Paired-device LAN sync (optional)
+
+When LAN sync is enabled (Sync settings → "Sync over local network"), the app discovers another Mac running BudgetTracking via Bonjour and exchanges records over a length-prefixed JSON-over-TCP channel on the LAN. The same record types CloudKit syncs flow over LAN sync — including read-only `PlaidAccount` metadata so a peer Mac can show the account list and balances.
+
+Plaid Identity PII (`ownerName`, `ownerEmail`, `ownerPhone`, `identityFetchedAt`) is stripped at both ends by `PlaidAccount.sanitizedForSync()` before encoding and by `DatabaseManager.upsertFromPeer(_:PlaidAccount)` after decoding. Plaid access tokens never appear on the macOS app (they live only in `server/plaid.db`), so they are never candidates for any sync path.
+
 ## Key practices
 
 - **No plaintext secrets in logs.** Server logs only print institution names, local UUIDs, and webhook codes — never access tokens or full owner data.
