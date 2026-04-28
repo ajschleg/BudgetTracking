@@ -118,3 +118,46 @@ final class RuleLearnerTests: XCTestCase {
         XCTAssertEqual(m, "NETFLIX")
     }
 }
+
+final class PlaidSyncSummaryTests: XCTestCase {
+    func testZeroEverywhereYieldsUpToDate() {
+        let s = PlaidSyncManager.formatSyncSummary(
+            added: 0, duplicates: 0, modified: 0, removed: 0, pending: 0
+        )
+        XCTAssertEqual(s, "Up to date — no new transactions")
+    }
+
+    func testAddedOnly() {
+        let s = PlaidSyncManager.formatSyncSummary(
+            added: 5, duplicates: 0, modified: 0, removed: 0, pending: 0
+        )
+        XCTAssertEqual(s, "5 new")
+    }
+
+    func testAddedAndDuplicates_PluralizesCorrectly() {
+        XCTAssertEqual(
+            PlaidSyncManager.formatSyncSummary(added: 3, duplicates: 1, modified: 0, removed: 0, pending: 0),
+            "3 new · 1 duplicate skipped"
+        )
+        XCTAssertEqual(
+            PlaidSyncManager.formatSyncSummary(added: 3, duplicates: 7, modified: 0, removed: 0, pending: 0),
+            "3 new · 7 duplicates skipped"
+        )
+    }
+
+    func testIncludesEverySectionWhenAllNonZero() {
+        let s = PlaidSyncManager.formatSyncSummary(
+            added: 10, duplicates: 4, modified: 2, removed: 1, pending: 3
+        )
+        XCTAssertEqual(s, "10 new · 4 duplicates skipped · 2 updated · 1 removed · 3 pending")
+    }
+
+    func testZeroSectionsAreOmittedExceptAdded() {
+        // "added" always shown so the user sees a 0 when there were
+        // genuinely no new transactions but other categories had activity
+        let s = PlaidSyncManager.formatSyncSummary(
+            added: 0, duplicates: 5, modified: 0, removed: 0, pending: 0
+        )
+        XCTAssertEqual(s, "0 new · 5 duplicates skipped")
+    }
+}

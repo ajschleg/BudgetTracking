@@ -5,6 +5,9 @@ import SwiftUI
 final class PlaidSyncManager {
     var isSyncing = false
     var syncProgress: String = ""
+    /// Sticky summary of the last successful sync: "5 new · 2 duplicates skipped · 1 updated".
+    /// Cleared at the start of the next sync. Nil when no sync has run this session.
+    var lastSyncSummary: String?
     var errorMessage: String?
     var linkedAccounts: [PlaidAccount] = []
 
@@ -301,6 +304,7 @@ final class PlaidSyncManager {
         isSyncing = true
         syncProgress = "Syncing transactions..."
         errorMessage = nil
+        lastSyncSummary = nil
 
         defer {
             isSyncing = false
@@ -319,6 +323,10 @@ final class PlaidSyncManager {
             )
             try DatabaseManager.shared.saveImportedFile(importedFile)
 
+            var addedCount = 0
+            var duplicateCount = 0
+            var pendingSkippedCount = 0
+
             // Process added transactions
             if !response.added.isEmpty {
                 syncProgress = "Saving \(response.added.count) new transactions..."
@@ -330,10 +338,14 @@ final class PlaidSyncManager {
 
                 for plaidTxn in response.added {
                     // Skip pending transactions
-                    guard !plaidTxn.pending else { continue }
+                    if plaidTxn.pending {
+                        pendingSkippedCount += 1
+                        continue
+                    }
 
                     // Check for duplicates by externalId
                     if try DatabaseManager.shared.transactionExists(externalId: plaidTxn.transaction_id) {
+                        duplicateCount += 1
                         continue
                     }
 
@@ -368,10 +380,12 @@ final class PlaidSyncManager {
                     )
 
                     try DatabaseManager.shared.saveTransactions(transactions)
+                    addedCount = transactions.count
                 }
             }
 
             // Process modified transactions
+            var modifiedCount = 0
             if !response.modified.isEmpty {
                 syncProgress = "Updating \(response.modified.count) transactions..."
                 for plaidTxn in response.modified {
@@ -383,6 +397,7 @@ final class PlaidSyncManager {
                         amount: -plaidTxn.amount,
                         date: parseDate(plaidTxn.date) ?? Date()
                     )
+                    modifiedCount += 1
                 }
             }
 
@@ -393,16 +408,52 @@ final class PlaidSyncManager {
                     try DatabaseManager.shared.softDeleteTransactionByExternalId(removed.transaction_id)
                 }
             }
+            let removedCount = response.removed.count
 
             let total = response.added.count + response.modified.count + response.removed.count
             if total > 0 {
                 DatabaseManager.shared.notifyDataChanged()
             }
 
-            syncProgress = "Sync complete"
+            lastSyncSummary = Self.formatSyncSummary(
+                added: addedCount,
+                duplicates: duplicateCount,
+                modified: modifiedCount,
+                removed: removedCount,
+                pending: pendingSkippedCount
+            )
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Builds a human-readable one-line summary from sync counters. Pure
+    /// so it can be unit-tested without touching the network or DB.
+    static func formatSyncSummary(
+        added: Int,
+        duplicates: Int,
+        modified: Int,
+        removed: Int,
+        pending: Int
+    ) -> String {
+        if added == 0 && duplicates == 0 && modified == 0 && removed == 0 && pending == 0 {
+            return "Up to date — no new transactions"
+        }
+        var parts: [String] = []
+        parts.append("\(added) new")
+        if duplicates > 0 {
+            parts.append("\(duplicates) duplicate\(duplicates == 1 ? "" : "s") skipped")
+        }
+        if modified > 0 {
+            parts.append("\(modified) updated")
+        }
+        if removed > 0 {
+            parts.append("\(removed) removed")
+        }
+        if pending > 0 {
+            parts.append("\(pending) pending")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private func parseDate(_ dateString: String) -> Date? {

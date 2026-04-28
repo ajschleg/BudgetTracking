@@ -234,32 +234,45 @@ struct AccountsView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        HStack(spacing: 12) {
-            if plaidManager.isSyncing {
-                ProgressView().controlSize(.small)
-                Text(plaidManager.syncProgress)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Button {
-                    Task { await plaidManager.syncTransactions() }
-                } label: {
-                    Label("Sync Transactions", systemImage: "arrow.clockwise")
-                }
-                .disabled(plaidManager.linkedAccounts.isEmpty)
-
-                if plaidManager.isRefreshingBalances {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                if plaidManager.isSyncing {
                     ProgressView().controlSize(.small)
-                    Text("Checking balances…")
+                    Text(plaidManager.syncProgress)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
                     Button {
-                        Task { await plaidManager.refreshBalances() }
+                        Task { await plaidManager.syncTransactions() }
                     } label: {
-                        Label("Refresh Balances", systemImage: "dollarsign.arrow.circlepath")
+                        Label("Sync Transactions", systemImage: "arrow.clockwise")
                     }
                     .disabled(plaidManager.linkedAccounts.isEmpty)
+
+                    if plaidManager.isRefreshingBalances {
+                        ProgressView().controlSize(.small)
+                        Text("Checking balances…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Button {
+                            Task { await plaidManager.refreshBalances() }
+                        } label: {
+                            Label("Refresh Balances", systemImage: "dollarsign.arrow.circlepath")
+                        }
+                        .disabled(plaidManager.linkedAccounts.isEmpty)
+                    }
+                }
+            }
+
+            if !plaidManager.isSyncing, let summary = plaidManager.lastSyncSummary {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.caption)
+                    Text(summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
