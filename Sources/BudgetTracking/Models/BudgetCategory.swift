@@ -7,7 +7,7 @@ struct BudgetCategory: Identifiable, Codable, Equatable {
     var monthlyBudget: Double
     var colorHex: String
     var sortOrder: Int
-    var isArchived: Bool
+    var isHiddenFromDashboard: Bool
 
     // Sync fields
     var lastModifiedAt: Date
@@ -21,7 +21,7 @@ struct BudgetCategory: Identifiable, Codable, Equatable {
         monthlyBudget: Double,
         colorHex: String = "#4CAF50",
         sortOrder: Int = 0,
-        isArchived: Bool = false,
+        isHiddenFromDashboard: Bool = false,
         lastModifiedAt: Date = Date(),
         cloudKitRecordName: String? = nil,
         cloudKitSystemFields: Data? = nil,
@@ -32,11 +32,25 @@ struct BudgetCategory: Identifiable, Codable, Equatable {
         self.monthlyBudget = monthlyBudget
         self.colorHex = colorHex
         self.sortOrder = sortOrder
-        self.isArchived = isArchived
+        self.isHiddenFromDashboard = isHiddenFromDashboard
         self.lastModifiedAt = lastModifiedAt
         self.cloudKitRecordName = cloudKitRecordName
         self.cloudKitSystemFields = cloudKitSystemFields
         self.isDeleted = isDeleted
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(UUID.self, forKey: .id)
+        self.name = try c.decode(String.self, forKey: .name)
+        self.monthlyBudget = try c.decode(Double.self, forKey: .monthlyBudget)
+        self.colorHex = try c.decode(String.self, forKey: .colorHex)
+        self.sortOrder = try c.decode(Int.self, forKey: .sortOrder)
+        self.isHiddenFromDashboard = try c.decodeIfPresent(Bool.self, forKey: .isHiddenFromDashboard) ?? false
+        self.lastModifiedAt = try c.decode(Date.self, forKey: .lastModifiedAt)
+        self.cloudKitRecordName = try c.decodeIfPresent(String.self, forKey: .cloudKitRecordName)
+        self.cloudKitSystemFields = try c.decodeIfPresent(Data.self, forKey: .cloudKitSystemFields)
+        self.isDeleted = try c.decode(Bool.self, forKey: .isDeleted)
     }
 
     static func randomColorHex() -> String {
@@ -63,7 +77,7 @@ extension BudgetCategory: FetchableRecord, PersistableRecord {
     static let databaseTableName = "budgetCategory"
 
     enum Columns: String, ColumnExpression {
-        case id, name, monthlyBudget, colorHex, sortOrder, isArchived
+        case id, name, monthlyBudget, colorHex, sortOrder, isHiddenFromDashboard
         case lastModifiedAt, cloudKitRecordName, cloudKitSystemFields, isDeleted
     }
 }

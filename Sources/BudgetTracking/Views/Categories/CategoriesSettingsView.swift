@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CategoriesSettingsView: View {
     @Bindable var aiViewModel: InsightsViewModel
+    @AppStorage("isEditingLocked") private var isEditingLocked = true
     @State private var viewModel = CategoriesViewModel()
     @State private var showAddCategory = false
     @State private var showAddRule = false
@@ -59,6 +60,7 @@ struct CategoriesSettingsView: View {
                             Label("Save as Defaults", systemImage: "square.and.arrow.down")
                         }
                         .buttonStyle(.bordered)
+                        .disabled(isEditingLocked)
 
                         Button {
                             viewModel.restoreDefaults()
@@ -66,11 +68,13 @@ struct CategoriesSettingsView: View {
                             Label("Restore Defaults", systemImage: "arrow.counterclockwise")
                         }
                         .buttonStyle(.bordered)
+                        .disabled(isEditingLocked)
 
                         Button(action: { showAddCategory = true }) {
                             Label("Add Category", systemImage: "plus")
                         }
                         .buttonStyle(.bordered)
+                        .disabled(isEditingLocked)
                     }
 
                     if !viewModel.categories.isEmpty {
@@ -83,8 +87,10 @@ struct CategoriesSettingsView: View {
                         ForEach(filteredCategories) { category in
                             CategoryRow(
                                 category: category,
+                                isLocked: isEditingLocked,
                                 onEdit: { editingCategory = category },
                                 onDelete: { viewModel.deleteCategory(category) },
+                                onToggleHidden: { viewModel.toggleHidden(category) },
                                 onUpdateBudget: { newBudget in
                                     var updated = category
                                     updated.monthlyBudget = newBudget
@@ -119,6 +125,7 @@ struct CategoriesSettingsView: View {
                             Label("Add Rule", systemImage: "plus")
                         }
                         .buttonStyle(.bordered)
+                        .disabled(isEditingLocked)
                     }
 
                     if !viewModel.rules.isEmpty {
@@ -161,6 +168,7 @@ struct CategoriesSettingsView: View {
                                             .foregroundStyle(.red)
                                     }
                                     .buttonStyle(.plain)
+                                    .disabled(isEditingLocked)
                                 }
                                 .padding(.horizontal)
                                 .padding(.vertical, 6)
@@ -344,8 +352,10 @@ struct IncomeBreakdownSheet: View {
 
 struct CategoryRow: View {
     let category: BudgetCategory
+    let isLocked: Bool
     let onEdit: () -> Void
     let onDelete: () -> Void
+    let onToggleHidden: () -> Void
     let onUpdateBudget: (Double) -> Void
     let onUpdateName: (String) -> Void
 
@@ -384,6 +394,7 @@ struct CategoryRow: View {
                 Text(category.name)
                     .font(.headline)
                     .onTapGesture(count: 2) {
+                        guard !isLocked else { return }
                         nameText = category.name
                         isEditingName = true
                         nameFieldFocused = true
@@ -414,26 +425,40 @@ struct CategoryRow: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .onTapGesture(count: 2) {
+                        guard !isLocked else { return }
                         budgetText = String(format: "%.2f", category.monthlyBudget)
                         isEditingBudget = true
                         budgetFieldFocused = true
                     }
             }
 
+            Button(action: onToggleHidden) {
+                Image(systemName: category.isHiddenFromDashboard ? "eye.slash" : "eye")
+                    .foregroundStyle(category.isHiddenFromDashboard ? Color.secondary : Color.blue)
+            }
+            .buttonStyle(.plain)
+            .disabled(isLocked)
+            .help(category.isHiddenFromDashboard
+                  ? "Hidden from dashboard — click to show"
+                  : "Showing on dashboard — click to hide")
+
             Button(action: onEdit) {
                 Image(systemName: "pencil")
             }
             .buttonStyle(.plain)
+            .disabled(isLocked)
 
             Button(role: .destructive, action: onDelete) {
                 Image(systemName: "trash")
                     .foregroundStyle(.red)
             }
             .buttonStyle(.plain)
+            .disabled(isLocked)
         }
         .padding()
         .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(8)
+        .opacity(category.isHiddenFromDashboard ? 0.55 : 1)
     }
 
     private func commitBudgetEdit() {

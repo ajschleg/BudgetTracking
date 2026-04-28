@@ -60,7 +60,7 @@ enum RecordConverter {
         record["monthlyBudget"] = category.monthlyBudget
         record["colorHex"] = category.colorHex
         record["sortOrder"] = category.sortOrder
-        record["isArchived"] = category.isArchived
+        record["isHiddenFromDashboard"] = category.isHiddenFromDashboard
         record["isDeleted"] = category.isDeleted
         record["lastModifiedAt"] = category.lastModifiedAt
         return record
@@ -77,7 +77,7 @@ enum RecordConverter {
             monthlyBudget: record["monthlyBudget"] as? Double ?? 0,
             colorHex: record["colorHex"] as? String ?? "#4CAF50",
             sortOrder: record["sortOrder"] as? Int ?? 0,
-            isArchived: record["isArchived"] as? Bool ?? false,
+            isHiddenFromDashboard: record["isHiddenFromDashboard"] as? Bool ?? false,
             lastModifiedAt: record["lastModifiedAt"] as? Date ?? Date(),
             cloudKitRecordName: record.recordID.recordName,
             cloudKitSystemFields: archiveSystemFields(of: record),

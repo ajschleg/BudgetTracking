@@ -9,6 +9,9 @@ struct CategoryBudgetBar: View {
     var allCategories: [BudgetCategory] = []
     var onTap: (() -> Void)?
     var onCategoryChange: ((UUID, UUID) -> Void)?  // (transactionId, newCategoryId)
+    /// Optional edit-category callback. Pass nil (or omit) to hide the edit
+    /// button — used to suppress it when editing is locked.
+    var onEdit: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -21,6 +24,16 @@ struct CategoryBudgetBar: View {
 
                     Text(category.name)
                         .font(.headline)
+
+                    if let onEdit {
+                        Button(action: onEdit) {
+                            Image(systemName: "pencil")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Edit category name and budget")
+                    }
 
                     Spacer()
 

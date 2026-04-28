@@ -20,13 +20,58 @@ final class DashboardViewModel {
 
     private var currentMonth: String = ""
 
+    /// Pure split of all categories into the dashboard-visible subset, the
+    /// set of hidden ids (used to exclude transactions from totals), and the
+    /// sum of visible budgets. Extracted so the invariant
+    /// `totalBudget == sum(visible.monthlyBudget)` can be unit-tested without
+    /// a live database.
+    struct CategorySplit: Equatable {
+        let visible: [BudgetCategory]
+        let hiddenIds: Set<UUID>
+        let totalBudget: Double
+    }
+
+    static func splitForDashboard(_ all: [BudgetCategory]) -> CategorySplit {
+        let hiddenIds = Set(all.filter { $0.isHiddenFromDashboard }.map { $0.id })
+        let visible = all.filter { !$0.isHiddenFromDashboard }
+        let totalBudget = visible.reduce(0) { $0 + $1.monthlyBudget }
+        return CategorySplit(visible: visible, hiddenIds: hiddenIds, totalBudget: totalBudget)
+    }
+
+    /// Pure mirror of the dashboard's "Income" computation. The dashboard
+    /// section sums every positive, non-deleted transaction in the given
+    /// month — regardless of category. Hidden categories are intentionally
+    /// NOT filtered here: paychecks tagged to a hidden "Income" category
+    /// or sales tagged to a hidden side-hustle category are still real
+    /// income. Mirrors the SQL in `DatabaseManager.fetchTotalIncome` /
+    /// `fetchIncomeTransactions`. Used by unit tests to lock the rule down.
+    struct IncomeSnapshot: Equatable {
+        let total: Double
+        let transactions: [Transaction]
+    }
+
+    static func incomeSnapshot(from transactions: [Transaction], forMonth month: String) -> IncomeSnapshot {
+        let included = transactions
+            .filter { $0.month == month && $0.amount > 0 && !$0.isDeleted }
+            .sorted { $0.date > $1.date }
+        let total = included.reduce(0) { $0 + $1.amount }
+        return IncomeSnapshot(total: total, transactions: included)
+    }
+
     func load(month: String) {
         currentMonth = month
         do {
-            categories = try DatabaseManager.shared.fetchCategories()
+            let split = Self.splitForDashboard(try DatabaseManager.shared.fetchCategories())
+            categories = split.visible
+            totalBudget = split.totalBudget
             spendingByCategory = try DatabaseManager.shared.fetchSpendingByCategory(forMonth: month)
-            totalSpent = try DatabaseManager.shared.fetchTotalSpending(forMonth: month)
-            totalBudget = categories.reduce(0) { $0 + $1.monthlyBudget }
+            totalSpent = try DatabaseManager.shared.fetchTotalSpending(forMonth: month, excludeCategoryIds: split.hiddenIds)
+            // Income is intentionally NOT filtered by hidden categories: a
+            // user typically hides the "Income" / "Money Transfers" / etc.
+            // categories so they don't pollute the budget bars, but their
+            // positive transactions are still real income (paychecks, refunds,
+            // side-hustle sales). The IncomeBreakdownSheet lets the user
+            // exclude individual transactions if any of them are noise.
             totalIncome = try DatabaseManager.shared.fetchTotalIncome(forMonth: month)
             incomeTransactions = try DatabaseManager.shared.fetchIncomeTransactions(forMonth: month)
             errorMessage = nil

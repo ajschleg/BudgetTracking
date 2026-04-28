@@ -6,6 +6,7 @@ final class TransactionsViewModel {
     var categories: [BudgetCategory] = []
     var searchText: String = ""
     var selectedCategoryFilter: UUID?
+    var showOnlyUncategorized: Bool = false
     var errorMessage: String?
     var lastBulkUpdateCount: Int = 0
 
@@ -18,10 +19,16 @@ final class TransactionsViewModel {
                 $0.description.localizedCaseInsensitiveContains(searchText)
             }
         }
-        if let catId = selectedCategoryFilter {
+        if showOnlyUncategorized {
+            result = result.filter { $0.categoryId == nil }
+        } else if let catId = selectedCategoryFilter {
             result = result.filter { $0.categoryId == catId }
         }
         return result
+    }
+
+    var uncategorizedCount: Int {
+        transactions.filter { $0.categoryId == nil }.count
     }
 
     func load(month: String) {

@@ -158,6 +158,7 @@
 		CA40CF383B5F059CCA7A90BF /* EbayCostOfGoods.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBB5969A6E90269E0E983B6 /* EbayCostOfGoods.swift */; };
 		CA548684785642DD4902FEA3 /* DateHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C7E858423BCB8EA18EE19F /* DateHelpers.swift */; };
 		CA61EB551A1F15186E50F4D6 /* CategoriesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F8FA4860B574D29B070358 /* CategoriesViewModel.swift */; };
+		CAAA8883C83BFC817B8AB082 /* DashboardBudgetInvariantTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E66F8CABD461F5F5CC6BC191 /* DashboardBudgetInvariantTests.swift */; };
 		CC124447E511FE71F01E6836 /* XLSXParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75259CAB67C26E053906C004 /* XLSXParser.swift */; };
 		CC2887DC361193375756E47A /* ColumnMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36204743D3191FAC9750A1EF /* ColumnMapper.swift */; };
 		D00F9EF69575ABE78788B4CF /* PlaidLinkNativeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C51D6D65076A36BA3B83198F /* PlaidLinkNativeView.swift */; };
@@ -309,6 +310,7 @@
 		D9C7E858423BCB8EA18EE19F /* DateHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateHelpers.swift; sourceTree = "<group>"; };
 		E057CC4BC6FDC268C283743D /* TransactionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsListView.swift; sourceTree = "<group>"; };
 		E1A01F52CACF433AE1C260BB /* OFXParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OFXParser.swift; sourceTree = "<group>"; };
+		E66F8CABD461F5F5CC6BC191 /* DashboardBudgetInvariantTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardBudgetInvariantTests.swift; sourceTree = "<group>"; };
 		E90B9AD6A8B1C57D3EC57F09 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		EA01A86FF1D3853480318444 /* IncomeSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeSource.swift; sourceTree = "<group>"; };
 		EA1511E4B898F9C603AC8FA7 /* ImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportView.swift; sourceTree = "<group>"; };
@@ -571,6 +573,7 @@
 			children = (
 				20DF0EA465BF47A908DCDB65 /* BudgetTrackingTests.swift */,
 				59EF97C6FF89940BA0975677 /* ChaseCSVParsingTests.swift */,
+				E66F8CABD461F5F5CC6BC191 /* DashboardBudgetInvariantTests.swift */,
 			);
 			name = BudgetTrackingTests;
 			path = Tests/BudgetTrackingTests;
@@ -723,6 +726,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					66E543502C042942D584FB60 = {
+						DevelopmentTeam = 98AUV869NF;
+						ProvisioningStyle = Automatic;
+					};
 					BF4A706A3F2D27A8766D0402 = {
 						DevelopmentTeam = 98AUV869NF;
 						ProvisioningStyle = Automatic;
@@ -988,6 +995,7 @@
 			files = (
 				4B65D18E316BD2F56ED01E1A /* BudgetTrackingTests.swift in Sources */,
 				AC9DEFC24754618C7AD10C3D /* ChaseCSVParsingTests.swift in Sources */,
+				CAAA8883C83BFC817B8AB082 /* DashboardBudgetInvariantTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1006,7 +1014,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 98AUV869NF;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1183,7 +1194,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 98AUV869NF;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

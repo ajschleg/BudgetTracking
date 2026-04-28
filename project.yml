@@ -95,5 +95,8 @@ targets:
       base:
         SWIFT_VERSION: "5.10"
         GENERATE_INFOPLIST_FILE: YES
+        DEVELOPMENT_TEAM: 98AUV869NF
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
     dependencies:
       - target: BudgetTracking

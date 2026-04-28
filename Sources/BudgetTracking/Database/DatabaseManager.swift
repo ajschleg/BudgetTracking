@@ -307,6 +307,31 @@ final class DatabaseManager {
             }
         }
 
+        migrator.registerMigration("v10_addCategoryHiddenFromDashboard") { db in
+            try db.alter(table: "budgetCategory") { t in
+                t.add(column: "isHiddenFromDashboard", .boolean).notNull().defaults(to: false)
+            }
+        }
+
+        migrator.registerMigration("v11_dropCategoryIsArchived") { db in
+            // Reassign every transaction tagged to an archived/deleted category
+            // back to "Uncategorized" (NULL) before we drop the column. This
+            // also covers deletions that pre-dated the new behavior.
+            let now = Date()
+            try db.execute(sql: """
+                UPDATE "transaction"
+                SET categoryId = NULL, lastModifiedAt = ?
+                WHERE categoryId IN (
+                    SELECT id FROM budgetCategory
+                    WHERE isArchived = 1 OR isDeleted = 1
+                )
+                """, arguments: [now])
+
+            // Drop the column. SQLite >= 3.35 supports ALTER TABLE DROP COLUMN
+            // and that ships with macOS 12+.
+            try db.execute(sql: "ALTER TABLE budgetCategory DROP COLUMN isArchived")
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -519,7 +544,6 @@ final class DatabaseManager {
                         .fetchOne(db)
                     {
                         deleted.isDeleted = false
-                        deleted.isArchived = false
                         deleted.monthlyBudget = cat.monthlyBudget
                         deleted.colorHex = cat.colorHex
                         deleted.sortOrder = cat.sortOrder
@@ -555,7 +579,6 @@ final class DatabaseManager {
                         .fetchOne(db)
                     {
                         deleted.isDeleted = false
-                        deleted.isArchived = false
                         deleted.lastModifiedAt = Date()
                         try deleted.update(db)
                     } else {
@@ -574,7 +597,6 @@ final class DatabaseManager {
     func fetchCategories() throws -> [BudgetCategory] {
         try dbQueue.read { db in
             try BudgetCategory
-                .filter(BudgetCategory.Columns.isArchived == false)
                 .filter(BudgetCategory.Columns.isDeleted == false)
                 .order(BudgetCategory.Columns.sortOrder)
                 .fetchAll(db)
@@ -593,11 +615,22 @@ final class DatabaseManager {
 
     func deleteCategory(_ category: BudgetCategory) throws {
         try dbQueue.write { db in
-            var archived = category
-            archived.isArchived = true
-            archived.isDeleted = true
-            archived.lastModifiedAt = Date()
-            try archived.update(db)
+            let now = Date()
+            // Reassign every transaction tagged to this category to
+            // "Uncategorized" (NULL) so the user's spending data isn't
+            // orphaned to a deleted category.
+            try db.execute(sql: """
+                UPDATE "transaction"
+                SET categoryId = NULL, lastModifiedAt = ?
+                WHERE categoryId = ?
+                """, arguments: [now, category.id])
+
+            // Mark the category itself deleted so the deletion propagates
+            // through CloudKit / LAN sync.
+            var deleted = category
+            deleted.isDeleted = true
+            deleted.lastModifiedAt = now
+            try deleted.update(db)
         }
         notifyDataChanged()
     }
@@ -605,24 +638,40 @@ final class DatabaseManager {
     // MARK: - Transaction Queries
 
     /// Sum of all positive-amount transactions (income) for a given month.
-    func fetchTotalIncome(forMonth month: String) throws -> Double {
+    /// Pass `excludeCategoryIds` to drop transactions tagged with hidden categories.
+    func fetchTotalIncome(forMonth month: String, excludeCategoryIds: Set<UUID> = []) throws -> Double {
         try dbQueue.read { db in
-            let row = try Row.fetchOne(db, sql: """
+            var sql = """
                 SELECT COALESCE(SUM(amount), 0) AS total
                 FROM "transaction"
                 WHERE month = ? AND amount > 0 AND isDeleted = 0
-                """, arguments: [month])
+                """
+            var args: [DatabaseValueConvertible] = [month]
+            if !excludeCategoryIds.isEmpty {
+                let placeholders = excludeCategoryIds.map { _ in "?" }.joined(separator: ", ")
+                sql += " AND (categoryId IS NULL OR categoryId NOT IN (\(placeholders)))"
+                args.append(contentsOf: excludeCategoryIds.map { $0 as DatabaseValueConvertible })
+            }
+            let row = try Row.fetchOne(db, sql: sql, arguments: StatementArguments(args))
             return row?["total"] as? Double ?? 0
         }
     }
 
     /// All positive-amount (income) transactions for a given month.
-    func fetchIncomeTransactions(forMonth month: String) throws -> [Transaction] {
+    /// Pass `excludeCategoryIds` to drop transactions tagged with hidden categories.
+    func fetchIncomeTransactions(forMonth month: String, excludeCategoryIds: Set<UUID> = []) throws -> [Transaction] {
         try dbQueue.read { db in
-            try Transaction
+            var request = Transaction
                 .filter(Transaction.Columns.month == month)
                 .filter(sql: "amount > 0")
                 .filter(Transaction.Columns.isDeleted == false)
+            if !excludeCategoryIds.isEmpty {
+                let placeholders = excludeCategoryIds.map { _ in "?" }.joined(separator: ", ")
+                let args: [DatabaseValueConvertible] = Array(excludeCategoryIds)
+                request = request.filter(sql: "(categoryId IS NULL OR categoryId NOT IN (\(placeholders)))",
+                                          arguments: StatementArguments(args))
+            }
+            return try request
                 .order(Transaction.Columns.date.desc)
                 .fetchAll(db)
         }
@@ -885,10 +934,11 @@ final class DatabaseManager {
     }
 
     /// Fetch total net spending for a month (purchases minus detected returns).
-    func fetchTotalSpending(forMonth month: String, excludeReturnIds: Set<UUID> = []) throws -> Double {
+    /// Pass `excludeCategoryIds` to drop transactions tagged with hidden categories.
+    func fetchTotalSpending(forMonth month: String, excludeReturnIds: Set<UUID> = [], excludeCategoryIds: Set<UUID> = []) throws -> Double {
         try dbQueue.read { db in
             let returnFilter = Self.returnFilterSQL(excludeReturnIds: excludeReturnIds)
-            let total = try Double.fetchOne(db, sql: """
+            var sql = """
                 SELECT SUM(
                     CASE
                         WHEN amount < 0 THEN amount
@@ -897,7 +947,14 @@ final class DatabaseManager {
                     END
                 ) FROM "transaction"
                 WHERE month = ? AND isDeleted = 0
-                """, arguments: [month])
+                """
+            var args: [DatabaseValueConvertible] = [month]
+            if !excludeCategoryIds.isEmpty {
+                let placeholders = excludeCategoryIds.map { _ in "?" }.joined(separator: ", ")
+                sql += " AND (categoryId IS NULL OR categoryId NOT IN (\(placeholders)))"
+                args.append(contentsOf: excludeCategoryIds.map { $0 as DatabaseValueConvertible })
+            }
+            let total = try Double.fetchOne(db, sql: sql, arguments: StatementArguments(args))
             return abs(total ?? 0.0)
         }
     }
@@ -1118,7 +1175,7 @@ final class DatabaseManager {
                 SELECT COALESCE(SUM(t.amount), 0) as total
                 FROM "transaction" t
                 LEFT JOIN "budgetCategory" c ON t.categoryId = c.id
-                    AND c.isDeleted = 0 AND c.isArchived = 0
+                    AND c.isDeleted = 0
                 WHERE (t.categoryId IS NULL OR c.id IS NULL)
                   AND t.month = ?
                   AND t.amount < 0
@@ -1130,14 +1187,14 @@ final class DatabaseManager {
 
     /// Fetch uncategorized transactions for a given month.
     /// Includes transactions whose categoryId is NULL as well as those
-    /// whose categoryId points to a deleted or archived category.
+    /// whose categoryId points to a deleted category.
     func fetchUncategorizedTransactions(forMonth month: String) throws -> [Transaction] {
         try dbQueue.read { db in
             try Transaction.fetchAll(db, sql: """
                 SELECT t.*
                 FROM "transaction" t
                 LEFT JOIN "budgetCategory" c ON t.categoryId = c.id
-                    AND c.isDeleted = 0 AND c.isArchived = 0
+                    AND c.isDeleted = 0
                 WHERE (t.categoryId IS NULL OR c.id IS NULL)
                   AND t.month = ?
                   AND t.isDeleted = 0

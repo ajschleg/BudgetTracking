@@ -3,6 +3,7 @@ import SwiftUI
 struct TransactionsListView: View {
     @Binding var selectedMonth: String
     @Bindable var aiViewModel: InsightsViewModel
+    @AppStorage("isEditingLocked") private var isEditingLocked = true
     @State private var viewModel = TransactionsViewModel()
     @State private var reapplyResultMessage: String?
 
@@ -13,7 +14,7 @@ struct TransactionsListView: View {
 
             TransactionFiltersBar(viewModel: viewModel)
 
-            TransactionTableContent(viewModel: viewModel)
+            TransactionTableContent(viewModel: viewModel, isLocked: isEditingLocked)
 
             if aiViewModel.isAPIKeyConfigured {
                 AIChatBar(
@@ -70,6 +71,13 @@ private struct TransactionFiltersBar: View {
                 }
             }
             .frame(maxWidth: 200)
+            .disabled(viewModel.showOnlyUncategorized)
+
+            Toggle(isOn: $viewModel.showOnlyUncategorized) {
+                Label("Uncategorized (\(viewModel.uncategorizedCount))", systemImage: "questionmark.circle")
+            }
+            .toggleStyle(.button)
+            .help("Show only transactions without a category")
 
             Spacer()
 
@@ -83,6 +91,7 @@ private struct TransactionFiltersBar: View {
 
 private struct TransactionTableContent: View {
     @Bindable var viewModel: TransactionsViewModel
+    let isLocked: Bool
 
     var body: some View {
         if viewModel.filteredTransactions.isEmpty {
@@ -113,6 +122,7 @@ private struct TransactionTableContent: View {
                     transaction: txn,
                     categories: viewModel.categories,
                     categoryName: viewModel.categoryName(for: txn.categoryId),
+                    isLocked: isLocked,
                     onCategoryChange: { newId in
                         viewModel.updateCategory(for: txn.id, to: newId)
                     }
@@ -126,6 +136,7 @@ private struct TransactionRowView: View {
     let transaction: Transaction
     let categories: [BudgetCategory]
     let categoryName: String
+    let isLocked: Bool
     let onCategoryChange: (UUID) -> Void
 
     @State private var selectedCategoryId: UUID?
@@ -149,6 +160,7 @@ private struct TransactionRowView: View {
             }
             .labelsHidden()
             .frame(width: 140)
+            .disabled(isLocked)
             .onChange(of: selectedCategoryId) { _, newValue in
                 if let id = newValue, id != transaction.categoryId {
                     onCategoryChange(id)

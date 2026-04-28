@@ -5,7 +5,9 @@ struct DashboardView: View {
     @Binding var selectedItem: SidebarItem?
     @Bindable var aiViewModel: InsightsViewModel
     @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
+    @AppStorage("isEditingLocked") private var isEditingLocked = true
     @State private var viewModel = DashboardViewModel()
+    @State private var editingCategory: BudgetCategory?
 
     var body: some View {
         PageWithChatBar(
@@ -58,9 +60,10 @@ struct DashboardView: View {
                                         ? viewModel.expandedTransactions : [],
                                     allCategories: viewModel.categories,
                                     onTap: { viewModel.toggleCategory(category.id) },
-                                    onCategoryChange: { txnId, newCatId in
+                                    onCategoryChange: isEditingLocked ? nil : { txnId, newCatId in
                                         viewModel.changeTransactionCategory(txnId, to: newCatId)
-                                    }
+                                    },
+                                    onEdit: isEditingLocked ? nil : { editingCategory = category }
                                 )
                             }
                         }
@@ -71,6 +74,18 @@ struct DashboardView: View {
             }
         }
         .navigationTitle("Dashboard")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    viewModel.load(month: selectedMonth)
+                    aiViewModel.load(month: selectedMonth)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .labelStyle(.titleAndIcon)
+                .help("Refresh dashboard")
+            }
+        }
         .onAppear {
             viewModel.load(month: selectedMonth)
             aiViewModel.load(month: selectedMonth)
@@ -81,6 +96,27 @@ struct DashboardView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
             viewModel.load(month: selectedMonth)
+        }
+        .sheet(item: $editingCategory) { category in
+            CategoryEditorView(
+                category: category,
+                categories: viewModel.categories,
+                onSave: { name, budget, color in
+                    var updated = category
+                    updated.name = name
+                    updated.monthlyBudget = budget
+                    updated.colorHex = color
+                    do {
+                        try DatabaseManager.shared.saveCategory(updated)
+                        viewModel.load(month: selectedMonth)
+                    } catch {
+                        // Silently revert on save failure; the load() above
+                        // would re-fetch the unmodified row.
+                    }
+                    editingCategory = nil
+                },
+                onCancel: { editingCategory = nil }
+            )
         }
     }
 

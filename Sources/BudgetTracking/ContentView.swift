@@ -4,8 +4,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case income = "Income"
     case transactions = "Transactions"
-    case accounts = "Accounts"
     case categories = "Categories"
+    case accounts = "Accounts"
     case history = "History"
     case insights = "Insights"
     case sync = "Sync"
@@ -33,6 +33,7 @@ struct ContentView: View {
     @State private var selectedMonth: String = DateHelpers.monthString()
     @State private var insightsViewModel = InsightsViewModel()
     @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
+    @AppStorage("isEditingLocked") private var isEditingLocked = true
 
     let syncEngine: SyncEngine
     let shareManager: ShareManager
@@ -127,6 +128,20 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
+                    isEditingLocked.toggle()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: isEditingLocked ? "lock.fill" : "lock.open.fill")
+                            .foregroundStyle(isEditingLocked ? .orange : .green)
+                        Text(isEditingLocked ? "Locked" : "Unlocked")
+                    }
+                }
+                .help(isEditingLocked
+                      ? "Editing is locked — click to unlock"
+                      : "Editing is unlocked — click to lock")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
                     lanSyncEngine.syncNow()
                 } label: {
                     HStack(spacing: 4) {
@@ -134,6 +149,8 @@ struct ContentView: View {
                         if case .syncing(let name) = lanSyncEngine.status {
                             Text("Syncing with \(name)…")
                                 .font(.caption)
+                        } else {
+                            Text("Sync")
                         }
                     }
                 }

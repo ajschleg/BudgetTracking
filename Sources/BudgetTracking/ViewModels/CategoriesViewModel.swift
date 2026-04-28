@@ -77,6 +77,12 @@ final class CategoriesViewModel {
         }
     }
 
+    func toggleHidden(_ category: BudgetCategory) {
+        var updated = category
+        updated.isHiddenFromDashboard.toggle()
+        updateCategory(updated)
+    }
+
     /// Number of transactions categorized by the most recent rule addition.
     var lastRuleApplyCount: Int = 0
 
