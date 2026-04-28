@@ -12,6 +12,14 @@ struct BudgetTrackingApp: App {
     @State private var plaidManager = PlaidSyncManager()
 
     init() {
+        // Make `.help(...)` tooltips appear after ~250ms instead of the
+        // ~1s system default. Registering against the registration domain
+        // means we don't overwrite a user's NSGlobalDomain setting if
+        // they've configured their own preference.
+        UserDefaults.standard.register(defaults: [
+            "NSInitialToolTipDelay": 250
+        ])
+
         _ = DatabaseManager.shared
         let engine = SyncEngine()
         let share = ShareManager()
