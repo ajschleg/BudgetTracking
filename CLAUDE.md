@@ -30,6 +30,21 @@ xcodebuild -project BudgetTracking.xcodeproj -scheme BudgetTracking -configurati
 cd server && npm start
 ```
 
+## Pre-commit test gate
+
+A versioned hook in `scripts/git-hooks/pre-commit` runs the macOS test
+suite before any commit lands. Activate it on a fresh clone with:
+
+```bash
+git config core.hooksPath scripts/git-hooks
+```
+
+The hook auto-skips when the staged change is docs-only (no `.swift`,
+`.yml`, `.pbxproj`, `.entitlements`, `.plist`, or `Sources/` / `Tests/`
+files). To bypass the gate intentionally on a Swift-touching commit,
+use `git commit --no-verify` — but only when the failure is unrelated
+to the change at hand.
+
 ## What NOT to do without explicit approval
 
 - Commit `.env`, `.encryption-key`, or `plaid.db` (all gitignored — check before force-add).

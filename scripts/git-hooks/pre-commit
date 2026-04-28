@@ -1,0 +1,39 @@
+#!/bin/bash
+# Pre-commit gate: run the macOS test suite before any commit lands.
+# To bypass intentionally (rare), use: git commit --no-verify
+#
+# Activate this hook on a fresh clone with:
+#   git config core.hooksPath scripts/git-hooks
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Skip the suite for commits that touch nothing Xcode would care about
+# (docs-only changes, .gitignore edits, etc.). xcodebuild boot + a clean
+# DerivedData restore is several seconds even on a no-op build, so this
+# keeps the doc workflow snappy.
+STAGED=$(git diff --cached --name-only)
+if [ -z "$STAGED" ]; then
+    exit 0
+fi
+
+if ! echo "$STAGED" | grep -qE '\.(swift|yml|pbxproj|entitlements|plist)$|^Tests/|^Sources/|^project\.yml$'; then
+    echo "→ pre-commit: no Swift / project changes staged, skipping tests."
+    exit 0
+fi
+
+echo "→ pre-commit: running xcodebuild test (use 'git commit --no-verify' to skip)"
+
+if ! xcodebuild test \
+        -project BudgetTracking.xcodeproj \
+        -scheme BudgetTracking \
+        -destination 'platform=macOS' \
+        -quiet 2>&1 | tail -50; then
+    echo ""
+    echo "❌ Tests failed — commit blocked. Fix the failure or rerun with --no-verify."
+    exit 1
+fi
+
+echo "✓ Tests passed."
