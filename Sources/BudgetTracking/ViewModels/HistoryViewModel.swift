@@ -33,7 +33,7 @@ final class HistoryViewModel {
             months = try allMonths.map { month in
                 let spent = try DatabaseManager.shared.fetchTotalSpending(
                     forMonth: month,
-                    excludeCategoryIds: split.hiddenIds
+                    inCategoryIds: split.visibleIds
                 )
                 let files = try DatabaseManager.shared.fetchImportedFiles(forMonth: month)
                 return MonthSummary(

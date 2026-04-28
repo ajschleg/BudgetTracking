@@ -80,6 +80,22 @@ final class DashboardBudgetInvariantTests: XCTestCase {
         XCTAssertFalse(split.hiddenIds.contains(visible.id))
     }
 
+    /// `visibleIds` is what the dashboard's spending query uses as an
+    /// allow-list. It must contain exactly the visible categories'
+    /// IDs and no others, otherwise the dashboard total either drops
+    /// real spending or includes spending from hidden / uncategorized
+    /// rows.
+    func testVisibleIdsExposesExactlyTheVisibleCategories() {
+        let groceries = cat("Groceries", 600)
+        let mortgage = cat("Mortgage", 1_500)
+        let income = cat("Income", 0, hidden: true)
+        let transfers = cat("Money Transfers", 2_500, hidden: true)
+        let split = DashboardViewModel.splitForDashboard([groceries, income, mortgage, transfers])
+
+        XCTAssertEqual(split.visibleIds, [groceries.id, mortgage.id])
+        XCTAssertTrue(split.visibleIds.isDisjoint(with: split.hiddenIds))
+    }
+
     // MARK: - The invariant itself
 
     /// Brute-force property check: across many randomly-shaped inputs,

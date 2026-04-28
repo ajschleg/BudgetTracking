@@ -960,9 +960,20 @@ final class DatabaseManager {
     }
 
     /// Fetch total net spending for a month (purchases minus detected returns).
-    /// Pass `excludeCategoryIds` to drop transactions tagged with hidden categories.
-    func fetchTotalSpending(forMonth month: String, excludeReturnIds: Set<UUID> = [], excludeCategoryIds: Set<UUID> = []) throws -> Double {
+    /// - When `inCategoryIds` is `nil`, sums every non-deleted transaction
+    ///   regardless of category (legacy behavior; not currently used).
+    /// - When `inCategoryIds` is non-nil, sums only transactions whose
+    ///   `categoryId` is in that set. NULL-category transactions and
+    ///   transactions tagged to hidden categories are excluded. The result
+    ///   equals the sum of `fetchSpendingByCategory` over the same set,
+    ///   which is the invariant the dashboard's "Overall Budget" relies
+    ///   on so the bars add up to the headline number. Pass an empty set
+    ///   to get 0.
+    func fetchTotalSpending(forMonth month: String, excludeReturnIds: Set<UUID> = [], inCategoryIds: Set<UUID>? = nil) throws -> Double {
         try dbQueue.read { db in
+            if let ids = inCategoryIds, ids.isEmpty {
+                return 0
+            }
             let returnFilter = Self.returnFilterSQL(excludeReturnIds: excludeReturnIds)
             var sql = """
                 SELECT SUM(
@@ -975,10 +986,10 @@ final class DatabaseManager {
                 WHERE month = ? AND isDeleted = 0
                 """
             var args: [DatabaseValueConvertible] = [month]
-            if !excludeCategoryIds.isEmpty {
-                let placeholders = excludeCategoryIds.map { _ in "?" }.joined(separator: ", ")
-                sql += " AND (categoryId IS NULL OR categoryId NOT IN (\(placeholders)))"
-                args.append(contentsOf: excludeCategoryIds.map { $0 as DatabaseValueConvertible })
+            if let ids = inCategoryIds {
+                let placeholders = ids.map { _ in "?" }.joined(separator: ", ")
+                sql += " AND categoryId IN (\(placeholders))"
+                args.append(contentsOf: ids.map { $0 as DatabaseValueConvertible })
             }
             let total = try Double.fetchOne(db, sql: sql, arguments: StatementArguments(args))
             return abs(total ?? 0.0)

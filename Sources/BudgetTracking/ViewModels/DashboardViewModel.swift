@@ -27,6 +27,7 @@ final class DashboardViewModel {
     /// without a live database.
     struct CategorySplit: Equatable {
         let visible: [BudgetCategory]
+        let visibleIds: Set<UUID>
         let hiddenIds: Set<UUID>
         let incomeCategoryIds: Set<UUID>
         let totalBudget: Double
@@ -36,9 +37,11 @@ final class DashboardViewModel {
         let hiddenIds = Set(all.filter { $0.isHiddenFromDashboard }.map { $0.id })
         let incomeCategoryIds = Set(all.filter { $0.isIncomeCategory }.map { $0.id })
         let visible = all.filter { !$0.isHiddenFromDashboard }
+        let visibleIds = Set(visible.map { $0.id })
         let totalBudget = visible.reduce(0) { $0 + $1.monthlyBudget }
         return CategorySplit(
             visible: visible,
+            visibleIds: visibleIds,
             hiddenIds: hiddenIds,
             incomeCategoryIds: incomeCategoryIds,
             totalBudget: totalBudget
@@ -81,7 +84,11 @@ final class DashboardViewModel {
             categories = split.visible
             totalBudget = split.totalBudget
             spendingByCategory = try DatabaseManager.shared.fetchSpendingByCategory(forMonth: month)
-            totalSpent = try DatabaseManager.shared.fetchTotalSpending(forMonth: month, excludeCategoryIds: split.hiddenIds)
+            // Total spent is restricted to visible categories so the
+            // headline equals the sum of the bars. Spending in hidden
+            // categories (Money Transfers, Credit Card Payments) and
+            // uncategorized rows do not pollute the number.
+            totalSpent = try DatabaseManager.shared.fetchTotalSpending(forMonth: month, inCategoryIds: split.visibleIds)
             // Income is scoped to the categories the user has explicitly
             // marked as income sources (the $ toggle in Categories
             // settings). Refunds, transfers, and Zelle reimbursements
