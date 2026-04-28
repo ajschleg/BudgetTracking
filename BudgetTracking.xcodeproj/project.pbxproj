@@ -41,6 +41,7 @@
 		20AE2902FC34169022100E38 /* CategorizationRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371D0746A64876D4E554C092 /* CategorizationRule.swift */; };
 		21EE1C948FB25E41AFA9438B /* CategoriesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */; };
 		2262254EC1D204794A7FAE5B /* CategorizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0B30CCE20155199B5F3641 /* CategorizationEngine.swift */; };
+		242C4AD1259C5CC1DB522730 /* DuplicateScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A765F6CC2816173F2335A46 /* DuplicateScannerView.swift */; };
 		272104B2FC3606FBEFCC7A82 /* CategoryBudgetBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D71603A8E67893664EA891E2 /* CategoryBudgetBar.swift */; };
 		2783E3AC4A9F39ABA5855E30 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = E430C4065658B5FAD3D065B9 /* GRDB */; };
 		28EE3833CBDB15B9E25FC938 /* BudgetGenerationConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32E291AFC07CA3748B3093C /* BudgetGenerationConfigSheet.swift */; };
@@ -61,6 +62,7 @@
 		41643D132183D94952D9F567 /* SyncSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */; };
 		44E0D1D3EAA3B8D5328112DA /* PlaidSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690D8EABCC7787A3941782DA /* PlaidSyncManager.swift */; };
 		456277934CE23476350B660C /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0F57784E60C0D2712927E7 /* InsightsView.swift */; };
+		46E3A8202B015E739DFF6FA3 /* DuplicateDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0F41D1898A33513CB58060 /* DuplicateDetectorTests.swift */; };
 		4742100F03DDBA597B4E1E44 /* CategoriesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */; };
 		47E83AFDDC688690B3A39179 /* IncomeSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA01A86FF1D3853480318444 /* IncomeSource.swift */; };
 		499AF6E0D703784C6A49966A /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0F57784E60C0D2712927E7 /* InsightsView.swift */; };
@@ -97,6 +99,7 @@
 		746A38C0937480FFC4DF3BAB /* EbayEarningsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E95B4A446E484C32A02CE61 /* EbayEarningsView.swift */; };
 		74AA6D546426CF8564F34E3D /* ShareManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C7C8113ED1B9E2730EAAEA /* ShareManager.swift */; };
 		76B066C8FDE03F3F385CFA57 /* EbayAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078CA30B073B997BB4E2E011 /* EbayAuthManager.swift */; };
+		780A00BBAE7E9FC3303FE445 /* DuplicateDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB41C2F2C85846AF769D3F6 /* DuplicateDetector.swift */; };
 		78E7D7DA935ACBAEED1C469A /* QIFParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBD04A6FF6BEF85B534BDDB5 /* QIFParser.swift */; };
 		78EF18856F7D9F0257AF4283 /* ParsePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C223CDC9EF1CB212EB74994 /* ParsePreviewView.swift */; };
 		7A580A066A36B2FB74E0918C /* SyncConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C4DB933183AAE503F2BDA58 /* SyncConstants.swift */; };
@@ -141,6 +144,7 @@
 		B50381A1372095880CBFC715 /* OFXParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A01F52CACF433AE1C260BB /* OFXParser.swift */; };
 		B75DC8F25AEE23D9B103D613 /* COGSEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6ABE1557E9F882FFFF72047 /* COGSEditorView.swift */; };
 		B89F9371722F0FCC7B904D40 /* PlaidAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1696C502543F706641B8B67 /* PlaidAccount.swift */; };
+		B8FCE0FACC0C79783EA070D8 /* DuplicateDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB41C2F2C85846AF769D3F6 /* DuplicateDetector.swift */; };
 		B9C411FEC25252B94B5D6463 /* EbayAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F5BD0514DFCEDE5098BF5D3 /* EbayAPIService.swift */; };
 		BA7D387AFE15FFCBAFD209D7 /* LANSyncStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50183D2237253558FB109BCF /* LANSyncStateStore.swift */; };
 		BC2B265AC0576CB39E5D6D69 /* IncomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A45A6F8375DF9333888ACE9 /* IncomeViewModel.swift */; };
@@ -201,6 +205,7 @@
 		EE0A1D4B68064B53DEF4244E /* SyncStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47794CD4CE264DCABF650F6F /* SyncStateStore.swift */; };
 		F01C0DCF7C33D7A318BE8F07 /* SideHustleTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32F6ADCC30DC204875E233A /* SideHustleTabView.swift */; };
 		F1E746C9970C092EFD2C848F /* ImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA1511E4B898F9C603AC8FA7 /* ImportView.swift */; };
+		F621943A2D39E963AEF8286E /* DuplicateScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A765F6CC2816173F2335A46 /* DuplicateScannerView.swift */; };
 		F6E8F45BE6EA541B8BD6792C /* EbayEarningsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D794553C3B7A2870527C9C /* EbayEarningsViewModel.swift */; };
 		F968FE301D4F86E6CC980674 /* InsightsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99563DFA1DEEC8CD84301DD2 /* InsightsViewModel.swift */; };
 		FA5F402E1B4B2021A6D74689 /* PlaidConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927D8DC7F8205C22399386AD /* PlaidConsentView.swift */; };
@@ -226,6 +231,7 @@
 		094A531E2A0D314BB48D3607 /* ColumnMappingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnMappingView.swift; sourceTree = "<group>"; };
 		09BB0EE92769FEA84AC17552 /* SourcingCategoriesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourcingCategoriesSheet.swift; sourceTree = "<group>"; };
 		0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesSettingsView.swift; sourceTree = "<group>"; };
+		0BB41C2F2C85846AF769D3F6 /* DuplicateDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateDetector.swift; sourceTree = "<group>"; };
 		10C54DA96FF7472D61E1A3FC /* BudgetTracking.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BudgetTracking.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13ADAAEEDA6767ED5825AFB5 /* CurrencyFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyFormatter.swift; sourceTree = "<group>"; };
 		1521572F89E1B5D486DC7BF1 /* IncomeTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeTabView.swift; sourceTree = "<group>"; };
@@ -256,6 +262,7 @@
 		47794CD4CE264DCABF650F6F /* SyncStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStateStore.swift; sourceTree = "<group>"; };
 		483034A4379587D3D92B9DE4 /* ColorThresholds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorThresholds.swift; sourceTree = "<group>"; };
 		49BEC4E6C384AF003FC2308F /* EbayPayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayPayout.swift; sourceTree = "<group>"; };
+		4A765F6CC2816173F2335A46 /* DuplicateScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateScannerView.swift; sourceTree = "<group>"; };
 		4C9F057F7944FB5FCD82A062 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		500C712221C092D00861F3F1 /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
 		50183D2237253558FB109BCF /* LANSyncStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LANSyncStateStore.swift; sourceTree = "<group>"; };
@@ -290,6 +297,7 @@
 		9CED4B6F9C35AB112B90B992 /* AIChatResponseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatResponseView.swift; sourceTree = "<group>"; };
 		A4798FC56D298C578396267F /* DatabaseManager+Plaid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DatabaseManager+Plaid.swift"; sourceTree = "<group>"; };
 		A789E73759CED466B7C73C35 /* BudgetTrackingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTrackingApp.swift; sourceTree = "<group>"; };
+		AC0F41D1898A33513CB58060 /* DuplicateDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateDetectorTests.swift; sourceTree = "<group>"; };
 		AC763A3C4CF46175AE1AC828 /* OverallBudgetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverallBudgetBar.swift; sourceTree = "<group>"; };
 		AF8B2276D082738262AAE1E6 /* SyncSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSettingsView.swift; sourceTree = "<group>"; };
 		B0A492ECA271140AFAF4CED8 /* EbayOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayOrder.swift; sourceTree = "<group>"; };
@@ -400,6 +408,7 @@
 			isa = PBXGroup;
 			children = (
 				44DAFFB65E1B8DC4234A95DD /* ClaudeAPIService.swift */,
+				0BB41C2F2C85846AF769D3F6 /* DuplicateDetector.swift */,
 				2F5BD0514DFCEDE5098BF5D3 /* EbayAPIService.swift */,
 				078CA30B073B997BB4E2E011 /* EbayAuthManager.swift */,
 				6ABB74337E8DADE534BC987F /* InsightsEngine.swift */,
@@ -478,6 +487,7 @@
 			isa = PBXGroup;
 			children = (
 				094A531E2A0D314BB48D3607 /* ColumnMappingView.swift */,
+				4A765F6CC2816173F2335A46 /* DuplicateScannerView.swift */,
 				EA1511E4B898F9C603AC8FA7 /* ImportView.swift */,
 				6C223CDC9EF1CB212EB74994 /* ParsePreviewView.swift */,
 			);
@@ -574,6 +584,7 @@
 				20DF0EA465BF47A908DCDB65 /* BudgetTrackingTests.swift */,
 				59EF97C6FF89940BA0975677 /* ChaseCSVParsingTests.swift */,
 				E66F8CABD461F5F5CC6BC191 /* DashboardBudgetInvariantTests.swift */,
+				AC0F41D1898A33513CB58060 /* DuplicateDetectorTests.swift */,
 			);
 			name = BudgetTrackingTests;
 			path = Tests/BudgetTrackingTests;
@@ -823,6 +834,8 @@
 				E9D527003A69E368F9FEE4EB /* DatabaseManager+Plaid.swift in Sources */,
 				8CA06AC4E72AE5EC76BB23B8 /* DatabaseManager.swift in Sources */,
 				0E3939ACEE27A6819193EB45 /* DateHelpers.swift in Sources */,
+				780A00BBAE7E9FC3303FE445 /* DuplicateDetector.swift in Sources */,
+				242C4AD1259C5CC1DB522730 /* DuplicateScannerView.swift in Sources */,
 				D271214CBA02242D39C1858A /* EbayAPIService.swift in Sources */,
 				8FA6F796425C232692814152 /* EbayAuthManager.swift in Sources */,
 				CA40CF383B5F059CCA7A90BF /* EbayCostOfGoods.swift in Sources */,
@@ -924,6 +937,8 @@
 				99A5D6DCC2D05CCA973B201C /* DatabaseManager+Plaid.swift in Sources */,
 				1C536B9A9FBAC5B6EEDB408C /* DatabaseManager.swift in Sources */,
 				CA548684785642DD4902FEA3 /* DateHelpers.swift in Sources */,
+				B8FCE0FACC0C79783EA070D8 /* DuplicateDetector.swift in Sources */,
+				F621943A2D39E963AEF8286E /* DuplicateScannerView.swift in Sources */,
 				B9C411FEC25252B94B5D6463 /* EbayAPIService.swift in Sources */,
 				76B066C8FDE03F3F385CFA57 /* EbayAuthManager.swift in Sources */,
 				DA8B4F231582A859EDDC9776 /* EbayCostOfGoods.swift in Sources */,
@@ -996,6 +1011,7 @@
 				4B65D18E316BD2F56ED01E1A /* BudgetTrackingTests.swift in Sources */,
 				AC9DEFC24754618C7AD10C3D /* ChaseCSVParsingTests.swift in Sources */,
 				CAAA8883C83BFC817B8AB082 /* DashboardBudgetInvariantTests.swift in Sources */,
+				46E3A8202B015E739DFF6FA3 /* DuplicateDetectorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -771,6 +771,28 @@ final class DatabaseManager {
         notifyDataChanged()
     }
 
+    /// Bulk soft-delete a list of transactions. Sets `isDeleted = 1` and
+    /// bumps `lastModifiedAt` so the deletion propagates through CloudKit
+    /// and LAN sync. Used by the Find Duplicates tool. Returns the number
+    /// of rows actually marked.
+    @discardableResult
+    func softDeleteTransactions(ids: [UUID]) throws -> Int {
+        guard !ids.isEmpty else { return 0 }
+        let count = try dbQueue.write { db in
+            let placeholders = ids.map { _ in "?" }.joined(separator: ", ")
+            var args: [DatabaseValueConvertible] = [Date()]
+            args.append(contentsOf: ids.map { $0 as DatabaseValueConvertible })
+            try db.execute(sql: """
+                UPDATE "transaction"
+                SET isDeleted = 1, lastModifiedAt = ?
+                WHERE id IN (\(placeholders)) AND isDeleted = 0
+                """, arguments: StatementArguments(args))
+            return db.changesCount
+        }
+        if count > 0 { notifyDataChanged() }
+        return count
+    }
+
     /// Update all transactions in a month whose description or merchant contains the keyword
     /// (case-insensitive). Returns the number of rows updated.
     @discardableResult

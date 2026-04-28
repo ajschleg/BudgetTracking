@@ -15,6 +15,7 @@ struct ImportView: View {
     /// Whether a Plaid bank is linked — drives the "you probably don't
     /// need to import" banner. Loaded on appear from the local DB.
     @State private var hasPlaidConnection = false
+    @State private var showDuplicateScanner = false
 
     var body: some View {
         // No .navigationTitle here — this view is embedded inside
@@ -35,6 +36,9 @@ struct ImportView: View {
                 deleteAlertButtons
             } message: {
                 deleteAlertMessage
+            }
+            .sheet(isPresented: $showDuplicateScanner) {
+                DuplicateScannerView()
             }
     }
 
@@ -428,10 +432,21 @@ struct ImportView: View {
 
     private var importedFilesList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Imported Files")
-                .font(.headline)
-                .padding(.horizontal)
-                .padding(.top, 12)
+            HStack {
+                Text("Imported Files")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    showDuplicateScanner = true
+                } label: {
+                    Label("Find Duplicates", systemImage: "doc.on.doc")
+                        .labelStyle(.titleAndIcon)
+                }
+                .controlSize(.small)
+                .help("Scan for transactions that look like duplicates and remove them")
+            }
+            .padding(.horizontal)
+            .padding(.top, 12)
 
             Text(DateHelpers.displayMonth(selectedMonth))
                 .font(.subheadline)
