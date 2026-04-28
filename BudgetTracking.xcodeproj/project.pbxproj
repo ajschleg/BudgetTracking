@@ -193,6 +193,7 @@
 		E11793438FF54F0290B68ECD /* BudgetGenerationConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32E291AFC07CA3748B3093C /* BudgetGenerationConfigSheet.swift */; };
 		E16C4772EDA4363E23E9BF2C /* AIChatAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB7909A9F088E78203DFFCD /* AIChatAction.swift */; };
 		E1981C0F64FB9485DC720A27 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97374E69A19F0E9E413B36EB /* KeychainStore.swift */; };
+		E3CEA321E9F561D0C6D68CA7 /* SecurityPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0DB8E8D72B629DE8C9B71B /* SecurityPolicyTests.swift */; };
 		E53470827328467C88573F4C /* CategorizationRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371D0746A64876D4E554C092 /* CategorizationRule.swift */; };
 		E6D708D14B960CFB3793275A /* PDFParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11DFF79231E859813B37A16 /* PDFParser.swift */; };
 		E8A3702B42005E8CE7A068AB /* InsightsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ABB74337E8DADE534BC987F /* InsightsEngine.swift */; };
@@ -325,6 +326,7 @@
 		EA01A86FF1D3853480318444 /* IncomeSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomeSource.swift; sourceTree = "<group>"; };
 		EA1511E4B898F9C603AC8FA7 /* ImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportView.swift; sourceTree = "<group>"; };
 		EA86F8F7A4922668F97DE78D /* CategoryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryEditorView.swift; sourceTree = "<group>"; };
+		EE0DB8E8D72B629DE8C9B71B /* SecurityPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityPolicyTests.swift; sourceTree = "<group>"; };
 		F11DFF79231E859813B37A16 /* PDFParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFParser.swift; sourceTree = "<group>"; };
 		F3606ED458F1590D93A0A660 /* EbaySourcingTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbaySourcingTransaction.swift; sourceTree = "<group>"; };
 		F6ABE1557E9F882FFFF72047 /* COGSEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = COGSEditorView.swift; sourceTree = "<group>"; };
@@ -588,6 +590,7 @@
 				E66F8CABD461F5F5CC6BC191 /* DashboardBudgetInvariantTests.swift */,
 				AC0F41D1898A33513CB58060 /* DuplicateDetectorTests.swift */,
 				9947AE67CD53562BAE93D903 /* PlaidSyncManagerTests.swift */,
+				EE0DB8E8D72B629DE8C9B71B /* SecurityPolicyTests.swift */,
 			);
 			name = BudgetTrackingTests;
 			path = Tests/BudgetTrackingTests;
@@ -1016,6 +1019,7 @@
 				CAAA8883C83BFC817B8AB082 /* DashboardBudgetInvariantTests.swift in Sources */,
 				46E3A8202B015E739DFF6FA3 /* DuplicateDetectorTests.swift in Sources */,
 				89D042E85A6ADF78A577A424 /* PlaidSyncManagerTests.swift in Sources */,
+				E3CEA321E9F561D0C6D68CA7 /* SecurityPolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

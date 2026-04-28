@@ -2,6 +2,40 @@ import SwiftUI
 import AppKit
 import CloudKit
 
+/// Pure routing decision for an incoming budgettracking:// URL. The
+/// App's onOpenURL handler maps over this enum to dispatch the side
+/// effects, but the host-validation logic lives here so it can be
+/// unit-tested without standing up SwiftUI scenes. A scheme other
+/// than budgettracking, or a host the app does not recognize, must
+/// always resolve to .ignore — see SECURITY_POLICY §7.
+enum AppURLRoute: Equatable {
+    case ignore
+    case plaidOAuth(redirectURI: String)
+    case plaidOAuthSuccess(URL)
+    case ebay(URL)
+
+    static func route(_ url: URL) -> AppURLRoute {
+        guard url.scheme == "budgettracking" else { return .ignore }
+        guard let host = url.host else { return .ignore }
+
+        switch host {
+        case "plaid-oauth":
+            guard
+                let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                let redirectURI = components.queryItems?.first(where: { $0.name == "redirect_uri" })?.value,
+                !redirectURI.isEmpty
+            else { return .ignore }
+            return .plaidOAuth(redirectURI: redirectURI)
+        case "plaid-oauth-success":
+            return .plaidOAuthSuccess(url)
+        case "ebay":
+            return .ebay(url)
+        default:
+            return .ignore
+        }
+    }
+}
+
 @main
 struct BudgetTrackingApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -33,27 +67,22 @@ struct BudgetTrackingApp: App {
         WindowGroup {
             ContentView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine, ebayAuthManager: ebayAuthManager, plaidManager: plaidManager)
                 .onOpenURL { url in
-                    guard url.scheme == "budgettracking" else { return }
-
-                    if url.host == "plaid-oauth" {
-                        // OAuth redirect from bank → bounce page → app
-                        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                           let redirectURI = components.queryItems?.first(where: { $0.name == "redirect_uri" })?.value {
-                            plaidManager.pendingOAuthRedirectURI = redirectURI
+                    switch AppURLRoute.route(url) {
+                    case .ignore:
+                        return
+                    case .plaidOAuth(let redirectURI):
+                        plaidManager.pendingOAuthRedirectURI = redirectURI
+                    case .plaidOAuthSuccess(let url):
+                        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
+                        let items = components.queryItems ?? []
+                        let itemId = items.first(where: { $0.name == "item_id" })?.value ?? ""
+                        let institution = items.first(where: { $0.name == "institution" })?.value ?? "Unknown"
+                        if let accountsJSON = items.first(where: { $0.name == "accounts" })?.value,
+                           let data = accountsJSON.data(using: .utf8),
+                           let accounts = try? JSONDecoder().decode([PlaidService.AccountResponse].self, from: data) {
+                            plaidManager.handleLinkSuccess(itemId: itemId, institution: institution, accounts: accounts)
                         }
-                    } else if url.host == "plaid-oauth-success" {
-                        // Direct OAuth success (from local oauth.html opened in browser)
-                        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
-                            let items = components.queryItems ?? []
-                            let itemId = items.first(where: { $0.name == "item_id" })?.value ?? ""
-                            let institution = items.first(where: { $0.name == "institution" })?.value ?? "Unknown"
-                            if let accountsJSON = items.first(where: { $0.name == "accounts" })?.value,
-                               let data = accountsJSON.data(using: .utf8),
-                               let accounts = try? JSONDecoder().decode([PlaidService.AccountResponse].self, from: data) {
-                                plaidManager.handleLinkSuccess(itemId: itemId, institution: institution, accounts: accounts)
-                            }
-                        }
-                    } else if url.absoluteString.contains("ebay") {
+                    case .ebay(let url):
                         ebayAuthManager.handleCallback(url: url)
                     }
                 }

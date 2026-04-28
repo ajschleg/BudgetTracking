@@ -78,6 +78,17 @@ struct PlaidLinkWebView: NSViewRepresentable {
     @Binding var errorMessage: String?
     let onSuccess: () -> Void
 
+    /// Returns true if `host` is on the WKWebView navigation allow-list.
+    /// Allowed: our local server (localhost / 127.0.0.1) and Plaid's CDN
+    /// (cdn.plaid.com plus any subdomain of plaid.com). Everything else
+    /// must be opened in the system browser. Public + static so unit
+    /// tests can pin the policy down without spinning up a WebView.
+    static func isHostAllowedInWebView(_ host: String) -> Bool {
+        let exactAllowed: Set<String> = ["localhost", "127.0.0.1", "cdn.plaid.com"]
+        if exactAllowed.contains(host) { return true }
+        return host.hasSuffix(".plaid.com")
+    }
+
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         let contentController = config.userContentController
@@ -188,12 +199,7 @@ struct PlaidLinkWebView: NSViewRepresentable {
                 return
             }
 
-            // Allow our local server and Plaid CDN
-            let allowedHosts = ["localhost", "127.0.0.1", "cdn.plaid.com"]
-            let isPlaidDomain = host.hasSuffix(".plaid.com")
-            let isAllowed = allowedHosts.contains(host) || isPlaidDomain
-
-            if isAllowed {
+            if PlaidLinkWebView.isHostAllowedInWebView(host) {
                 decisionHandler(.allow)
             } else {
                 // External URL (bank OAuth page) — open in system browser
