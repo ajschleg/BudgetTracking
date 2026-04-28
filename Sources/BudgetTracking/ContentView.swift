@@ -114,7 +114,7 @@ struct ContentView: View {
                 case .categories:
                     CategoriesSettingsView(aiViewModel: insightsViewModel)
                 case .history:
-                    HistoryView(selectedMonth: $selectedMonth, aiViewModel: insightsViewModel)
+                    HistoryView(selectedMonth: $selectedMonth, selectedItem: $selectedItem, aiViewModel: insightsViewModel)
                 case .insights:
                     InsightsView(selectedMonth: $selectedMonth, viewModel: insightsViewModel)
                 case .sync:
