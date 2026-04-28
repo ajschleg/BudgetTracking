@@ -262,6 +262,13 @@ struct AccountsView: View {
                         }
                         .disabled(plaidManager.linkedAccounts.isEmpty)
                     }
+
+                    Spacer()
+
+                    Link(destination: URL(string: "https://dashboard.plaid.com/overview")!) {
+                        Label("Plaid Dashboard", systemImage: "arrow.up.forward.app")
+                    }
+                    .help("Open the Plaid developer dashboard in your browser")
                 }
             }
 
