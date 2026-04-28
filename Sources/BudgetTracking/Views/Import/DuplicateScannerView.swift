@@ -1,16 +1,26 @@
 import SwiftUI
 
 /// Sheet that scans the active transactions for duplicates and lets the
-/// user soft-delete the redundant rows.
+/// user soft-delete the redundant rows. The most recent removal batch's
+/// IDs are persisted in UserDefaults so the user can undo the bulk
+/// removal even after closing and re-opening the sheet (or the app).
 struct DuplicateScannerView: View {
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("isEditingLocked") private var isEditingLocked = true
 
     @State private var groups: [DuplicateDetector.Group] = []
     @State private var summary: DuplicateDetector.Summary?
     @State private var isScanning = false
     @State private var isRemoving = false
+    @State private var isRestoring = false
     @State private var lastRemovedCount: Int?
+    @State private var lastRestoredCount: Int?
     @State private var errorMessage: String?
+    /// IDs available for restoration. Mirrors UserDefaults; refreshed at
+    /// each rescan so the button state reflects what's actually undoable.
+    @State private var restorableIds: [UUID] = []
+
+    private static let restorableIdsKey = "DuplicateScanner_LastRemovedIds"
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,7 +38,10 @@ struct DuplicateScannerView: View {
                 .padding()
         }
         .frame(minWidth: 700, minHeight: 500)
-        .onAppear { rescan() }
+        .onAppear {
+            loadRestorableIds()
+            rescan()
+        }
     }
 
     // MARK: - Header
@@ -50,7 +63,7 @@ struct DuplicateScannerView: View {
             }
             Spacer()
             Button("Rescan", action: rescan)
-                .disabled(isScanning || isRemoving)
+                .disabled(isScanning || isRemoving || isRestoring)
         }
     }
 
@@ -75,6 +88,11 @@ struct DuplicateScannerView: View {
                     .font(.headline)
                 if let removed = lastRemovedCount, removed > 0 {
                     Text("Removed \(removed) duplicate transaction\(removed == 1 ? "" : "s") on the last pass.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let restored = lastRestoredCount, restored > 0 {
+                    Text("Restored \(restored) previously-removed transaction\(restored == 1 ? "" : "s").")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -159,7 +177,31 @@ struct DuplicateScannerView: View {
                     .foregroundStyle(.red)
                     .font(.caption)
             }
+            if isEditingLocked {
+                Label("Editing is locked", systemImage: "lock.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
             Spacer()
+
+            if !restorableIds.isEmpty {
+                Button(action: restoreLast) {
+                    if isRestoring {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small)
+                            Text("Restoring…")
+                        }
+                    } else {
+                        Label("Restore \(restorableIds.count)", systemImage: "arrow.uturn.backward")
+                    }
+                }
+                .disabled(isRemoving || isRestoring || isScanning || isEditingLocked)
+                .help(isEditingLocked
+                      ? "Unlock editing to restore previously-removed duplicates"
+                      : "Restore the \(restorableIds.count) duplicate\(restorableIds.count == 1 ? "" : "s") removed on the last pass")
+            }
+
             Button("Done") { dismiss() }
                 .keyboardShortcut(.cancelAction)
 
@@ -176,7 +218,10 @@ struct DuplicateScannerView: View {
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
-                .disabled(isRemoving || isScanning)
+                .disabled(isRemoving || isScanning || isRestoring || isEditingLocked)
+                .help(isEditingLocked
+                      ? "Unlock editing to remove duplicates"
+                      : "Soft-delete the duplicate rows (reversible via Restore)")
             }
         }
     }
@@ -222,6 +267,8 @@ struct DuplicateScannerView: View {
                 let removed = try DatabaseManager.shared.softDeleteTransactions(ids: removableIds)
                 DispatchQueue.main.async {
                     lastRemovedCount = removed
+                    lastRestoredCount = nil
+                    saveRestorableIds(removableIds)
                     isRemoving = false
                     rescan()
                 }
@@ -232,5 +279,53 @@ struct DuplicateScannerView: View {
                 }
             }
         }
+    }
+
+    private func restoreLast() {
+        let ids = restorableIds
+        guard !ids.isEmpty else { return }
+        isRestoring = true
+        errorMessage = nil
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let restored = try DatabaseManager.shared.restoreSoftDeletedTransactions(ids: ids)
+                DispatchQueue.main.async {
+                    lastRestoredCount = restored
+                    lastRemovedCount = nil
+                    clearRestorableIds()
+                    isRestoring = false
+                    rescan()
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    errorMessage = error.localizedDescription
+                    isRestoring = false
+                }
+            }
+        }
+    }
+
+    // MARK: - Restorable-IDs persistence
+
+    private func loadRestorableIds() {
+        if let data = UserDefaults.standard.data(forKey: Self.restorableIdsKey),
+           let strings = try? JSONDecoder().decode([String].self, from: data) {
+            restorableIds = strings.compactMap(UUID.init(uuidString:))
+        } else {
+            restorableIds = []
+        }
+    }
+
+    private func saveRestorableIds(_ ids: [UUID]) {
+        let strings = ids.map { $0.uuidString }
+        if let data = try? JSONEncoder().encode(strings) {
+            UserDefaults.standard.set(data, forKey: Self.restorableIdsKey)
+            restorableIds = ids
+        }
+    }
+
+    private func clearRestorableIds() {
+        UserDefaults.standard.removeObject(forKey: Self.restorableIdsKey)
+        restorableIds = []
     }
 }

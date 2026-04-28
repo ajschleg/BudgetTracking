@@ -793,6 +793,27 @@ final class DatabaseManager {
         return count
     }
 
+    /// Bulk restore a list of soft-deleted transactions. Inverse of
+    /// `softDeleteTransactions(ids:)`. Returns the number of rows that
+    /// actually flipped from deleted → active.
+    @discardableResult
+    func restoreSoftDeletedTransactions(ids: [UUID]) throws -> Int {
+        guard !ids.isEmpty else { return 0 }
+        let count = try dbQueue.write { db in
+            let placeholders = ids.map { _ in "?" }.joined(separator: ", ")
+            var args: [DatabaseValueConvertible] = [Date()]
+            args.append(contentsOf: ids.map { $0 as DatabaseValueConvertible })
+            try db.execute(sql: """
+                UPDATE "transaction"
+                SET isDeleted = 0, lastModifiedAt = ?
+                WHERE id IN (\(placeholders)) AND isDeleted = 1
+                """, arguments: StatementArguments(args))
+            return db.changesCount
+        }
+        if count > 0 { notifyDataChanged() }
+        return count
+    }
+
     /// Update all transactions in a month whose description or merchant contains the keyword
     /// (case-insensitive). Returns the number of rows updated.
     @discardableResult

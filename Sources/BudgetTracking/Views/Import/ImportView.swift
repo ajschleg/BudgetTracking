@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct ImportView: View {
     @Binding var selectedMonth: String
     @Bindable var aiViewModel: InsightsViewModel
+    @AppStorage("isEditingLocked") private var isEditingLocked = true
     @State private var viewModel = ImportViewModel()
     @State private var isTargeted = false
     @State private var showDeleteConfirmation = false
@@ -443,7 +444,10 @@ struct ImportView: View {
                         .labelStyle(.titleAndIcon)
                 }
                 .controlSize(.small)
-                .help("Scan for transactions that look like duplicates and remove them")
+                .disabled(isEditingLocked)
+                .help(isEditingLocked
+                      ? "Unlock editing to scan for and remove duplicate transactions"
+                      : "Scan for transactions that look like duplicates and remove them")
             }
             .padding(.horizontal)
             .padding(.top, 12)
