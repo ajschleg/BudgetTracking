@@ -27,11 +27,17 @@ final class LANSyncEngine: @unchecked Sendable {
     private(set) var discoveredPeers: [DiscoveredPeer] = []
     private(set) var connectedPeerName: String?
     private(set) var lastLANSyncDate: Date?
+    /// Persisted across launches via UserDefaults so a user only has to
+    /// enable LAN sync once. didSet handles both persistence and the
+    /// start/stop side-effect.
     var isEnabled: Bool = false {
         didSet {
+            UserDefaults.standard.set(isEnabled, forKey: Self.isEnabledDefaultsKey)
             if isEnabled { start() } else { stop() }
         }
     }
+
+    private static let isEnabledDefaultsKey = "LANSync_isEnabled"
 
     // MARK: - Private State
 
@@ -77,6 +83,14 @@ final class LANSyncEngine: @unchecked Sendable {
             queue: .main
         ) { [weak self] _ in
             self?.debouncedPushToPeers()
+        }
+
+        // Restore persisted enabled state. didSet does not fire for
+        // assignments made inside an initializer, so we set the backing
+        // value and explicitly invoke start() to mirror the side-effect.
+        if UserDefaults.standard.bool(forKey: Self.isEnabledDefaultsKey) {
+            isEnabled = true
+            start()
         }
     }
 
