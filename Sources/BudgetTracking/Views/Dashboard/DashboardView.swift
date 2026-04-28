@@ -8,6 +8,7 @@ struct DashboardView: View {
     @AppStorage("isEditingLocked") private var isEditingLocked = true
     @State private var viewModel = DashboardViewModel()
     @State private var editingCategory: BudgetCategory?
+    @State private var isRefreshing = false
 
     var body: some View {
         PageWithChatBar(
@@ -77,12 +78,15 @@ struct DashboardView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    viewModel.load(month: selectedMonth)
-                    aiViewModel.load(month: selectedMonth)
+                    triggerRefresh()
                 } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.clockwise")
+                            .spinning(isRefreshing)
+                        Text("Refresh")
+                    }
                 }
-                .labelStyle(.titleAndIcon)
+                .disabled(isRefreshing)
                 .help("Refresh dashboard — reload categories, totals, and income from local data")
             }
         }
@@ -117,6 +121,24 @@ struct DashboardView: View {
                 },
                 onCancel: { editingCategory = nil }
             )
+        }
+    }
+
+    /// Drives the toolbar refresh icon's spinning animation.
+    /// `viewModel.load()` is fast (local SQLite reads), so the
+    /// 500ms floor keeps the spin visible long enough to register
+    /// as feedback rather than flashing for one frame.
+    private func triggerRefresh() {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        Task {
+            // Yield once so SwiftUI can install the rotation animation
+            // before the synchronous DB work blocks the main runloop.
+            await Task.yield()
+            viewModel.load(month: selectedMonth)
+            aiViewModel.load(month: selectedMonth)
+            try? await Task.sleep(for: .milliseconds(500))
+            isRefreshing = false
         }
     }
 

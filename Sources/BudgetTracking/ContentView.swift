@@ -203,22 +203,26 @@ struct ContentView: View {
 
     // MARK: - Toolbar Sync Button
 
-    @ViewBuilder
-    private var lanSyncToolbarIcon: some View {
+    /// True while a LAN sync transfer is in flight — drives the spinning
+    /// animation on the toolbar icon.
+    private var isLANSyncActive: Bool {
+        if case .syncing = lanSyncEngine.status { return true }
+        return false
+    }
+
+    private var lanSyncIconColor: Color {
         switch lanSyncEngine.status {
-        case .syncing:
-            ProgressView()
-                .controlSize(.small)
-        case .connected:
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .foregroundStyle(.green)
-        case .searching:
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .foregroundStyle(.orange)
-        default:
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .foregroundStyle(.secondary)
+        case .syncing: return .blue
+        case .connected: return .green
+        case .searching: return .orange
+        default: return .secondary
         }
+    }
+
+    private var lanSyncToolbarIcon: some View {
+        Image(systemName: "arrow.triangle.2.circlepath")
+            .foregroundStyle(lanSyncIconColor)
+            .spinning(isLANSyncActive)
     }
 
     private var lanSyncToolbarHelp: String {

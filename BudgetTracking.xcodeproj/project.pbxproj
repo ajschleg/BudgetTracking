@@ -63,6 +63,7 @@
 		44E0D1D3EAA3B8D5328112DA /* PlaidSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690D8EABCC7787A3941782DA /* PlaidSyncManager.swift */; };
 		456277934CE23476350B660C /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0F57784E60C0D2712927E7 /* InsightsView.swift */; };
 		46E3A8202B015E739DFF6FA3 /* DuplicateDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0F41D1898A33513CB58060 /* DuplicateDetectorTests.swift */; };
+		46F17ABC8FD4E2F82BC93EEC /* SpinningModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B833FD321C4CFAC87764C9 /* SpinningModifier.swift */; };
 		4742100F03DDBA597B4E1E44 /* CategoriesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B31672CB6E8D5972F666753 /* CategoriesSettingsView.swift */; };
 		47E83AFDDC688690B3A39179 /* IncomeSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA01A86FF1D3853480318444 /* IncomeSource.swift */; };
 		499AF6E0D703784C6A49966A /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0F57784E60C0D2712927E7 /* InsightsView.swift */; };
@@ -213,6 +214,7 @@
 		FA5F402E1B4B2021A6D74689 /* PlaidConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927D8DC7F8205C22399386AD /* PlaidConsentView.swift */; };
 		FA8FDBA894FAC75052AE1232 /* ConflictResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F647A3AD0CF01EECA79DAE /* ConflictResolver.swift */; };
 		FB3DBC0CE257574DD434A391 /* MonthDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2296F730746DD13BF04875B5 /* MonthDetector.swift */; };
+		FD787C22CE93709BE828C402 /* SpinningModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B833FD321C4CFAC87764C9 /* SpinningModifier.swift */; };
 		FDC5CB7DA74FE273EEA66C7E /* AIChatResponseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CED4B6F9C35AB112B90B992 /* AIChatResponseView.swift */; };
 /* End PBXBuildFile section */
 
@@ -306,6 +308,7 @@
 		B0A492ECA271140AFAF4CED8 /* EbayOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayOrder.swift; sourceTree = "<group>"; };
 		B1696C502543F706641B8B67 /* PlaidAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaidAccount.swift; sourceTree = "<group>"; };
 		B1F8FA4860B574D29B070358 /* CategoriesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesViewModel.swift; sourceTree = "<group>"; };
+		B3B833FD321C4CFAC87764C9 /* SpinningModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpinningModifier.swift; sourceTree = "<group>"; };
 		C24FED2F412BC62E08524620 /* PlaidLinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaidLinkView.swift; sourceTree = "<group>"; };
 		C32E291AFC07CA3748B3093C /* BudgetGenerationConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetGenerationConfigSheet.swift; sourceTree = "<group>"; };
 		C441C5CCF6F0938AECC87B47 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -664,6 +667,7 @@
 				D9C7E858423BCB8EA18EE19F /* DateHelpers.swift */,
 				97374E69A19F0E9E413B36EB /* KeychainStore.swift */,
 				2296F730746DD13BF04875B5 /* MonthDetector.swift */,
+				B3B833FD321C4CFAC87764C9 /* SpinningModifier.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -895,6 +899,7 @@
 				0537EF4F932DE86594C442EB /* SideHustleViewModel.swift in Sources */,
 				C7A822CD572432A69BF057BA /* SourceCategoryMapper.swift in Sources */,
 				D5157BE466BDA9F7C08B9CEA /* SourcingCategoriesSheet.swift in Sources */,
+				46F17ABC8FD4E2F82BC93EEC /* SpinningModifier.swift in Sources */,
 				343F0AD0E9FB54508B44F1BC /* StatementParser.swift in Sources */,
 				80DD77AD025D9F280ED2781E /* SyncConstants.swift in Sources */,
 				114D7CF5D117C12CEB4B4501 /* SyncEngine.swift in Sources */,
@@ -998,6 +1003,7 @@
 				984906D51D68D73D5F0ACA58 /* SideHustleViewModel.swift in Sources */,
 				D7008F01D23AE7B946581A0B /* SourceCategoryMapper.swift in Sources */,
 				AACB93502D4BAF244306DF66 /* SourcingCategoriesSheet.swift in Sources */,
+				FD787C22CE93709BE828C402 /* SpinningModifier.swift in Sources */,
 				C344302C539ED66CC5915F73 /* StatementParser.swift in Sources */,
 				7A580A066A36B2FB74E0918C /* SyncConstants.swift in Sources */,
 				6288FC30C05B0F0D344B0761 /* SyncEngine.swift in Sources */,
