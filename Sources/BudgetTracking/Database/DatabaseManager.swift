@@ -332,6 +332,22 @@ final class DatabaseManager {
             try db.execute(sql: "ALTER TABLE budgetCategory DROP COLUMN isArchived")
         }
 
+        migrator.registerMigration("v12_addCategoryIsIncomeCategory") { db in
+            try db.alter(table: "budgetCategory") { t in
+                t.add(column: "isIncomeCategory", .boolean).notNull().defaults(to: false)
+            }
+
+            // Best-effort auto-flag: any category named "Income" or
+            // "Employment" gets marked as an income source so the dashboard
+            // does not read $0 immediately after this migration. Users add
+            // or remove others via the Categories page toggle.
+            try db.execute(sql: """
+                UPDATE budgetCategory
+                SET isIncomeCategory = 1, lastModifiedAt = ?
+                WHERE LOWER(name) IN ('income', 'employment', 'employment income', 'paycheck')
+                """, arguments: [Date()])
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -637,38 +653,48 @@ final class DatabaseManager {
 
     // MARK: - Transaction Queries
 
-    /// Sum of all positive-amount transactions (income) for a given month.
-    /// Pass `excludeCategoryIds` to drop transactions tagged with hidden categories.
-    func fetchTotalIncome(forMonth month: String, excludeCategoryIds: Set<UUID> = []) throws -> Double {
+    /// Sum of positive-amount transactions for a given month.
+    /// - When `fromCategoryIds` is `nil`, sums every positive transaction
+    ///   regardless of category (used by the Income page, Insights, etc.).
+    /// - When `fromCategoryIds` is non-nil, sums only transactions tagged
+    ///   to one of those categories. Pass an empty set to get 0.
+    func fetchTotalIncome(forMonth month: String, fromCategoryIds: Set<UUID>? = nil) throws -> Double {
         try dbQueue.read { db in
+            if let ids = fromCategoryIds, ids.isEmpty {
+                return 0
+            }
             var sql = """
                 SELECT COALESCE(SUM(amount), 0) AS total
                 FROM "transaction"
                 WHERE month = ? AND amount > 0 AND isDeleted = 0
                 """
             var args: [DatabaseValueConvertible] = [month]
-            if !excludeCategoryIds.isEmpty {
-                let placeholders = excludeCategoryIds.map { _ in "?" }.joined(separator: ", ")
-                sql += " AND (categoryId IS NULL OR categoryId NOT IN (\(placeholders)))"
-                args.append(contentsOf: excludeCategoryIds.map { $0 as DatabaseValueConvertible })
+            if let ids = fromCategoryIds {
+                let placeholders = ids.map { _ in "?" }.joined(separator: ", ")
+                sql += " AND categoryId IN (\(placeholders))"
+                args.append(contentsOf: ids.map { $0 as DatabaseValueConvertible })
             }
             let row = try Row.fetchOne(db, sql: sql, arguments: StatementArguments(args))
             return row?["total"] as? Double ?? 0
         }
     }
 
-    /// All positive-amount (income) transactions for a given month.
-    /// Pass `excludeCategoryIds` to drop transactions tagged with hidden categories.
-    func fetchIncomeTransactions(forMonth month: String, excludeCategoryIds: Set<UUID> = []) throws -> [Transaction] {
+    /// Positive-amount (income) transactions for a given month.
+    /// - `fromCategoryIds` follows the same nil/non-nil semantics as
+    ///   `fetchTotalIncome`.
+    func fetchIncomeTransactions(forMonth month: String, fromCategoryIds: Set<UUID>? = nil) throws -> [Transaction] {
         try dbQueue.read { db in
+            if let ids = fromCategoryIds, ids.isEmpty {
+                return []
+            }
             var request = Transaction
                 .filter(Transaction.Columns.month == month)
                 .filter(sql: "amount > 0")
                 .filter(Transaction.Columns.isDeleted == false)
-            if !excludeCategoryIds.isEmpty {
-                let placeholders = excludeCategoryIds.map { _ in "?" }.joined(separator: ", ")
-                let args: [DatabaseValueConvertible] = Array(excludeCategoryIds)
-                request = request.filter(sql: "(categoryId IS NULL OR categoryId NOT IN (\(placeholders)))",
+            if let ids = fromCategoryIds {
+                let placeholders = ids.map { _ in "?" }.joined(separator: ", ")
+                let args: [DatabaseValueConvertible] = ids.map { $0 as DatabaseValueConvertible }
+                request = request.filter(sql: "categoryId IN (\(placeholders))",
                                           arguments: StatementArguments(args))
             }
             return try request

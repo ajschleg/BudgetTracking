@@ -160,12 +160,13 @@ private struct SeededRNG: RandomNumberGenerator {
 
 /// Verifies the dashboard's Income section computation. The behavior we
 /// pin down here:
-///   - Every positive, non-deleted transaction in the given month counts.
-///   - Hidden categories DO NOT exclude income (the user's paychecks were
-///     missing from the dashboard because their "Income" budget category
-///     was hidden — this is the regression test for that fix).
-///   - Negative-amount transactions never count as income.
-///   - Other months and soft-deleted rows are excluded.
+///   - Income is scoped to user-designated "income categories" (the $
+///     toggle in Categories settings). Refunds, transfers, and Zelle
+///     reimbursements never count, even when positive.
+///   - Transactions with NULL `categoryId` never count as income.
+///   - Negative amounts and soft-deleted rows are always excluded.
+///   - Multiple categories can be marked as income (e.g. Employment +
+///     Side Hustle); transactions in any of them count.
 final class DashboardIncomeTests: XCTestCase {
 
     private let april = "2026-04"
@@ -194,110 +195,175 @@ final class DashboardIncomeTests: XCTestCase {
     // MARK: - Boundary cases
 
     func testEmptyTransactionsYieldsZero() {
-        let snap = DashboardViewModel.incomeSnapshot(from: [], forMonth: april)
+        let snap = DashboardViewModel.incomeSnapshot(from: [], forMonth: april, incomeCategoryIds: [UUID()])
         XCTAssertEqual(snap.total, 0)
         XCTAssertTrue(snap.transactions.isEmpty)
     }
 
-    func testNegativeAmountsAreNotIncome() {
+    /// If the user hasn't marked any category as income, the dashboard
+    /// must report $0 — better to show nothing than to roll up
+    /// transfers/refunds/Zelle as income.
+    func testNoIncomeCategoriesMarkedYieldsZero() {
+        let someCategory = UUID()
         let txns = [
-            tx(amount: -100, month: april),
-            tx(amount: -42.50, month: april),
+            tx(amount: 1_000, month: april, categoryId: someCategory),
+            tx(amount: 500, month: april, categoryId: someCategory),
         ]
-        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april)
+        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april, incomeCategoryIds: [])
         XCTAssertEqual(snap.total, 0)
         XCTAssertTrue(snap.transactions.isEmpty)
+    }
+
+    func testNegativeAmountsNeverCountEvenInIncomeCategory() {
+        let incomeCat = UUID()
+        let txns = [
+            tx(amount: -100, month: april, categoryId: incomeCat),
+            tx(amount: -42.50, month: april, categoryId: incomeCat),
+            tx(amount: 500, month: april, categoryId: incomeCat),
+        ]
+        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april, incomeCategoryIds: [incomeCat])
+        XCTAssertEqual(snap.total, 500)
+        XCTAssertEqual(snap.transactions.count, 1)
     }
 
     func testOtherMonthsAreExcluded() {
+        let incomeCat = UUID()
         let txns = [
-            tx(amount: 1_000, month: "2026-03"),
-            tx(amount: 2_000, month: "2026-05"),
-            tx(amount: 500, month: april),
+            tx(amount: 1_000, month: "2026-03", categoryId: incomeCat),
+            tx(amount: 2_000, month: "2026-05", categoryId: incomeCat),
+            tx(amount: 500, month: april, categoryId: incomeCat),
         ]
-        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april)
+        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april, incomeCategoryIds: [incomeCat])
         XCTAssertEqual(snap.total, 500)
         XCTAssertEqual(snap.transactions.count, 1)
     }
 
     func testSoftDeletedAreExcluded() {
+        let incomeCat = UUID()
         let txns = [
-            tx(amount: 1_000, month: april, isDeleted: true),
-            tx(amount: 500, month: april),
+            tx(amount: 1_000, month: april, categoryId: incomeCat, isDeleted: true),
+            tx(amount: 500, month: april, categoryId: incomeCat),
         ]
-        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april)
+        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april, incomeCategoryIds: [incomeCat])
         XCTAssertEqual(snap.total, 500)
         XCTAssertEqual(snap.transactions.count, 1)
     }
 
-    // MARK: - The regression: hidden categories must not hide real income
+    func testNullCategoryIdNeverCountsAsIncome() {
+        let incomeCat = UUID()
+        let txns = [
+            tx(amount: 1_000, month: april, categoryId: nil),
+            tx(amount: 500, month: april, categoryId: incomeCat),
+        ]
+        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april, incomeCategoryIds: [incomeCat])
+        XCTAssertEqual(snap.total, 500)
+        XCTAssertEqual(snap.transactions.count, 1)
+    }
 
-    /// Direct regression for the bug where 10 paychecks tagged to a hidden
-    /// "Income" budget category ($13,495) and other positive transactions
-    /// tied to hidden categories were silently dropped from the dashboard's
-    /// income total — making the user think they'd earned $459 in a month
-    /// they actually earned ~$29k.
-    func testRegression_PositiveTransactionsInHiddenCategoryAreIncludedAsIncome() {
-        let hiddenIncomeCategory = UUID()
-        let hiddenTransfersCategory = UUID()
-        let visibleCategory = UUID()
+    // MARK: - The user-reported bug
+
+    /// Direct regression for the case the user reported: April 2026 had
+    /// $29k of positive transactions, of which only ~$13k was actual
+    /// employment income (Arthrex + RCI tagged to the "Income" category).
+    /// The rest was Zelle reimbursements, ACH transfers, refund returns,
+    /// and credit-card payment reversals — none of which is income. The
+    /// dashboard had been showing them all (total $29k) after a previous
+    /// fix; this test pins the new behavior down to exactly the income
+    /// category amounts.
+    func testRegression_OnlyTransactionsTaggedToIncomeCategoryCount() {
+        let incomeCat = UUID()                  // user has marked "Income" with $
+        let transfersCat = UUID()               // user has NOT marked "Money Transfers"
+        let creditCardCat = UUID()              // user has NOT marked "Credit Card Payments"
+        let groceriesCat = UUID()               // visible spending bucket; not income
 
         let txns = [
-            tx(amount: 3_521.18, month: april, categoryId: hiddenIncomeCategory),  // Arthrex paycheck
-            tx(amount: 7_429.89, month: april, categoryId: hiddenIncomeCategory),  // RCI paycheck
-            tx(amount: 1_879.55, month: april, categoryId: hiddenTransfersCategory), // transfer-in
-            tx(amount: 92.23, month: april, categoryId: visibleCategory),           // refund in visible bucket
-            tx(amount: -300, month: april, categoryId: visibleCategory),            // spending — must not count
+            tx(amount: 3_521.18, month: april, categoryId: incomeCat),     // Arthrex paycheck
+            tx(amount: 7_429.89, month: april, categoryId: incomeCat),     // RCI paycheck
+            tx(amount: 595.81, month: april, categoryId: incomeCat),       // Arthrex bonus
+            tx(amount: 1_879.55, month: april, categoryId: transfersCat),  // ACH transfer in — NOT income
+            tx(amount: 11_790.16, month: april, categoryId: creditCardCat),// CC payment-in — NOT income
+            tx(amount: 342.38, month: april, categoryId: groceriesCat),    // IKEA refund — NOT income
+            tx(amount: 17.00, month: april, categoryId: nil),              // Zelle, uncategorized — NOT income
+            tx(amount: -300, month: april, categoryId: groceriesCat),      // spending — NOT income
         ]
 
-        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april)
-
-        XCTAssertEqual(snap.total, 12_922.85, accuracy: 0.001)
-        XCTAssertEqual(snap.transactions.count, 4)
-        XCTAssertFalse(
-            snap.transactions.contains { $0.amount < 0 },
-            "Negative transactions must never appear in the income list"
+        let snap = DashboardViewModel.incomeSnapshot(
+            from: txns,
+            forMonth: april,
+            incomeCategoryIds: [incomeCat]
         )
+
+        XCTAssertEqual(snap.total, 11_546.88, accuracy: 0.001)
+        XCTAssertEqual(snap.transactions.count, 3)
+        XCTAssertTrue(snap.transactions.allSatisfy { $0.categoryId == incomeCat })
+    }
+
+    func testMultipleIncomeCategories_BothCount() {
+        let employment = UUID()
+        let sideHustle = UUID()
+        let transfers = UUID()
+
+        let txns = [
+            tx(amount: 5_000, month: april, categoryId: employment),
+            tx(amount: 800, month: april, categoryId: sideHustle),
+            tx(amount: 1_500, month: april, categoryId: transfers),  // not in income set
+        ]
+
+        let snap = DashboardViewModel.incomeSnapshot(
+            from: txns,
+            forMonth: april,
+            incomeCategoryIds: [employment, sideHustle]
+        )
+
+        XCTAssertEqual(snap.total, 5_800)
+        XCTAssertEqual(snap.transactions.count, 2)
     }
 
     // MARK: - Sort order
 
     func testTransactionsAreSortedMostRecentFirst() {
+        let incomeCat = UUID()
         let day1 = ISO8601DateFormatter().date(from: "2026-04-01T12:00:00Z")!
         let day15 = ISO8601DateFormatter().date(from: "2026-04-15T12:00:00Z")!
         let day28 = ISO8601DateFormatter().date(from: "2026-04-28T12:00:00Z")!
 
         let txns = [
-            tx(amount: 100, month: april, date: day1),
-            tx(amount: 200, month: april, date: day28),
-            tx(amount: 150, month: april, date: day15),
+            tx(amount: 100, month: april, categoryId: incomeCat, date: day1),
+            tx(amount: 200, month: april, categoryId: incomeCat, date: day28),
+            tx(amount: 150, month: april, categoryId: incomeCat, date: day15),
         ]
 
-        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april)
+        let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april, incomeCategoryIds: [incomeCat])
         XCTAssertEqual(snap.transactions.map(\.date), [day28, day15, day1])
     }
 
     // MARK: - Invariant
 
     /// Across any input, the snapshot's total must equal the sum of the
-    /// transactions it returned. If this ever drifts, the dashboard's
+    /// transactions it returned, and every returned transaction must be
+    /// in the income-category set, in the right month, positive, and not
+    /// deleted. If this ever drifts, the dashboard's
     /// "Net (Income − Spending)" line silently lies to the user.
     func testInvariantTotalEqualsSumOfReturnedTransactions() {
+        let incomeCats = [UUID(), UUID()]
+        let nonIncomeCats = [UUID(), UUID(), UUID()]
+        let allCats: [UUID?] = (incomeCats + nonIncomeCats).map { $0 as UUID? } + [nil]
+        let incomeSet = Set(incomeCats)
+
         for trial in 0..<100 {
             var rng = SeededRNG(seed: UInt64(trial) &* 0xA5A5_A5A5_A5A5_A5A5)
             let count = Int.random(in: 0...30, using: &rng)
             let months = ["2026-03", "2026-04", "2026-05"]
-            let categoryPool = [UUID(), UUID(), UUID(), nil, nil] as [UUID?]
 
             let txns: [Transaction] = (0..<count).map { _ in
                 let month = months.randomElement(using: &rng) ?? april
                 let amount = Double(Int.random(in: -1_000...1_000, using: &rng))
-                let cat = categoryPool.randomElement(using: &rng) ?? nil
+                let cat = allCats.randomElement(using: &rng) ?? nil
                 let deleted = Bool.random(using: &rng)
                 return tx(amount: amount, month: month, categoryId: cat, isDeleted: deleted)
             }
 
-            let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april)
+            let snap = DashboardViewModel.incomeSnapshot(from: txns, forMonth: april, incomeCategoryIds: incomeSet)
             let computedSum = snap.transactions.reduce(0) { $0 + $1.amount }
             XCTAssertEqual(snap.total, computedSum, accuracy: 0.0001,
                            "trial \(trial): total drifted from sum of returned transactions")
@@ -306,6 +372,9 @@ final class DashboardIncomeTests: XCTestCase {
                 XCTAssertEqual(t.month, april, "trial \(trial): wrong-month txn leaked through")
                 XCTAssertGreaterThan(t.amount, 0, "trial \(trial): non-positive txn leaked through")
                 XCTAssertFalse(t.isDeleted, "trial \(trial): deleted txn leaked through")
+                XCTAssertNotNil(t.categoryId, "trial \(trial): NULL-category txn leaked through")
+                XCTAssertTrue(incomeSet.contains(t.categoryId!),
+                              "trial \(trial): non-income-category txn leaked through")
             }
         }
     }

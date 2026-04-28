@@ -83,7 +83,7 @@ struct DashboardView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .labelStyle(.titleAndIcon)
-                .help("Refresh dashboard")
+                .help("Refresh dashboard — reload categories, totals, and income from local data")
             }
         }
         .onAppear {

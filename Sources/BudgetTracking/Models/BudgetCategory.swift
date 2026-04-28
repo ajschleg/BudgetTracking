@@ -8,6 +8,11 @@ struct BudgetCategory: Identifiable, Codable, Equatable {
     var colorHex: String
     var sortOrder: Int
     var isHiddenFromDashboard: Bool
+    /// If true, positive transactions tagged to this category count toward
+    /// the dashboard "Income" total. Categories without this flag are not
+    /// summed as income even if they have positive transactions (refunds,
+    /// transfers, Zelle reimbursements, etc.).
+    var isIncomeCategory: Bool
 
     // Sync fields
     var lastModifiedAt: Date
@@ -22,6 +27,7 @@ struct BudgetCategory: Identifiable, Codable, Equatable {
         colorHex: String = "#4CAF50",
         sortOrder: Int = 0,
         isHiddenFromDashboard: Bool = false,
+        isIncomeCategory: Bool = false,
         lastModifiedAt: Date = Date(),
         cloudKitRecordName: String? = nil,
         cloudKitSystemFields: Data? = nil,
@@ -33,6 +39,7 @@ struct BudgetCategory: Identifiable, Codable, Equatable {
         self.colorHex = colorHex
         self.sortOrder = sortOrder
         self.isHiddenFromDashboard = isHiddenFromDashboard
+        self.isIncomeCategory = isIncomeCategory
         self.lastModifiedAt = lastModifiedAt
         self.cloudKitRecordName = cloudKitRecordName
         self.cloudKitSystemFields = cloudKitSystemFields
@@ -47,6 +54,7 @@ struct BudgetCategory: Identifiable, Codable, Equatable {
         self.colorHex = try c.decode(String.self, forKey: .colorHex)
         self.sortOrder = try c.decode(Int.self, forKey: .sortOrder)
         self.isHiddenFromDashboard = try c.decodeIfPresent(Bool.self, forKey: .isHiddenFromDashboard) ?? false
+        self.isIncomeCategory = try c.decodeIfPresent(Bool.self, forKey: .isIncomeCategory) ?? false
         self.lastModifiedAt = try c.decode(Date.self, forKey: .lastModifiedAt)
         self.cloudKitRecordName = try c.decodeIfPresent(String.self, forKey: .cloudKitRecordName)
         self.cloudKitSystemFields = try c.decodeIfPresent(Data.self, forKey: .cloudKitSystemFields)
@@ -77,7 +85,7 @@ extension BudgetCategory: FetchableRecord, PersistableRecord {
     static let databaseTableName = "budgetCategory"
 
     enum Columns: String, ColumnExpression {
-        case id, name, monthlyBudget, colorHex, sortOrder, isHiddenFromDashboard
+        case id, name, monthlyBudget, colorHex, sortOrder, isHiddenFromDashboard, isIncomeCategory
         case lastModifiedAt, cloudKitRecordName, cloudKitSystemFields, isDeleted
     }
 }

@@ -83,6 +83,12 @@ final class CategoriesViewModel {
         updateCategory(updated)
     }
 
+    func toggleIncomeCategory(_ category: BudgetCategory) {
+        var updated = category
+        updated.isIncomeCategory.toggle()
+        updateCategory(updated)
+    }
+
     /// Number of transactions categorized by the most recent rule addition.
     var lastRuleApplyCount: Int = 0
 

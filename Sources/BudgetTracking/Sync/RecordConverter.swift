@@ -61,6 +61,7 @@ enum RecordConverter {
         record["colorHex"] = category.colorHex
         record["sortOrder"] = category.sortOrder
         record["isHiddenFromDashboard"] = category.isHiddenFromDashboard
+        record["isIncomeCategory"] = category.isIncomeCategory
         record["isDeleted"] = category.isDeleted
         record["lastModifiedAt"] = category.lastModifiedAt
         return record
@@ -78,6 +79,7 @@ enum RecordConverter {
             colorHex: record["colorHex"] as? String ?? "#4CAF50",
             sortOrder: record["sortOrder"] as? Int ?? 0,
             isHiddenFromDashboard: record["isHiddenFromDashboard"] as? Bool ?? false,
+            isIncomeCategory: record["isIncomeCategory"] as? Bool ?? false,
             lastModifiedAt: record["lastModifiedAt"] as? Date ?? Date(),
             cloudKitRecordName: record.recordID.recordName,
             cloudKitSystemFields: archiveSystemFields(of: record),

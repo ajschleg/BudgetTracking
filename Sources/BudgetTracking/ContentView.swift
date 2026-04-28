@@ -137,8 +137,8 @@ struct ContentView: View {
                     }
                 }
                 .help(isEditingLocked
-                      ? "Editing is locked — click to unlock"
-                      : "Editing is unlocked — click to lock")
+                      ? "Editing is locked — click to unlock and allow changes to budgets, categories, and transaction assignments"
+                      : "Editing is unlocked — click to lock and prevent accidental changes")
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -219,13 +219,16 @@ struct ContentView: View {
     }
 
     private var lanSyncToolbarHelp: String {
-        if lanSyncEngine.connectedPeerName != nil {
-            return "Sync now with \(lanSyncEngine.connectedPeerName!)"
+        if let peer = lanSyncEngine.connectedPeerName {
+            return "Sync transactions, categories, and budgets now with \(peer)"
         }
         switch lanSyncEngine.status {
-        case .disabled: return "LAN sync is disabled — enable in Sync settings"
-        case .searching: return "Searching for peers…"
-        default: return "No peer connected"
+        case .disabled:
+            return "LAN sync is disabled — enable it in Sync settings to share data with another Mac on this network"
+        case .searching:
+            return "Searching for another Mac on this network running BudgetTracking…"
+        default:
+            return "No peer connected — open this app on another Mac on the same network to enable LAN sync"
         }
     }
 

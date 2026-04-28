@@ -91,6 +91,7 @@ struct CategoriesSettingsView: View {
                                 onEdit: { editingCategory = category },
                                 onDelete: { viewModel.deleteCategory(category) },
                                 onToggleHidden: { viewModel.toggleHidden(category) },
+                                onToggleIncome: { viewModel.toggleIncomeCategory(category) },
                                 onUpdateBudget: { newBudget in
                                     var updated = category
                                     updated.monthlyBudget = newBudget
@@ -356,6 +357,7 @@ struct CategoryRow: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
     let onToggleHidden: () -> Void
+    let onToggleIncome: () -> Void
     let onUpdateBudget: (Double) -> Void
     let onUpdateName: (String) -> Void
 
@@ -431,6 +433,16 @@ struct CategoryRow: View {
                         budgetFieldFocused = true
                     }
             }
+
+            Button(action: onToggleIncome) {
+                Image(systemName: category.isIncomeCategory ? "dollarsign.circle.fill" : "dollarsign.circle")
+                    .foregroundStyle(category.isIncomeCategory ? Color.green : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(isLocked)
+            .help(category.isIncomeCategory
+                  ? "Counted as income on the dashboard — click to stop counting"
+                  : "Not counted as income — click to mark as an income source")
 
             Button(action: onToggleHidden) {
                 Image(systemName: category.isHiddenFromDashboard ? "eye.slash" : "eye")
