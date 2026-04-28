@@ -1,6 +1,24 @@
 import Foundation
 import SwiftUI
 
+/// Protocol covering the parts of PlaidService that PlaidSyncManager
+/// touches. Tests provide a mock conforming to this instead of hitting
+/// the real network. Every method raises by default — tests override
+/// only what their scenario exercises.
+protocol PlaidTransactionSyncing {
+    func syncTransactions() async throws -> PlaidService.SyncResponse
+    func fetchAccounts() async throws -> [PlaidService.AccountListItem]
+    func removeItem(_ itemId: String) async throws
+    func removeAllItems() async throws -> PlaidService.BulkRemoveResponse
+    func refreshBalances(itemId: String?, minAgeSeconds: Int?) async throws -> PlaidService.BalancesRefreshResponse
+    func refreshIdentity(itemId: String?) async throws -> PlaidService.IdentityRefreshResponse
+    func fetchTransactionsStatus() async throws -> PlaidService.TransactionsStatusResponse
+    func fetchItems() async throws -> PlaidService.ItemsResponse
+    func createLinkToken() async throws -> String
+}
+
+extension PlaidService: PlaidTransactionSyncing {}
+
 @Observable
 final class PlaidSyncManager {
     var isSyncing = false
@@ -41,13 +59,22 @@ final class PlaidSyncManager {
     /// needs_update_reason is NEW_ACCOUNTS_AVAILABLE.
     var pendingUpdateAccountSelection = false
 
-    private let plaidService = PlaidService()
+    private let plaidService: PlaidTransactionSyncing
+    private let database: DatabaseManager
+
+    init(
+        plaidService: PlaidTransactionSyncing = PlaidService(),
+        database: DatabaseManager = .shared
+    ) {
+        self.plaidService = plaidService
+        self.database = database
+    }
 
     // MARK: - Account Management
 
     func loadAccounts() {
         do {
-            linkedAccounts = try DatabaseManager.shared.fetchPlaidAccounts()
+            linkedAccounts = try self.database.fetchPlaidAccounts()
         } catch {
             linkedAccounts = []
         }
@@ -78,7 +105,7 @@ final class PlaidSyncManager {
                     ownerPhone: account.owner_phone,
                     identityFetchedAt: parseISODate(account.identity_fetched_at)
                 )
-                try DatabaseManager.shared.savePlaidAccount(plaidAccount)
+                try self.database.savePlaidAccount(plaidAccount)
             }
 
             loadAccounts()
@@ -101,7 +128,7 @@ final class PlaidSyncManager {
     func removeAccount(_ account: PlaidAccount) async {
         do {
             try await plaidService.removeItem(account.plaidItemId)
-            try DatabaseManager.shared.deletePlaidAccounts(forItemId: account.plaidItemId)
+            try self.database.deletePlaidAccounts(forItemId: account.plaidItemId)
             loadAccounts()
         } catch {
             errorMessage = error.localizedDescription
@@ -119,7 +146,7 @@ final class PlaidSyncManager {
             // Local cleanup: drop every plaidAccount row (the server
             // already wiped its copy). Transactions stay put.
             for account in linkedAccounts {
-                try? DatabaseManager.shared.deletePlaidAccounts(forItemId: account.plaidItemId)
+                try? self.database.deletePlaidAccounts(forItemId: account.plaidItemId)
             }
             loadAccounts()
             itemsNeedingUpdate = []
@@ -144,13 +171,13 @@ final class PlaidSyncManager {
         defer { isRefreshingBalances = false }
 
         do {
-            let response = try await plaidService.refreshBalances()
+            let response = try await plaidService.refreshBalances(itemId: nil, minAgeSeconds: nil)
 
             // Persist fresh balances to the local DB
             let fetchedAt = Date()
             for item in response.refreshed {
                 for acct in item.accounts {
-                    try? DatabaseManager.shared.updatePlaidAccountBalance(
+                    try? self.database.updatePlaidAccountBalance(
                         plaidAccountId: acct.plaid_account_id,
                         current: acct.balance_current,
                         available: acct.balance_available,
@@ -256,7 +283,7 @@ final class PlaidSyncManager {
         defer { isRefreshingIdentity = false }
 
         do {
-            let response = try await plaidService.refreshIdentity()
+            let response = try await plaidService.refreshIdentity(itemId: nil)
             // Pull the updated rows (with owner_name, email, phone) back
             // onto the device.
             await refreshAccountsFromServer()
@@ -289,7 +316,7 @@ final class PlaidSyncManager {
                 subtype: account.subtype,
                 mask: account.mask
             )
-            try? DatabaseManager.shared.savePlaidAccount(plaidAccount)
+            try? self.database.savePlaidAccount(plaidAccount)
         }
         loadAccounts()
 
@@ -321,7 +348,7 @@ final class PlaidSyncManager {
                 month: nil,
                 transactionCount: response.added.count + response.modified.count
             )
-            try DatabaseManager.shared.saveImportedFile(importedFile)
+            try self.database.saveImportedFile(importedFile)
 
             var addedCount = 0
             var duplicateCount = 0
@@ -344,7 +371,7 @@ final class PlaidSyncManager {
                     }
 
                     // Check for duplicates by externalId
-                    if try DatabaseManager.shared.transactionExists(externalId: plaidTxn.transaction_id) {
+                    if try self.database.transactionExists(externalId: plaidTxn.transaction_id) {
                         duplicateCount += 1
                         continue
                     }
@@ -370,8 +397,8 @@ final class PlaidSyncManager {
                     // Auto-categorize before saving. Plaid category hints
                     // take priority; keyword/learned rules fill the gaps.
                     syncProgress = "Categorizing transactions..."
-                    let rules = try DatabaseManager.shared.fetchRules()
-                    let categories = try DatabaseManager.shared.fetchCategories()
+                    let rules = try self.database.fetchRules()
+                    let categories = try self.database.fetchCategories()
                     let engine = CategorizationEngine(rules: rules, categories: categories)
                     engine.categorizeAllWithPlaid(
                         transactions: &transactions,
@@ -379,7 +406,7 @@ final class PlaidSyncManager {
                         plaidDetailedCategories: plaidDetails
                     )
 
-                    try DatabaseManager.shared.saveTransactions(transactions)
+                    try self.database.saveTransactions(transactions)
                     addedCount = transactions.count
                 }
             }
@@ -390,7 +417,7 @@ final class PlaidSyncManager {
                 syncProgress = "Updating \(response.modified.count) transactions..."
                 for plaidTxn in response.modified {
                     guard !plaidTxn.pending else { continue }
-                    try DatabaseManager.shared.updateTransactionByExternalId(
+                    try self.database.updateTransactionByExternalId(
                         externalId: plaidTxn.transaction_id,
                         description: plaidTxn.merchant_name ?? plaidTxn.name,
                         merchant: plaidTxn.merchant_name,
@@ -405,14 +432,14 @@ final class PlaidSyncManager {
             if !response.removed.isEmpty {
                 syncProgress = "Removing \(response.removed.count) transactions..."
                 for removed in response.removed {
-                    try DatabaseManager.shared.softDeleteTransactionByExternalId(removed.transaction_id)
+                    try self.database.softDeleteTransactionByExternalId(removed.transaction_id)
                 }
             }
             let removedCount = response.removed.count
 
             let total = response.added.count + response.modified.count + response.removed.count
             if total > 0 {
-                DatabaseManager.shared.notifyDataChanged()
+                self.database.notifyDataChanged()
             }
 
             lastSyncSummary = Self.formatSyncSummary(

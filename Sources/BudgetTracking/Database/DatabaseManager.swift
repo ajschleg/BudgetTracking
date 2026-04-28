@@ -40,6 +40,27 @@ final class DatabaseManager {
         }
     }
 
+    /// Test-only constructor: builds a DatabaseManager backed by the
+    /// caller-supplied DatabaseQueue (typically an in-memory one) with
+    /// migrations and default seeding controlled independently. Lets
+    /// tests exercise the real DB code paths without sharing state with
+    /// the user's on-disk SQLite file.
+    init(dbQueue: DatabaseQueue, runMigrations: Bool = true, seedDefaults: Bool = false) throws {
+        self.dbQueue = dbQueue
+        if runMigrations { try self.runMigrations() }
+        if seedDefaults {
+            try seedDefaultCategories()
+            try seedDefaultRules()
+        }
+    }
+
+    /// Build an in-memory DatabaseManager for use in unit tests. No
+    /// default categories or rules are seeded; the caller supplies the
+    /// fixture data needed for the scenario under test.
+    static func makeInMemoryForTesting() throws -> DatabaseManager {
+        try DatabaseManager(dbQueue: DatabaseQueue(), runMigrations: true, seedDefaults: false)
+    }
+
     // MARK: - Migrations
 
     private func runMigrations() throws {
