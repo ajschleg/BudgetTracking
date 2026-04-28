@@ -21,15 +21,24 @@ final class HistoryViewModel {
     func load() {
         do {
             let allMonths = try DatabaseManager.shared.fetchAllSnapshotMonths()
-            let categories = try DatabaseManager.shared.fetchCategories()
-            let totalBudget = categories.reduce(0) { $0 + $1.monthlyBudget }
+            // Same split the dashboard uses, so the per-month totals here
+            // line up exactly with what the dashboard shows when you open
+            // any of these months. Spending in hidden categories (Credit
+            // Card Payments, Money Transfers, etc.) and their budgets are
+            // excluded from both numerator and denominator.
+            let split = DashboardViewModel.splitForDashboard(
+                try DatabaseManager.shared.fetchCategories()
+            )
 
             months = try allMonths.map { month in
-                let spent = try DatabaseManager.shared.fetchTotalSpending(forMonth: month)
+                let spent = try DatabaseManager.shared.fetchTotalSpending(
+                    forMonth: month,
+                    excludeCategoryIds: split.hiddenIds
+                )
                 let files = try DatabaseManager.shared.fetchImportedFiles(forMonth: month)
                 return MonthSummary(
                     month: month,
-                    totalBudget: totalBudget,
+                    totalBudget: split.totalBudget,
                     totalSpent: spent,
                     fileCount: files.count
                 )
