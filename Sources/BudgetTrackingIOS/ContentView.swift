@@ -8,7 +8,7 @@ struct ContentView: View {
             DashboardView(syncEngine: syncEngine)
                 .tabItem { Label("Dashboard", systemImage: "chart.bar.fill") }
 
-            ComingSoonView(title: "Transactions")
+            TransactionsView()
                 .tabItem { Label("Transactions", systemImage: "list.bullet.rectangle") }
 
             ComingSoonView(title: "Budget")

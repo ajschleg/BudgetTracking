@@ -23,6 +23,7 @@
 		1511A43F32236EEADA8EADBA /* TransactionsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CB5F4483BD61BDCE9951D67 /* TransactionsViewModel.swift */; };
 		1559FF1C636EA3AAC30272FA /* ImportedFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */; };
 		16E3BF316E1EBAC92DA52138 /* IncomeSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA01A86FF1D3853480318444 /* IncomeSource.swift */; };
+		172BEE2CF3AE3C82C377E066 /* TransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEDA0B8E5189D0194F507D8B /* TransactionsView.swift */; };
 		194D70AEF83FC3EF9565EF5B /* PlaidAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1696C502543F706641B8B67 /* PlaidAccount.swift */; };
 		19FAEFFEB54263F1577BB916 /* CategorizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0B30CCE20155199B5F3641 /* CategorizationEngine.swift */; };
 		1A383ED322BCD4A92BCD1358 /* QIFParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBD04A6FF6BEF85B534BDDB5 /* QIFParser.swift */; };
@@ -302,6 +303,7 @@
 		EA1511E4B898F9C603AC8FA7 /* ImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportView.swift; sourceTree = "<group>"; };
 		EA86F8F7A4922668F97DE78D /* CategoryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryEditorView.swift; sourceTree = "<group>"; };
 		EE0DB8E8D72B629DE8C9B71B /* SecurityPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityPolicyTests.swift; sourceTree = "<group>"; };
+		EEDA0B8E5189D0194F507D8B /* TransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsView.swift; sourceTree = "<group>"; };
 		F11DFF79231E859813B37A16 /* PDFParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFParser.swift; sourceTree = "<group>"; };
 		F3606ED458F1590D93A0A660 /* EbaySourcingTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbaySourcingTransaction.swift; sourceTree = "<group>"; };
 		F6ABE1557E9F882FFFF72047 /* COGSEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = COGSEditorView.swift; sourceTree = "<group>"; };
@@ -402,8 +404,17 @@
 			isa = PBXGroup;
 			children = (
 				B8AC22084C33FC456DB5FD69 /* Dashboard */,
+				4AAD642C47923D9250CC0440 /* Transactions */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		4AAD642C47923D9250CC0440 /* Transactions */ = {
+			isa = PBXGroup;
+			children = (
+				EEDA0B8E5189D0194F507D8B /* TransactionsView.swift */,
+			);
+			path = Transactions;
 			sourceTree = "<group>";
 		};
 		4EA5871B604458E79C57FD75 /* Ebay */ = {
@@ -866,6 +877,7 @@
 				114D7CF5D117C12CEB4B4501 /* SyncEngine.swift in Sources */,
 				EE0A1D4B68064B53DEF4244E /* SyncStateStore.swift in Sources */,
 				DB3A7F6B3082AC272EED9459 /* Transaction.swift in Sources */,
+				172BEE2CF3AE3C82C377E066 /* TransactionsView.swift in Sources */,
 				1511A43F32236EEADA8EADBA /* TransactionsViewModel.swift in Sources */,
 				CC124447E511FE71F01E6836 /* XLSXParser.swift in Sources */,
 			);
