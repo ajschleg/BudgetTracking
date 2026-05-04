@@ -11,7 +11,7 @@ struct ContentView: View {
             TransactionsView()
                 .tabItem { Label("Transactions", systemImage: "list.bullet.rectangle") }
 
-            ComingSoonView(title: "Budget")
+            BudgetView()
                 .tabItem { Label("Budget", systemImage: "folder.fill") }
 
             ComingSoonView(title: "Settings")
