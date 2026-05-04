@@ -2,10 +2,11 @@ import SwiftUI
 
 struct ContentView: View {
     let syncEngine: SyncEngine
+    let lanSyncEngine: LANSyncEngine
 
     var body: some View {
         TabView {
-            DashboardView(syncEngine: syncEngine)
+            DashboardView(syncEngine: syncEngine, lanSyncEngine: lanSyncEngine)
                 .tabItem { Label("Dashboard", systemImage: "chart.bar.fill") }
 
             TransactionsView()

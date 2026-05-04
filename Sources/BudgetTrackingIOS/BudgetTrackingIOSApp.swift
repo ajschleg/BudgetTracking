@@ -6,15 +6,32 @@ import UIKit
 struct BudgetTrackingIOSApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var syncEngine: SyncEngine
+    @State private var lanSyncEngine: LANSyncEngine
 
     init() {
         _ = DatabaseManager.shared
+
+        // Default LAN sync ON for iOS so the phone discovers the Mac
+        // immediately - matches the LAN-only topology the user picked.
+        // The macOS app stays opt-in; this default-on only affects the
+        // iOS bundle id's UserDefaults. Idempotent: a one-time flag
+        // means we don't override the user later turning it off.
+        let didApplyDefault = UserDefaults.standard.bool(forKey: "iOS_LANSyncDefaultApplied")
+        if !didApplyDefault {
+            UserDefaults.standard.set(true, forKey: "LANSync_isEnabled")
+            UserDefaults.standard.set(true, forKey: "iOS_LANSyncDefaultApplied")
+        }
+
         _syncEngine = State(initialValue: SyncEngine())
+        _lanSyncEngine = State(initialValue: LANSyncEngine())
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(syncEngine: syncEngine)
+            ContentView(
+                syncEngine: syncEngine,
+                lanSyncEngine: lanSyncEngine
+            )
         }
     }
 }

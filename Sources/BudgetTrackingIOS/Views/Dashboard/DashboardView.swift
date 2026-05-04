@@ -5,6 +5,7 @@ import SwiftUI
 /// CloudKit propagates data from the Mac.
 struct DashboardView: View {
     let syncEngine: SyncEngine
+    let lanSyncEngine: LANSyncEngine
     @State private var viewModel = DashboardViewModel()
     @State private var selectedMonth: String = DateHelpers.monthString()
 
@@ -45,7 +46,10 @@ struct DashboardView: View {
             .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    SyncStatusIndicator(syncEngine: syncEngine)
+                    HStack(spacing: 14) {
+                        LANSyncStatusButton(lanSyncEngine: lanSyncEngine)
+                        SyncStatusIndicator(syncEngine: syncEngine)
+                    }
                 }
             }
             .refreshable { viewModel.load(month: selectedMonth) }
@@ -64,7 +68,7 @@ struct DashboardView: View {
     }
 }
 
-// MARK: - Sync Status Indicator
+// MARK: - Sync Status Indicators
 
 private struct SyncStatusIndicator: View {
     let syncEngine: SyncEngine
@@ -83,6 +87,100 @@ private struct SyncStatusIndicator: View {
         case .noAccount:
             Image(systemName: "icloud.slash")
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Tappable status pill for LAN sync. Shows a Wi-Fi-style icon colored by
+/// state, and on tap either kicks off a manual `syncNow()` (when a peer
+/// is connected) or surfaces a small popover explaining why nothing is
+/// happening (no peer, sync disabled, error).
+private struct LANSyncStatusButton: View {
+    let lanSyncEngine: LANSyncEngine
+    @State private var showStatusPopover = false
+
+    private var icon: String {
+        switch lanSyncEngine.status {
+        case .disabled: return "wifi.slash"
+        case .searching: return "wifi"
+        case .connected: return "wifi"
+        case .syncing: return "wifi"
+        case .error: return "wifi.exclamationmark"
+        }
+    }
+
+    private var iconColor: Color {
+        switch lanSyncEngine.status {
+        case .disabled: return .secondary
+        case .searching: return .orange
+        case .connected: return .green
+        case .syncing: return .blue
+        case .error: return .red
+        }
+    }
+
+    private var isSyncing: Bool {
+        if case .syncing = lanSyncEngine.status { return true }
+        return false
+    }
+
+    var body: some View {
+        Button {
+            if lanSyncEngine.connectedPeerName != nil {
+                lanSyncEngine.syncNow()
+            } else {
+                showStatusPopover = true
+            }
+        } label: {
+            ZStack {
+                Image(systemName: icon)
+                    .foregroundStyle(iconColor)
+                    .opacity(isSyncing ? 0.4 : 1)
+                if isSyncing {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+        }
+        .popover(isPresented: $showStatusPopover, arrowEdge: .top) {
+            LANStatusPopover(lanSyncEngine: lanSyncEngine)
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+}
+
+private struct LANStatusPopover: View {
+    let lanSyncEngine: LANSyncEngine
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("LAN sync")
+                .font(.headline)
+            Text(detailMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Toggle("Enable LAN sync", isOn: Binding(
+                get: { lanSyncEngine.isEnabled },
+                set: { lanSyncEngine.isEnabled = $0 }
+            ))
+        }
+        .padding(16)
+        .frame(width: 280)
+    }
+
+    private var detailMessage: String {
+        switch lanSyncEngine.status {
+        case .disabled:
+            return "Discover your Mac on the same Wi-Fi and pull categories and transactions over the local network. No iCloud required."
+        case .searching:
+            return "Looking for your Mac on this Wi-Fi… Make sure BudgetTracking is open on the Mac with LAN sync enabled."
+        case .connected(let name):
+            return "Connected to \(name). Tap the Wi-Fi icon to sync now."
+        case .syncing(let name):
+            return "Syncing with \(name)…"
+        case .error(let msg):
+            return "LAN sync error: \(msg)"
         }
     }
 }
