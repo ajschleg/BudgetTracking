@@ -2,6 +2,9 @@ import Foundation
 import Network
 import os.log
 import GRDB
+#if !os(macOS)
+import UIKit
+#endif
 
 /// Discovers peers on the local network via Bonjour and syncs GRDB records bidirectionally.
 @Observable
@@ -74,7 +77,11 @@ final class LANSyncEngine: @unchecked Sendable {
             UserDefaults.standard.set(newId, forKey: "LANSync_DeviceId")
             deviceId = newId
         }
+        #if os(macOS)
         deviceName = Host.current().localizedName ?? ProcessInfo.processInfo.hostName
+        #else
+        deviceName = UIDevice.current.name
+        #endif
 
         // Listen for local data changes to push to peers
         changeObserver = NotificationCenter.default.addObserver(

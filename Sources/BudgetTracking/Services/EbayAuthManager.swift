@@ -1,6 +1,10 @@
 import Foundation
 import Security
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 
 @Observable
 final class EbayAuthManager {
@@ -86,7 +90,11 @@ final class EbayAuthManager {
         ]
 
         if let url = components.url {
+            #if os(macOS)
             NSWorkspace.shared.open(url)
+            #else
+            UIApplication.shared.open(url)
+            #endif
             showingCodeEntry = true
         }
     }

@@ -20,7 +20,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>eBay OAuth Callback</string>
+			<string>OAuth Callback</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>budgettracking</string>

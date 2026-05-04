@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.schlegel
   deploymentTarget:
     macOS: "14.0"
+    iOS: "17.0"
   xcodeVersion: "16"
 
 packages:
@@ -55,10 +56,26 @@ targets:
   BudgetTracking-iOS:
     type: application
     platform: iOS
-    sources: [Sources/BudgetTracking]
+    sources:
+      - path: Sources/BudgetTracking
+        excludes:
+          # iOS gets its own @main and root UI; macOS shell is excluded.
+          - "BudgetTrackingApp.swift"
+          - "ContentView.swift"
+          # Views/ is macOS-shape (HSplitView, VSplitView, drag-drop, NSColor, etc.).
+          # iOS Views live under Sources/BudgetTrackingIOS/Views/ and grow PR by PR.
+          - "Views/**"
+          # The macOS Info.plist is the macOS target's INFOPLIST_FILE; including
+          # it in iOS sources adds it to the iOS Resources phase and collides
+          # with the iOS Info.plist at $TARGET.app/Info.plist.
+          - "Info.plist"
+          - "Assets.xcassets"
+      - path: Sources/BudgetTrackingIOS
+        excludes:
+          - "Info.plist"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.schlegel.BudgetTracking
+        PRODUCT_BUNDLE_IDENTIFIER: com.schlegel.BudgetTracking.iOS
         CODE_SIGN_ENTITLEMENTS: BudgetTracking-iOS.entitlements
         DEVELOPMENT_TEAM: 98AUV869NF
         CODE_SIGN_STYLE: Automatic
@@ -67,13 +84,17 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Budget Tracking
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "5.10"
-        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "BudgetTracking uses the local network to sync budget data with nearby devices."
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "BudgetTracking uses the local network to sync budget data with your Mac."
         INFOPLIST_KEY_NSBonjourServices: "_budgetsync._tcp"
         TARGETED_DEVICE_FAMILY: "1,2"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
     info:
-      path: Sources/BudgetTracking/Info.plist
+      path: Sources/BudgetTrackingIOS/Info.plist
       properties:
         CFBundleURLTypes:
           - CFBundleURLName: "OAuth Callback"
