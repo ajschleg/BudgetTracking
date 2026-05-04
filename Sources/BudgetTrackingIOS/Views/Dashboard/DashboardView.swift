@@ -4,8 +4,16 @@ import SwiftUI
 /// Reads the same DashboardViewModel as macOS so totals stay in sync once
 /// CloudKit propagates data from the Mac.
 struct DashboardView: View {
+    let syncEngine: SyncEngine
     @State private var viewModel = DashboardViewModel()
     @State private var selectedMonth: String = DateHelpers.monthString()
+
+    /// Bumped each time we observe .localDataDidChange so the dashboard
+    /// reloads after CloudKit applies a remote record. The notification
+    /// itself is fire-and-forget; `id:` on .task is the simplest way to
+    /// rerun the loader against a Notification stream without retaining a
+    /// subscription token here.
+    @State private var dataChangeCounter = 0
 
     var body: some View {
         NavigationStack {
@@ -35,8 +43,46 @@ struct DashboardView: View {
                 .padding(.bottom, 16)
             }
             .navigationTitle("Dashboard")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    SyncStatusIndicator(syncEngine: syncEngine)
+                }
+            }
             .refreshable { viewModel.load(month: selectedMonth) }
-            .task(id: selectedMonth) { viewModel.load(month: selectedMonth) }
+            .task(id: "\(selectedMonth)-\(dataChangeCounter)") {
+                viewModel.load(month: selectedMonth)
+            }
+            .task {
+                // Listen for CloudKit-applied changes; bumping the counter
+                // re-fires the load .task above on the main actor.
+                let center = NotificationCenter.default
+                for await _ in center.notifications(named: .localDataDidChange) {
+                    dataChangeCounter &+= 1
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Sync Status Indicator
+
+private struct SyncStatusIndicator: View {
+    let syncEngine: SyncEngine
+
+    var body: some View {
+        switch syncEngine.status {
+        case .idle:
+            Image(systemName: "icloud.fill")
+                .foregroundStyle(.green)
+        case .syncing:
+            ProgressView()
+                .controlSize(.small)
+        case .error:
+            Image(systemName: "icloud.slash")
+                .foregroundStyle(.red)
+        case .noAccount:
+            Image(systemName: "icloud.slash")
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -249,6 +295,5 @@ private struct ErrorCard: View {
     }
 }
 
-#Preview {
-    DashboardView()
-}
+// No #Preview here: DashboardView needs a SyncEngine, and instantiating
+// one in a preview kicks off real CloudKit traffic. Run the app instead.

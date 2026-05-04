@@ -1,9 +1,11 @@
 import SwiftUI
 
 struct ContentView: View {
+    let syncEngine: SyncEngine
+
     var body: some View {
         TabView {
-            DashboardView()
+            DashboardView(syncEngine: syncEngine)
                 .tabItem { Label("Dashboard", systemImage: "chart.bar.fill") }
 
             ComingSoonView(title: "Transactions")
@@ -35,8 +37,4 @@ private struct ComingSoonView: View {
             .navigationTitle(title)
         }
     }
-}
-
-#Preview {
-    ContentView()
 }
