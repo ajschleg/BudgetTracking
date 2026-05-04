@@ -1,0 +1,254 @@
+import SwiftUI
+
+/// iOS dashboard: month selector + overall budget card + per-category rows.
+/// Reads the same DashboardViewModel as macOS so totals stay in sync once
+/// CloudKit propagates data from the Mac.
+struct DashboardView: View {
+    @State private var viewModel = DashboardViewModel()
+    @State private var selectedMonth: String = DateHelpers.monthString()
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    MonthSelector(selectedMonth: $selectedMonth)
+
+                    if let error = viewModel.errorMessage {
+                        ErrorCard(message: error)
+                    } else if viewModel.categories.isEmpty {
+                        EmptyStateCard()
+                    } else {
+                        OverallBudgetCard(viewModel: viewModel)
+
+                        if viewModel.totalIncome > 0 {
+                            IncomeCard(amount: viewModel.totalIncome)
+                        }
+
+                        VStack(spacing: 8) {
+                            ForEach(viewModel.categories) { category in
+                                CategoryRow(category: category, viewModel: viewModel)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+            }
+            .navigationTitle("Dashboard")
+            .refreshable { viewModel.load(month: selectedMonth) }
+            .task(id: selectedMonth) { viewModel.load(month: selectedMonth) }
+        }
+    }
+}
+
+// MARK: - Month Selector
+
+private struct MonthSelector: View {
+    @Binding var selectedMonth: String
+
+    var body: some View {
+        HStack {
+            Button {
+                selectedMonth = DateHelpers.previousMonth(from: selectedMonth)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 36, height: 36)
+            }
+            .buttonStyle(.bordered)
+
+            Spacer()
+
+            VStack(spacing: 2) {
+                Text(DateHelpers.displayMonth(selectedMonth))
+                    .font(.headline)
+                if selectedMonth != DateHelpers.monthString() {
+                    Button("Today") {
+                        selectedMonth = DateHelpers.monthString()
+                    }
+                    .font(.caption)
+                }
+            }
+
+            Spacer()
+
+            Button {
+                selectedMonth = DateHelpers.nextMonth(from: selectedMonth)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 36, height: 36)
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Overall Budget Card
+
+private struct OverallBudgetCard: View {
+    let viewModel: DashboardViewModel
+
+    private var remaining: Double { viewModel.totalBudget - viewModel.totalSpent }
+    private var pct: Double { min(viewModel.overallPercentage, 1.0) }
+    private var fillColor: Color { ColorThresholds.color(forPercentage: viewModel.overallPercentage) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Spent")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(CurrencyFormatter.format(viewModel.totalSpent))
+                    .font(.title2.weight(.semibold))
+                Text("of \(CurrencyFormatter.format(viewModel.totalBudget))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            ProgressBar(progress: pct, color: fillColor)
+
+            HStack {
+                Text(remaining >= 0 ? "Remaining" : "Over budget")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(CurrencyFormatter.format(abs(remaining)))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(remaining >= 0 ? Color.primary : Color.red)
+            }
+        }
+        .padding(16)
+        .background(Color(uiColor: .secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - Income Card
+
+private struct IncomeCard: View {
+    let amount: Double
+
+    var body: some View {
+        HStack {
+            Image(systemName: "arrow.down.circle.fill")
+                .foregroundStyle(.green)
+                .font(.title3)
+            Text("Income this month")
+                .font(.subheadline)
+            Spacer()
+            Text(CurrencyFormatter.format(amount))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.green)
+        }
+        .padding(16)
+        .background(Color(uiColor: .secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - Category Row
+
+private struct CategoryRow: View {
+    let category: BudgetCategory
+    let viewModel: DashboardViewModel
+
+    private var spent: Double { viewModel.spending(for: category) }
+    private var pct: Double { min(viewModel.percentage(for: category), 1.0) }
+    private var rawPct: Double { viewModel.percentage(for: category) }
+    private var remaining: Double { category.monthlyBudget - spent }
+    private var fillColor: Color { ColorThresholds.color(forPercentage: rawPct) }
+    private var dotColor: Color { ColorThresholds.colorFromHex(category.colorHex) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Circle()
+                    .fill(dotColor)
+                    .frame(width: 10, height: 10)
+                Text(category.name)
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+                Text("\(CurrencyFormatter.format(spent)) / \(CurrencyFormatter.format(category.monthlyBudget))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            ProgressBar(progress: pct, color: fillColor)
+
+            Text(remaining >= 0
+                 ? "\(CurrencyFormatter.format(remaining)) left"
+                 : "\(CurrencyFormatter.format(abs(remaining))) over")
+                .font(.caption2)
+                .foregroundStyle(remaining >= 0 ? Color.secondary : Color.red)
+        }
+        .padding(12)
+        .background(Color(uiColor: .secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// MARK: - Progress Bar
+
+private struct ProgressBar: View {
+    let progress: Double
+    let color: Color
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color(uiColor: .tertiarySystemBackground))
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(color)
+                    .frame(width: max(0, proxy.size.width * progress))
+            }
+        }
+        .frame(height: 8)
+    }
+}
+
+// MARK: - Empty / Error States
+
+private struct EmptyStateCard: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "icloud.and.arrow.down")
+                .font(.system(size: 36))
+                .foregroundStyle(.secondary)
+            Text("No data yet")
+                .font(.headline)
+            Text("Open BudgetTracking on your Mac so iCloud can sync your categories and transactions to this device.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(24)
+        .background(Color(uiColor: .secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+private struct ErrorCard: View {
+    let message: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+            Text(message)
+                .font(.footnote)
+        }
+        .padding(12)
+        .background(Color(uiColor: .secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+#Preview {
+    DashboardView()
+}

@@ -13,6 +13,7 @@
 		029AE44AD93EBF75B62C8C35 /* RuleLearner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65A3B7896DEB2A0E6AEC65D1 /* RuleLearner.swift */; };
 		0537EF4F932DE86594C442EB /* SideHustleViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD6B758F2362390F24A5AFA /* SideHustleViewModel.swift */; };
 		0753534F76448F6943A73BC8 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C441C5CCF6F0938AECC87B47 /* DashboardView.swift */; };
+		0795393D1F3353C80A490477 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 403EFAEED41F37DE397CC33A /* DashboardView.swift */; };
 		07BC4F0B3F780F21D69DF85A /* IncomeTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1521572F89E1B5D486DC7BF1 /* IncomeTabView.swift */; };
 		0A095A6B4194BDCF8CEAF4DD /* ImportedFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FED0DAD6261A3BAC47906F7 /* ImportedFile.swift */; };
 		0D43ABEC5941DA199A8F790B /* PageWithChatBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28149C9503586624C972BE13 /* PageWithChatBar.swift */; };
@@ -225,6 +226,7 @@
 		371D0746A64876D4E554C092 /* CategorizationRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategorizationRule.swift; sourceTree = "<group>"; };
 		37D794553C3B7A2870527C9C /* EbayEarningsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayEarningsViewModel.swift; sourceTree = "<group>"; };
 		39458BD03D87744C0464548D /* PlaidUpdateBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaidUpdateBanner.swift; sourceTree = "<group>"; };
+		403EFAEED41F37DE397CC33A /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		44DAFFB65E1B8DC4234A95DD /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
 		450EE9D75CEFA6800800FD74 /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
 		46BBD54B27602B78383814BC /* BudgetTrackingTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BudgetTrackingTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -396,6 +398,14 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
+		4293695686E2E307FFE18D7F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B8AC22084C33FC456DB5FD69 /* Dashboard */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		4EA5871B604458E79C57FD75 /* Ebay */ = {
 			isa = PBXGroup;
 			children = (
@@ -445,6 +455,7 @@
 			children = (
 				BE37BEC885575C9A09129184 /* BudgetTrackingIOSApp.swift */,
 				8201F488036F636FD687B913 /* ContentView.swift */,
+				4293695686E2E307FFE18D7F /* Views */,
 			);
 			name = BudgetTrackingIOS;
 			path = Sources/BudgetTrackingIOS;
@@ -580,6 +591,14 @@
 			);
 			name = BudgetTrackingTests;
 			path = Tests/BudgetTrackingTests;
+			sourceTree = "<group>";
+		};
+		B8AC22084C33FC456DB5FD69 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				403EFAEED41F37DE397CC33A /* DashboardView.swift */,
+			);
+			path = Dashboard;
 			sourceTree = "<group>";
 		};
 		C74EBA8995F9C78AE52A3F83 /* Views */ = {
@@ -801,6 +820,7 @@
 				FA8FDBA894FAC75052AE1232 /* ConflictResolver.swift in Sources */,
 				8A45691FEFEDD677ED4E1514 /* ContentView.swift in Sources */,
 				B4134BDCB6643E80D7072320 /* CurrencyFormatter.swift in Sources */,
+				0795393D1F3353C80A490477 /* DashboardView.swift in Sources */,
 				29B5D16A7E33BABA6C98DEFA /* DashboardViewModel.swift in Sources */,
 				3416DA40F0A4FD1E0D4CF2F1 /* DatabaseManager+Ebay.swift in Sources */,
 				E9D527003A69E368F9FEE4EB /* DatabaseManager+Plaid.swift in Sources */,

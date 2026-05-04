@@ -3,7 +3,7 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         TabView {
-            ComingSoonView(title: "Dashboard")
+            DashboardView()
                 .tabItem { Label("Dashboard", systemImage: "chart.bar.fill") }
 
             ComingSoonView(title: "Transactions")
