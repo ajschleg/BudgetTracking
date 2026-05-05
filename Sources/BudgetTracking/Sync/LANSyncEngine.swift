@@ -42,6 +42,12 @@ final class LANSyncEngine: @unchecked Sendable {
 
     private static let isEnabledDefaultsKey = "LANSync_isEnabled"
 
+    /// Records that hit a SQLite FK violation on apply (parent missing).
+    /// Replayed at the start of every peer sync apply so cross-batch
+    /// out-of-order records still ultimately succeed.
+    private var pendingOrphanRecords: [SyncRecord] = []
+    private static let maxPendingOrphans = 1000
+
     // MARK: - Private State
 
     private let serviceType = "_budgetsync._tcp"
@@ -606,7 +612,16 @@ final class LANSyncEngine: @unchecked Sendable {
         // Apply parents before children to avoid SQLite FK violations.
         // CategorizationRule.categoryId and Transaction.categoryId reference
         // BudgetCategory(id), so categories must land before rules and txns.
-        let sortedRecords = response.records.sorted {
+        // Pending orphans from a previous batch are replayed alongside the
+        // new ones; anything still failing after this pass goes back into
+        // the queue for the next peer sync.
+        let pending = pendingOrphanRecords
+        pendingOrphanRecords.removeAll(keepingCapacity: true)
+
+        var allRecords = response.records
+        allRecords.append(contentsOf: pending)
+
+        let sortedRecords = allRecords.sorted {
             Self.applyPriority(for: $0.tableName)
                 < Self.applyPriority(for: $1.tableName)
         }
@@ -663,8 +678,21 @@ final class LANSyncEngine: @unchecked Sendable {
                     logger.warning("Unknown table in sync record: \(record.tableName)")
                 }
             } catch {
-                logger.error("Failed to apply sync record (\(record.tableName) \(record.recordId)): \(error)")
+                if Self.isForeignKeyError(error) {
+                    if pendingOrphanRecords.count < Self.maxPendingOrphans {
+                        pendingOrphanRecords.append(record)
+                        logger.debug("Deferring \(record.tableName) \(record.recordId) — FK pending parent")
+                    } else {
+                        logger.error("LAN orphan queue full; dropping \(record.tableName) \(record.recordId)")
+                    }
+                } else {
+                    logger.error("Failed to apply sync record (\(record.tableName) \(record.recordId)): \(error)")
+                }
             }
+        }
+
+        if !pendingOrphanRecords.isEmpty {
+            logger.info("Deferred \(self.pendingOrphanRecords.count) orphan record(s); will retry on next peer sync")
         }
 
         // Send ack
@@ -744,6 +772,12 @@ final class LANSyncEngine: @unchecked Sendable {
         }
         debounceWorkItem = work
         syncQueue.asyncAfter(deadline: .now() + 1.5, execute: work)
+    }
+
+    /// String-match the SQLite FK error since GRDB isn't imported here.
+    /// SQLite's wording for this constraint is stable across versions.
+    private static func isForeignKeyError(_ error: Error) -> Bool {
+        "\(error)".contains("FOREIGN KEY constraint failed")
     }
 
     /// Lower numbers apply first. Parents before children. Mirrors the

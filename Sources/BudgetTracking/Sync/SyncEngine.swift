@@ -36,6 +36,14 @@ final class SyncEngine: @unchecked Sendable {
     /// Track record names we've sent that are pending confirmation.
     private var pendingRecordNames: Set<String> = []
 
+    /// Records that hit a FOREIGN KEY violation on apply (parent missing in
+    /// our local DB at apply-time). Held in memory and replayed at the
+    /// start of every fetched-changes event so a rule landing in event N
+    /// before its category in event N+1 still ultimately succeeds.
+    /// Capped to avoid unbounded growth in pathological cases.
+    private var pendingOrphanRecords: [CKRecord] = []
+    private static let maxPendingOrphans = 1000
+
     private var changeObserver: Any?
 
     init() {
@@ -331,22 +339,39 @@ extension SyncEngine: CKSyncEngineDelegate {
         // Process fetched records in dependency order to avoid SQLite FK
         // violations. CategorizationRule.categoryId and Transaction.categoryId
         // both reference BudgetCategory(id); if those rows arrive before
-        // their parent category, the upsert fails with FOREIGN KEY constraint
-        // failed and the record is silently dropped (CKSyncEngine considers
-        // it applied and won't redeliver). Sorting parents-first within the
-        // batch makes the common case work; cross-batch races still need a
-        // retry queue, but those are rare in practice.
-        let sortedMods = changes.modifications.sorted {
-            Self.applyPriority(for: $0.record.recordType)
-                < Self.applyPriority(for: $1.record.recordType)
-        }
-        for modification in sortedMods {
-            applyRemoteRecord(modification.record)
+        // their parent category the upsert fails with FOREIGN KEY constraint
+        // failed.
+        //
+        // CKSyncEngine streams large fetches across multiple events, so
+        // sorting within a single event isn't enough: a rule can arrive in
+        // event N before its category arrives in event N+1. We carry an
+        // in-memory orphan list across events and replay it here. After this
+        // method returns, anything still failing remains pending for the
+        // next event. Once the sync session ends with the queue empty,
+        // everything is consistent.
+        let pending = pendingOrphanRecords
+        pendingOrphanRecords.removeAll(keepingCapacity: true)
+
+        var allRecords = changes.modifications.map(\.record)
+        allRecords.append(contentsOf: pending)
+
+        let sorted = allRecords.sorted {
+            Self.applyPriority(for: $0.recordType)
+                < Self.applyPriority(for: $1.recordType)
         }
 
-        // Process deletions
+        for record in sorted {
+            applyRemoteRecord(record)
+        }
+
+        // Process deletions after applies, so any to-be-orphaned-by-deletion
+        // records have already had a chance to land first.
         for deletion in changes.deletions {
             applyRemoteDeletion(deletion.recordID, recordType: deletion.recordType)
+        }
+
+        if !pendingOrphanRecords.isEmpty {
+            logger.info("Deferred \(self.pendingOrphanRecords.count) orphan record(s); will retry on next fetch event")
         }
     }
 
@@ -570,8 +595,28 @@ extension SyncEngine: CKSyncEngineDelegate {
                 logger.warning("Unknown record type: \(record.recordType)")
             }
         } catch {
-            logger.error("Failed to apply remote record \(record.recordID): \(error)")
+            // FK violations during sync are usually a parent-not-here-yet race
+            // across CKSyncEngine fetch events. Defer for retry; let other
+            // errors fall through to the warning log.
+            if Self.isForeignKeyError(error) {
+                if pendingOrphanRecords.count < Self.maxPendingOrphans {
+                    pendingOrphanRecords.append(record)
+                    logger.debug("Deferring \(record.recordID) — FK pending parent")
+                } else {
+                    logger.error("Orphan queue full; dropping \(record.recordID)")
+                }
+            } else {
+                logger.error("Failed to apply remote record \(record.recordID): \(error)")
+            }
         }
+    }
+
+    private static func isForeignKeyError(_ error: Error) -> Bool {
+        // GRDB surfaces SQLite errors via DatabaseError, but to avoid pulling
+        // GRDB into this file's imports just for a string match we substring-
+        // check the description. SQLite's wording for this constraint is
+        // stable across versions.
+        "\(error)".contains("FOREIGN KEY constraint failed")
     }
 
     private func applyRemoteDeletion(_ recordID: CKRecord.ID, recordType: CKRecord.RecordType) {
