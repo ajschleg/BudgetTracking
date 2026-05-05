@@ -593,14 +593,32 @@ final class LANSyncEngine: @unchecked Sendable {
         do {
             var records: [SyncRecord] = []
 
-            // Gather all records modified since the requested date
+            // Gather all records modified since the requested date.
+            // Per-row encode failures are logged + skipped so one bad
+            // record can't take down the whole syncResponse.
+            var encodeFailures = 0
+            func append<T: Codable & Identifiable>(
+                _ row: T, tableName: String, isDeleted: Bool, lastModifiedAt: Date
+            ) where T.ID == UUID {
+                do {
+                    records.append(try .from(
+                        row, tableName: tableName,
+                        id: row.id.uuidString,
+                        isDeleted: isDeleted,
+                        lastModifiedAt: lastModifiedAt
+                    ))
+                } catch {
+                    encodeFailures += 1
+                    logger.error("Failed to encode \(tableName) \(row.id): \(error)")
+                }
+            }
+
             let categories = try DatabaseManager.shared.fetchAllRecords(
                 type: BudgetCategory.self, since: sinceDate
             )
             for cat in categories {
-                records.append(.from(cat, tableName: "budgetCategory",
-                                     id: cat.id.uuidString, isDeleted: cat.isDeleted,
-                                     lastModifiedAt: cat.lastModifiedAt))
+                append(cat, tableName: "budgetCategory",
+                       isDeleted: cat.isDeleted, lastModifiedAt: cat.lastModifiedAt)
             }
             logger.debug("Gathered \(categories.count) budgetCategory records since \(sinceDate)")
 
@@ -608,9 +626,8 @@ final class LANSyncEngine: @unchecked Sendable {
                 type: Transaction.self, since: sinceDate
             )
             for txn in transactions {
-                records.append(.from(txn, tableName: "transaction",
-                                     id: txn.id.uuidString, isDeleted: txn.isDeleted,
-                                     lastModifiedAt: txn.lastModifiedAt))
+                append(txn, tableName: "transaction",
+                       isDeleted: txn.isDeleted, lastModifiedAt: txn.lastModifiedAt)
             }
             logger.debug("Gathered \(transactions.count) transaction records since \(sinceDate)")
 
@@ -618,9 +635,8 @@ final class LANSyncEngine: @unchecked Sendable {
                 type: ImportedFile.self, since: sinceDate
             )
             for file in files {
-                records.append(.from(file, tableName: "importedFile",
-                                     id: file.id.uuidString, isDeleted: file.isDeleted,
-                                     lastModifiedAt: file.lastModifiedAt))
+                append(file, tableName: "importedFile",
+                       isDeleted: file.isDeleted, lastModifiedAt: file.lastModifiedAt)
             }
             logger.debug("Gathered \(files.count) importedFile records since \(sinceDate)")
 
@@ -628,9 +644,8 @@ final class LANSyncEngine: @unchecked Sendable {
                 type: CategorizationRule.self, since: sinceDate
             )
             for rule in rules {
-                records.append(.from(rule, tableName: "categorizationRule",
-                                     id: rule.id.uuidString, isDeleted: rule.isDeleted,
-                                     lastModifiedAt: rule.lastModifiedAt))
+                append(rule, tableName: "categorizationRule",
+                       isDeleted: rule.isDeleted, lastModifiedAt: rule.lastModifiedAt)
             }
             logger.debug("Gathered \(rules.count) categorizationRule records since \(sinceDate)")
 
@@ -638,9 +653,8 @@ final class LANSyncEngine: @unchecked Sendable {
                 type: MonthlySnapshot.self, since: sinceDate
             )
             for snap in snapshots {
-                records.append(.from(snap, tableName: "monthlySnapshot",
-                                     id: snap.id.uuidString, isDeleted: snap.isDeleted,
-                                     lastModifiedAt: snap.lastModifiedAt))
+                append(snap, tableName: "monthlySnapshot",
+                       isDeleted: snap.isDeleted, lastModifiedAt: snap.lastModifiedAt)
             }
             logger.debug("Gathered \(snapshots.count) monthlySnapshot records since \(sinceDate)")
 
@@ -648,9 +662,8 @@ final class LANSyncEngine: @unchecked Sendable {
                 type: BankProfile.self, since: sinceDate
             )
             for profile in profiles {
-                records.append(.from(profile, tableName: "bankProfile",
-                                     id: profile.id.uuidString, isDeleted: profile.isDeleted,
-                                     lastModifiedAt: profile.lastModifiedAt))
+                append(profile, tableName: "bankProfile",
+                       isDeleted: profile.isDeleted, lastModifiedAt: profile.lastModifiedAt)
             }
             logger.debug("Gathered \(profiles.count) bankProfile records since \(sinceDate)")
 
@@ -663,11 +676,23 @@ final class LANSyncEngine: @unchecked Sendable {
             )
             for account in plaidAccounts {
                 let sanitized = account.sanitizedForSync()
-                records.append(.from(sanitized, tableName: "plaidAccount",
-                                     id: account.id.uuidString, isDeleted: account.isDeleted,
-                                     lastModifiedAt: account.lastModifiedAt))
+                do {
+                    records.append(try .from(
+                        sanitized, tableName: "plaidAccount",
+                        id: account.id.uuidString,
+                        isDeleted: account.isDeleted,
+                        lastModifiedAt: account.lastModifiedAt
+                    ))
+                } catch {
+                    encodeFailures += 1
+                    logger.error("Failed to encode plaidAccount \(account.id): \(error)")
+                }
             }
             logger.debug("Gathered \(plaidAccounts.count) plaidAccount records since \(sinceDate)")
+
+            if encodeFailures > 0 {
+                logger.warning("\(encodeFailures) record(s) failed to encode and were excluded from syncResponse")
+            }
 
             let response = SyncResponse(records: records, syncTimestamp: now)
             sendMessage(.syncResponse(response), on: connection)

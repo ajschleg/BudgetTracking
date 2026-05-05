@@ -94,8 +94,13 @@ struct SyncRecord: Codable {
     let lastModifiedAt: Date
     let jsonData: Data // The full model encoded as JSON
 
-    static func from<T: Codable>(_ record: T, tableName: String, id: String, isDeleted: Bool, lastModifiedAt: Date) -> SyncRecord {
-        let data = (try? JSONEncoder().encode(record)) ?? Data()
+    static func from<T: Codable>(_ record: T, tableName: String, id: String, isDeleted: Bool, lastModifiedAt: Date) throws -> SyncRecord {
+        // Previously this used `try?` and produced an empty Data on encoder
+        // failure - which then arrived at the peer as a "valid" SyncRecord
+        // with 0-byte jsonData and silently failed to decode there. Throw
+        // instead so the caller can log the offending row id/tablename
+        // and skip it deliberately.
+        let data = try JSONEncoder().encode(record)
         return SyncRecord(
             tableName: tableName,
             recordId: id,
