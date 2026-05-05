@@ -722,12 +722,40 @@ final class LANSyncEngine: @unchecked Sendable {
         isApplyingPeerSync = true
         defer { isApplyingPeerSync = false }
 
-        // Apply parents before children to avoid SQLite FK violations.
-        // CategorizationRule.categoryId and Transaction.categoryId reference
-        // BudgetCategory(id), so categories must land before rules and txns.
-        // Pending orphans from a previous batch are replayed alongside the
-        // new ones; anything still failing after this pass goes back into
-        // the queue for the next peer sync.
+        // Disable foreign-key enforcement for the duration of the apply.
+        // Real-world scenario this fixes: the user has hard-deleted some
+        // ImportedFile rows on the Mac (e.g., pruned old statement imports).
+        // Their associated Transaction rows still reference the missing
+        // file ids and were getting stuck in the orphan retry queue
+        // indefinitely on the iPhone, costing ~13% of records on a fresh
+        // resync. With FK off the apply accepts dangling references; the
+        // dashboard / transaction queries don't join on importedFile so
+        // there's no UI breakage. Re-enabled in defer.
+        //
+        // SQLite requires this PRAGMA outside any transaction, so we use
+        // writeWithoutTransaction. The setting persists for the lifetime
+        // of the connection (DatabaseQueue uses a single connection).
+        do {
+            try DatabaseManager.shared.dbQueue.writeWithoutTransaction { db in
+                try db.execute(sql: "PRAGMA foreign_keys = OFF")
+            }
+        } catch {
+            logger.error("Failed to disable FK before sync apply: \(error)")
+        }
+        defer {
+            do {
+                try DatabaseManager.shared.dbQueue.writeWithoutTransaction { db in
+                    try db.execute(sql: "PRAGMA foreign_keys = ON")
+                }
+            } catch {
+                logger.error("Failed to re-enable FK after sync apply: \(error)")
+            }
+        }
+
+        // Apply parents before children anyway. With FK off this is no
+        // longer strictly required for correctness, but it keeps the apply
+        // order intuitive and means the orphan retry queue (still in place
+        // for non-FK errors) doesn't churn unnecessarily.
         let pending = pendingOrphanRecords
         pendingOrphanRecords.removeAll(keepingCapacity: true)
 
