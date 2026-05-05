@@ -43,7 +43,7 @@ struct BudgetTrackingApp: App {
     @State private var shareManager: ShareManager
     @State private var lanSyncEngine: LANSyncEngine
     @State private var ebayAuthManager = EbayAuthManager()
-    @State private var plaidManager = PlaidSyncManager()
+    @State private var plaidManager: PlaidSyncManager
 
     init() {
         // Make `.help(...)` tooltips appear after ~250ms instead of the
@@ -61,9 +61,28 @@ struct BudgetTrackingApp: App {
         let engine = SyncEngine()
         let share = ShareManager()
         let lanEngine = LANSyncEngine()
+        let plaid = PlaidSyncManager()
         _syncEngine = State(initialValue: engine)
         _shareManager = State(initialValue: share)
         _lanSyncEngine = State(initialValue: lanEngine)
+        _plaidManager = State(initialValue: plaid)
+
+        // The iPhone (or another peer) can ask this Mac to run a Plaid
+        // refresh via the LAN sync channel. iOS can never originate Plaid
+        // calls itself - the access_token only lives on this Mac. When
+        // the request notification arrives, kick off the existing
+        // PlaidSyncManager.syncTransactions() pipeline; new transactions
+        // then propagate back to the iPhone via the regular LAN sync push
+        // that fires on .localDataDidChange after the upserts land.
+        NotificationCenter.default.addObserver(
+            forName: .lanRequestPlaidRefresh,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                await plaid.syncTransactions()
+            }
+        }
     }
 
     var body: some Scene {

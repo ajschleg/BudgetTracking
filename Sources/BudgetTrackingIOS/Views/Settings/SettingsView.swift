@@ -9,6 +9,12 @@ struct SettingsView: View {
 
     @State private var showResetConfirm = false
     @State private var resetMessage: String?
+    /// Toast-style banner shown briefly after asking the Mac to refresh
+    /// from Plaid. The actual sync runs on the Mac and the new
+    /// transactions arrive via the regular LAN sync push, so the iOS
+    /// side has nothing to wait on synchronously - just enough feedback
+    /// to confirm the request went out.
+    @State private var plaidRefreshFeedback: String?
 
     private var iCloudStatusText: String {
         switch syncEngine.status {
@@ -90,6 +96,24 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Button {
+                        requestPlaidRefresh()
+                    } label: {
+                        Label("Refresh from Plaid", systemImage: "arrow.clockwise.icloud")
+                    }
+                    .disabled(lanSyncEngine.connectedPeerName == nil)
+                    if let plaidRefreshFeedback {
+                        Text(plaidRefreshFeedback)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Plaid")
+                } footer: {
+                    Text("Asks your Mac to fetch the latest bank transactions from Plaid. The new transactions sync back to this iPhone over LAN once the Mac finishes — usually a few seconds. Requires the Mac app to be open and on the same Wi-Fi.")
+                }
+
+                Section {
                     Button(role: .destructive) {
                         showResetConfirm = true
                     } label: {
@@ -132,6 +156,20 @@ struct SettingsView: View {
             resetMessage = "Local data cleared. The Dashboard, Transactions, and Budget tabs will repopulate as your Mac syncs."
         } catch {
             resetMessage = "Reset failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func requestPlaidRefresh() {
+        let sent = lanSyncEngine.requestPlaidRefresh(initiatorNote: "iPhone Settings tab")
+        if sent {
+            plaidRefreshFeedback = "Sent — your Mac is fetching new transactions. They'll appear here shortly."
+        } else {
+            plaidRefreshFeedback = "No Mac peer connected. Open BudgetTracking on your Mac and try again."
+        }
+        // Auto-clear the toast after 4 seconds.
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            await MainActor.run { plaidRefreshFeedback = nil }
         }
     }
 }

@@ -208,6 +208,25 @@ final class LANSyncEngine: @unchecked Sendable {
         }
     }
 
+    /// Ask every connected peer to run a Plaid sync on its end. The Mac
+    /// peer's PlaidSyncManager observer responds; new transactions are
+    /// then pushed back through the existing record sync channel via
+    /// pushLocalChanges, so iOS sees them appear without further work.
+    /// No-op when no peer is connected.
+    @discardableResult
+    func requestPlaidRefresh(initiatorNote: String? = nil) -> Bool {
+        guard !connections.isEmpty else {
+            logger.info("requestPlaidRefresh() called but no connected peers")
+            return false
+        }
+        let req = RequestPlaidRefresh(initiatorNote: initiatorNote)
+        for (peerId, connection) in connections {
+            sendMessage(.requestPlaidRefresh(req), on: connection)
+            logger.info("Sent Plaid refresh request to \(peerId)")
+        }
+        return true
+    }
+
     // MARK: - TXT Record
 
     private func txtRecord() -> NWTXTRecord {
@@ -510,6 +529,29 @@ final class LANSyncEngine: @unchecked Sendable {
 
         case .syncAck(let ack):
             handleSyncAck(ack, from: peerId)
+
+        case .requestPlaidRefresh(let req):
+            handleRequestPlaidRefresh(req, from: peerId)
+        }
+    }
+
+    /// Forward an incoming Plaid-refresh request to the application
+    /// layer via NotificationCenter. This file stays free of Plaid
+    /// imports / business logic; the macOS app's PlaidSyncManager
+    /// observer (set up in BudgetTrackingApp.init) actually runs the
+    /// sync. Posting on the main queue keeps the observer's UI updates
+    /// straightforward.
+    private func handleRequestPlaidRefresh(_ req: RequestPlaidRefresh, from peerId: String) {
+        logger.info("Received Plaid refresh request from \(peerId) (\(req.initiatorNote ?? "no note"))")
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .lanRequestPlaidRefresh,
+                object: nil,
+                userInfo: [
+                    "peerId": peerId,
+                    "initiatorNote": req.initiatorNote ?? ""
+                ]
+            )
         }
     }
 
@@ -940,4 +982,9 @@ final class LANSyncEngine: @unchecked Sendable {
 
 extension Notification.Name {
     static let lanSyncDidComplete = Notification.Name("lanSyncDidComplete")
+    /// Posted when a peer (typically iOS) sends a SyncMessage
+    /// .requestPlaidRefresh. The macOS app's PlaidSyncManager observes
+    /// this and runs syncTransactions(); new transactions then propagate
+    /// back via the regular LAN sync push.
+    static let lanRequestPlaidRefresh = Notification.Name("lanRequestPlaidRefresh")
 }

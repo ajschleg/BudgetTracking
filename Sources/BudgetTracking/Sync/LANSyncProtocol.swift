@@ -8,13 +8,19 @@ enum SyncMessage: Codable {
     case syncRequest(SyncRequest)
     case syncResponse(SyncResponse)
     case syncAck(SyncAck)
+    /// Sent by an iOS peer that wants the Mac peer to run a Plaid sync
+    /// and push the new transactions back via the existing record
+    /// channel. iOS can never originate Plaid data on its own (the
+    /// access_token only lives on the Mac's /server/), so this is the
+    /// remote-control flavor of "Refresh from Plaid".
+    case requestPlaidRefresh(RequestPlaidRefresh)
 
     enum CodingKeys: String, CodingKey {
         case type, payload
     }
 
     enum MessageType: String, Codable {
-        case handshake, syncRequest, syncResponse, syncAck
+        case handshake, syncRequest, syncResponse, syncAck, requestPlaidRefresh
     }
 
     func encode(to encoder: Encoder) throws {
@@ -32,6 +38,9 @@ enum SyncMessage: Codable {
         case .syncAck(let ack):
             try container.encode(MessageType.syncAck, forKey: .type)
             try container.encode(ack, forKey: .payload)
+        case .requestPlaidRefresh(let req):
+            try container.encode(MessageType.requestPlaidRefresh, forKey: .type)
+            try container.encode(req, forKey: .payload)
         }
     }
 
@@ -47,6 +56,8 @@ enum SyncMessage: Codable {
             self = .syncResponse(try container.decode(SyncResponse.self, forKey: .payload))
         case .syncAck:
             self = .syncAck(try container.decode(SyncAck.self, forKey: .payload))
+        case .requestPlaidRefresh:
+            self = .requestPlaidRefresh(try container.decode(RequestPlaidRefresh.self, forKey: .payload))
         }
     }
 }
@@ -59,7 +70,22 @@ extension SyncMessage {
         case .syncRequest: return "syncRequest"
         case .syncResponse(let resp): return "syncResponse(\(resp.records.count) records)"
         case .syncAck(let ack): return "syncAck(\(ack.recordsApplied) applied)"
+        case .requestPlaidRefresh: return "requestPlaidRefresh"
         }
+    }
+}
+
+/// Payload for SyncMessage.requestPlaidRefresh. Currently empty - the
+/// receiver runs a full Plaid sync of all linked items. A future
+/// extension can add an optional `itemId` to scope the refresh to a
+/// single bank.
+struct RequestPlaidRefresh: Codable {
+    /// Free-form note for the responder's logs (e.g., "manual refresh
+    /// from iPhone Settings"). Optional.
+    let initiatorNote: String?
+
+    init(initiatorNote: String? = nil) {
+        self.initiatorNote = initiatorNote
     }
 }
 
