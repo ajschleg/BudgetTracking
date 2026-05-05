@@ -1388,16 +1388,21 @@ final class DatabaseManager {
     @discardableResult
     func upsertFromPeer(_ incoming: Transaction) throws -> Bool {
         try dbQueue.write { db in
-            // 1. Exact UUID match
+            // 1. Exact UUID match — the common case for ongoing sync.
             if let existing = try Transaction.fetchOne(db, key: incoming.id) {
                 return try Self.applyPeerTransaction(incoming, existing: existing, in: db)
             }
-            // 2. Content-based match
-            if let existing = try Transaction
-                .filter(Transaction.Columns.date == incoming.date)
-                .filter(Transaction.Columns.description == incoming.description)
-                .filter(Transaction.Columns.amount == incoming.amount)
-                .filter(Transaction.Columns.month == incoming.month)
+            // 2. Plaid-id match. Same external (Plaid) transaction imported
+            // on two devices independently is the same real-world payment
+            // and should merge to one row. Two distinct Plaid transactions
+            // can have identical (date, description, amount, month) - think
+            // two $50 grocery runs on the same day - and must NOT be merged.
+            // Earlier versions matched on content alone and silently squashed
+            // those into one row, losing data.
+            if let externalId = incoming.externalId,
+               !externalId.isEmpty,
+               let existing = try Transaction
+                .filter(Transaction.Columns.externalId == externalId)
                 .filter(Transaction.Columns.isDeleted == false)
                 .fetchOne(db)
             {
@@ -1405,7 +1410,10 @@ final class DatabaseManager {
                 merged.id = existing.id
                 return try Self.applyPeerTransaction(merged, existing: existing, in: db)
             }
-            // 3. New record
+            // 3. New record. Manual-import duplicates (no externalId on
+            // either side, identical content) intentionally land as
+            // separate rows here - the LAN sync source of truth is the
+            // peer's row count, not a content fingerprint.
             return try Self.applyPeerTransaction(incoming, existing: nil, in: db)
         }
     }
