@@ -105,6 +105,11 @@ targets:
         # Network framework tries to register the Bonjour service.
         NSBonjourServices:
           - _budgetsync._tcp
+        # CloudKit push delivery requires the remote-notification
+        # background mode on iOS, otherwise CKSyncEngine logs
+        # "BUG IN CLIENT OF CLOUDKIT" and pushes are never delivered.
+        UIBackgroundModes:
+          - remote-notification
     dependencies:
       - package: GRDB.swift
         product: GRDB
