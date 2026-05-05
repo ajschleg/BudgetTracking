@@ -1,6 +1,6 @@
 # BudgetTracking
 
-A macOS app for tracking monthly household budgets. Import bank statements, categorize transactions automatically, and monitor spending across customizable budget categories. Supports iCloud sync so multiple users can share the same budget.
+A macOS app for tracking monthly household budgets. Import bank statements, categorize transactions automatically, and monitor spending across customizable budget categories. Supports iCloud and LAN sync so multiple devices can share the same budget. Companion iOS app on the `ios-app` branch — see [IOS_AND_SYNC.md](IOS_AND_SYNC.md) for the data flow, sync architecture, and iOS-specific behavior.
 
 ## Requirements
 
