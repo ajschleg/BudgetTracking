@@ -337,22 +337,16 @@ final class LANSyncEngine: @unchecked Sendable {
             // Send handshake
             let info = PeerInfo(deviceId: deviceId, deviceName: deviceName, appVersion: "1.0")
             sendMessage(.handshake(info), on: connection)
-            startReceiving(on: connection, peerId: peerId)
+            startReceiving(on: connection)
 
         case .failed(let error):
             logger.error("Connection failed: \(error) (incoming: \(isIncoming), peer: \(peerId ?? "unknown"))")
-            if let peerId {
-                connections.removeValue(forKey: peerId)
-                receiveBuffers.removeValue(forKey: peerId)
-            }
+            cleanupConnection(connection, knownPeerId: peerId)
             updateConnectionStatus()
 
         case .cancelled:
             logger.debug("Connection cancelled (peer: \(peerId ?? "unknown"))")
-            if let peerId {
-                connections.removeValue(forKey: peerId)
-                receiveBuffers.removeValue(forKey: peerId)
-            }
+            cleanupConnection(connection, knownPeerId: peerId)
             updateConnectionStatus()
 
         @unknown default:
@@ -393,11 +387,19 @@ final class LANSyncEngine: @unchecked Sendable {
         }
     }
 
-    private func startReceiving(on connection: NWConnection, peerId: String?) {
+    private func startReceiving(on connection: NWConnection) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 1024 * 1024) { [weak self] data, _, isComplete, error in
             guard let self else { return }
 
-            let effectivePeerId = peerId ?? "unknown"
+            // Resolve the peer key fresh on each callback. The peer id may
+            // change mid-stream when handshake re-keys "unknown" -> real
+            // deviceId (see handleHandshake). Before handshake, key by the
+            // connection's endpoint description so concurrent pre-handshake
+            // connections don't share a buffer (the old code keyed every
+            // unknown peer under the literal "unknown", which let separate
+            // streams interleave bytes into one undecodable buffer).
+            let effectivePeerId = self.peerId(for: connection)
+                ?? connection.endpoint.debugDescription
 
             if let data {
                 logger.debug("Received \(data.count) bytes from \(effectivePeerId)")
@@ -420,7 +422,13 @@ final class LANSyncEngine: @unchecked Sendable {
                         buffer = Data()
                     }
                 }
-                receiveBuffers[effectivePeerId] = buffer
+                // After handleMessage runs (which may re-key the buffer for a
+                // handshake), look up the storage key again so any leftover
+                // bytes land under the new key rather than re-creating the
+                // pre-handshake bucket.
+                let storageKey = self.peerId(for: connection)
+                    ?? connection.endpoint.debugDescription
+                receiveBuffers[storageKey] = buffer
             }
 
             if let error {
@@ -432,8 +440,36 @@ final class LANSyncEngine: @unchecked Sendable {
                 self.logger.debug("Connection receive completed for \(effectivePeerId)")
             } else {
                 // Continue receiving
-                self.startReceiving(on: connection, peerId: peerId)
+                self.startReceiving(on: connection)
             }
+        }
+    }
+
+    /// Reverse-lookup: which peerId currently maps to this connection?
+    /// Returns nil while we're still pre-handshake on the connection.
+    private func peerId(for connection: NWConnection) -> String? {
+        connections.first(where: { $0.value === connection })?.key
+    }
+
+    /// Drop all bookkeeping for a connection that's been cancelled or
+    /// failed. Cleans up by every key the connection might be filed under
+    /// — the originally-known peerId from connectToPeer (if any), the
+    /// post-handshake peerId, and the endpoint description used pre-
+    /// handshake. Without the endpoint cleanup, an incoming connection
+    /// that never handshook leaked its receive buffer indefinitely; that
+    /// was the cause of the multi-megabyte "unknown" buffer growing on
+    /// the Mac side.
+    private func cleanupConnection(_ connection: NWConnection, knownPeerId: String?) {
+        var keysToDrop: [String] = []
+        if let knownPeerId { keysToDrop.append(knownPeerId) }
+        if let realPeerId = peerId(for: connection) {
+            keysToDrop.append(realPeerId)
+        }
+        keysToDrop.append(connection.endpoint.debugDescription)
+
+        for key in keysToDrop {
+            connections.removeValue(forKey: key)
+            receiveBuffers.removeValue(forKey: key)
         }
     }
 
