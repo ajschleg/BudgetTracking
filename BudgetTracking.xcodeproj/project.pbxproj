@@ -1058,7 +1058,6 @@
 				INFOPLIST_FILE = Sources/BudgetTrackingIOS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Budget Tracking";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
-				INFOPLIST_KEY_NSBonjourServices = _budgetsync._tcp;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "BudgetTracking uses the local network to sync budget data with your Mac.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1144,7 +1143,6 @@
 				INFOPLIST_FILE = Sources/BudgetTrackingIOS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Budget Tracking";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
-				INFOPLIST_KEY_NSBonjourServices = _budgetsync._tcp;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "BudgetTracking uses the local network to sync budget data with your Mac.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

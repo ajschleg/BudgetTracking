@@ -85,7 +85,6 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "5.10"
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "BudgetTracking uses the local network to sync budget data with your Mac."
-        INFOPLIST_KEY_NSBonjourServices: "_budgetsync._tcp"
         TARGETED_DEVICE_FAMILY: "1,2"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -100,6 +99,12 @@ targets:
           - CFBundleURLName: "OAuth Callback"
             CFBundleURLSchemes:
               - budgettracking
+        # NSBonjourServices must be a true plist <array>, which the
+        # INFOPLIST_KEY_* build-setting form mangles into a string.
+        # That mangling causes the iOS NoAuth 65555 error when the
+        # Network framework tries to register the Bonjour service.
+        NSBonjourServices:
+          - _budgetsync._tcp
     dependencies:
       - package: GRDB.swift
         product: GRDB
