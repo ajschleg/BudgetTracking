@@ -55,6 +55,9 @@ struct BudgetTrackingApp: App {
         ])
 
         _ = DatabaseManager.shared
+        // Seed only on macOS - iOS pulls from the Mac via sync and would
+        // otherwise create ID-mismatched duplicates of the default set.
+        DatabaseManager.shared.seedDefaultsIfNeeded()
         let engine = SyncEngine()
         let share = ShareManager()
         let lanEngine = LANSyncEngine()

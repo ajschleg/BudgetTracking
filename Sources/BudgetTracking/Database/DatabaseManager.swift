@@ -33,8 +33,12 @@ final class DatabaseManager {
             let dbURL = appSupportURL.appendingPathComponent("budget.sqlite")
             dbQueue = try DatabaseQueue(path: dbURL.path)
             try runMigrations()
-            try seedDefaultCategories()
-            try seedDefaultRules()
+            // Seeding is now opt-in per platform via seedDefaultsIfNeeded().
+            // macOS calls it on launch (preserves the original behavior);
+            // iOS does NOT call it because the iOS device is meant to mirror
+            // the user's Mac via LAN/CloudKit sync, not start fresh. Seeding
+            // on iOS produced duplicate categories with mismatched UUIDs that
+            // coexisted with synced records from the Mac.
         } catch {
             fatalError("Database initialization failed: \(error)")
         }
@@ -373,6 +377,21 @@ final class DatabaseManager {
     }
 
     // MARK: - Seed Data
+
+    /// Seeds the default category list and starter rules if the
+    /// respective tables are empty. macOS calls this on launch so a
+    /// fresh-install user sees a sensible starting point. iOS does not
+    /// call it: the iOS app is a viewer of the user's Mac data, and
+    /// seeded categories would produce ID-mismatched duplicates after
+    /// the first LAN/CloudKit sync.
+    func seedDefaultsIfNeeded() {
+        do {
+            try seedDefaultCategories()
+            try seedDefaultRules()
+        } catch {
+            print("seedDefaultsIfNeeded failed: \(error)")
+        }
+    }
 
     private func seedDefaultCategories() throws {
         try dbQueue.write { db in
