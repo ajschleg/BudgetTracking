@@ -110,6 +110,27 @@ struct SyncRecord: Codable {
 
 enum SyncWireProtocol {
 
+    enum WireError: Error, CustomStringConvertible {
+        /// The 4-byte length prefix decoded to an implausibly large value,
+        /// signalling buffer corruption (interleaved streams from a stale
+        /// connection, or the head bytes were lost mid-message). Recovered
+        /// by clearing the buffer at the call site.
+        case implausibleLength(UInt32)
+
+        var description: String {
+            switch self {
+            case .implausibleLength(let n):
+                return "implausible message length \(n) - likely buffer corruption"
+            }
+        }
+    }
+
+    /// A single sync message can be large (a full DB syncResponse), but
+    /// not infinite. Cap individual messages at 100 MB so a corrupted
+    /// length prefix from interleaved streams gets caught instead of
+    /// blocking decode forever.
+    static let maxMessageBytes: UInt32 = 100 * 1024 * 1024
+
     /// Encode a message to a length-prefixed data packet.
     static func encode(_ message: SyncMessage) throws -> Data {
         let jsonData = try JSONEncoder().encode(message)
@@ -126,6 +147,12 @@ enum SyncWireProtocol {
 
         let lengthBytes = buffer.prefix(4)
         let length = lengthBytes.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+
+        // Sanity check: reject obviously corrupt prefixes before they make
+        // us wait for billions of bytes that will never arrive.
+        guard length <= maxMessageBytes else {
+            throw WireError.implausibleLength(length)
+        }
 
         let totalNeeded = 4 + Int(length)
         guard buffer.count >= totalNeeded else { return nil }

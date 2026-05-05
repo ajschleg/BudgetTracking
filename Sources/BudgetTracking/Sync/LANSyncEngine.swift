@@ -48,6 +48,16 @@ final class LANSyncEngine: @unchecked Sendable {
     private var pendingOrphanRecords: [SyncRecord] = []
     private static let maxPendingOrphans = 1000
 
+    /// Tracks which connections we accepted from a listener (true) versus
+    /// dialed outbound (false). Used by handleHandshake to deterministically
+    /// tiebreak the dual-connection race - both peers simultaneously open
+    /// outbound connections to each other, producing two TCP sockets per
+    /// pair, and we need both sides to agree on which one survives or
+    /// data ends up flowing on a socket that the other side has filed
+    /// under the wrong key (the 15+MB "endpoint string" buffer the user
+    /// reported was caused by exactly this race).
+    private var incomingConnections: Set<ObjectIdentifier> = []
+
     // MARK: - Private State
 
     private let serviceType = "_budgetsync._tcp"
@@ -169,6 +179,7 @@ final class LANSyncEngine: @unchecked Sendable {
         connections.removeAll()
         receiveBuffers.removeAll()
         peerInfoByEndpoint.removeAll()
+        incomingConnections.removeAll()
 
         Task { @MainActor in
             status = .disabled
@@ -228,6 +239,7 @@ final class LANSyncEngine: @unchecked Sendable {
 
     private func handleIncomingConnection(_ connection: NWConnection) {
         logger.info("Incoming connection from \(String(describing: connection.endpoint))")
+        incomingConnections.insert(ObjectIdentifier(connection))
         connection.stateUpdateHandler = { [weak self] state in
             self?.handleConnectionState(connection, state: state, isIncoming: true)
         }
@@ -479,6 +491,7 @@ final class LANSyncEngine: @unchecked Sendable {
             connections.removeValue(forKey: key)
             receiveBuffers.removeValue(forKey: key)
         }
+        incomingConnections.remove(ObjectIdentifier(connection))
     }
 
     // MARK: - Message Handling
@@ -510,6 +523,37 @@ final class LANSyncEngine: @unchecked Sendable {
         }
 
         logger.info("Handshake from: \(peerInfo.deviceName) (\(peerId))")
+
+        // Dual-connection tiebreak: when both peers simultaneously open
+        // outbound connections, each pair has two TCP sockets. Deterministically
+        // pick which socket survives so both sides agree (otherwise each side
+        // can pick a different socket and data flows on a socket the other
+        // side considers orphaned, which is exactly the bug that grew the
+        // multi-MB endpoint-keyed buffer on the Mac).
+        //
+        // Rule: keep the connection initiated by the peer with the lexically
+        // larger deviceId. Both peers compute the same survivor.
+        if let existing = connections[peerId], existing !== connection {
+            let isThisIncoming = incomingConnections.contains(ObjectIdentifier(connection))
+            let peerHasLargerId = peerId > deviceId
+            // The peer with the larger id should be the one whose outbound
+            // (= our incoming) survives.
+            let keepNew: Bool
+            if peerHasLargerId {
+                keepNew = isThisIncoming
+            } else {
+                keepNew = !isThisIncoming
+            }
+            if keepNew {
+                logger.info("Replacing connection for \(peerId) with new (tiebreak)")
+                cleanupConnection(existing, knownPeerId: peerId)
+                existing.cancel()
+            } else {
+                logger.info("Duplicate connection for \(peerId); cancelling new (tiebreak)")
+                connection.cancel()
+                return
+            }
+        }
 
         // Re-key connection and buffer from temporary ID (endpoint description or "unknown") to real peerId
         let endpointKey = connection.endpoint.debugDescription
