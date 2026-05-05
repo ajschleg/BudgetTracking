@@ -328,15 +328,40 @@ extension SyncEngine: CKSyncEngineDelegate {
     private func handleFetchedRecordZoneChanges(
         _ changes: CKSyncEngine.Event.FetchedRecordZoneChanges
     ) {
-        // Process fetched records
-        for modification in changes.modifications {
-            let record = modification.record
-            applyRemoteRecord(record)
+        // Process fetched records in dependency order to avoid SQLite FK
+        // violations. CategorizationRule.categoryId and Transaction.categoryId
+        // both reference BudgetCategory(id); if those rows arrive before
+        // their parent category, the upsert fails with FOREIGN KEY constraint
+        // failed and the record is silently dropped (CKSyncEngine considers
+        // it applied and won't redeliver). Sorting parents-first within the
+        // batch makes the common case work; cross-batch races still need a
+        // retry queue, but those are rare in practice.
+        let sortedMods = changes.modifications.sorted {
+            Self.applyPriority(for: $0.record.recordType)
+                < Self.applyPriority(for: $1.record.recordType)
+        }
+        for modification in sortedMods {
+            applyRemoteRecord(modification.record)
         }
 
         // Process deletions
         for deletion in changes.deletions {
             applyRemoteDeletion(deletion.recordID, recordType: deletion.recordType)
+        }
+    }
+
+    /// Lower numbers apply first. Parents before children. Anything not
+    /// listed gets the highest number so the schema remains forgiving as
+    /// new record types are added.
+    private static func applyPriority(for recordType: CKRecord.RecordType) -> Int {
+        switch recordType {
+        case SyncConstants.RecordType.budgetCategory: return 0
+        case SyncConstants.RecordType.bankProfile: return 0
+        case SyncConstants.RecordType.importedFile: return 1
+        case SyncConstants.RecordType.transaction: return 2
+        case SyncConstants.RecordType.categorizationRule: return 3
+        case SyncConstants.RecordType.monthlySnapshot: return 4
+        default: return 99
         }
     }
 

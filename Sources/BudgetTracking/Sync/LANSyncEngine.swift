@@ -603,7 +603,15 @@ final class LANSyncEngine: @unchecked Sendable {
         isApplyingPeerSync = true
         defer { isApplyingPeerSync = false }
 
-        for record in response.records {
+        // Apply parents before children to avoid SQLite FK violations.
+        // CategorizationRule.categoryId and Transaction.categoryId reference
+        // BudgetCategory(id), so categories must land before rules and txns.
+        let sortedRecords = response.records.sorted {
+            Self.applyPriority(for: $0.tableName)
+                < Self.applyPriority(for: $1.tableName)
+        }
+
+        for record in sortedRecords {
             do {
                 switch record.tableName {
                 case "budgetCategory":
@@ -736,6 +744,20 @@ final class LANSyncEngine: @unchecked Sendable {
         }
         debounceWorkItem = work
         syncQueue.asyncAfter(deadline: .now() + 1.5, execute: work)
+    }
+
+    /// Lower numbers apply first. Parents before children. Mirrors the
+    /// priority ordering used by SyncEngine.applyPriority(for:) so the
+    /// CloudKit and LAN paths stay consistent.
+    private static func applyPriority(for tableName: String) -> Int {
+        switch tableName {
+        case "budgetCategory", "bankProfile": return 0
+        case "importedFile": return 1
+        case "transaction", "plaidAccount": return 2
+        case "categorizationRule": return 3
+        case "monthlySnapshot": return 4
+        default: return 99
+        }
     }
 }
 
