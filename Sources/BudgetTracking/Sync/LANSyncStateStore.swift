@@ -29,6 +29,14 @@ final class LANSyncStateStore {
         save()
     }
 
+    /// Drop all per-peer timestamps so the next sync requests "since:
+    /// beginning" and pulls a full snapshot. Used by Reset Local Data
+    /// on iOS when the user wants to re-pull everything from scratch.
+    func reset() {
+        peerTimestamps.removeAll()
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+
     private func load() {
         guard let data = try? Data(contentsOf: fileURL) else {
             logger.debug("No existing state file at \(self.fileURL.path)")

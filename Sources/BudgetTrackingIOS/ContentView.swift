@@ -15,27 +15,8 @@ struct ContentView: View {
             BudgetView()
                 .tabItem { Label("Budget", systemImage: "folder.fill") }
 
-            ComingSoonView(title: "Settings")
+            SettingsView(syncEngine: syncEngine, lanSyncEngine: lanSyncEngine)
                 .tabItem { Label("Settings", systemImage: "gear") }
-        }
-    }
-}
-
-private struct ComingSoonView: View {
-    let title: String
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 12) {
-                Image(systemName: "hammer.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.secondary)
-                Text("\(title) — Coming soon")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationTitle(title)
         }
     }
 }

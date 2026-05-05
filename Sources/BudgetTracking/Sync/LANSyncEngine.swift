@@ -177,6 +177,14 @@ final class LANSyncEngine: @unchecked Sendable {
         }
     }
 
+    /// Drop all per-peer timestamps so the next syncNow() requests
+    /// "since: beginning". Pairs with DatabaseManager.wipeAllLocalData()
+    /// to fully re-pull state from peers after a Reset Local Data action.
+    func resetSyncState() {
+        stateStore.reset()
+        pendingOrphanRecords.removeAll()
+    }
+
     /// Manually trigger a sync with all connected peers.
     func syncNow() {
         if connections.isEmpty {

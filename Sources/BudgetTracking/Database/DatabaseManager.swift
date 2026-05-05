@@ -1573,6 +1573,26 @@ final class DatabaseManager {
         )
     }
 
+    /// Wipe every user-data table in the local database. Used on iOS to
+    /// recover from "DB has stale local data + sync data coexisting"
+    /// without forcing a delete-and-reinstall. After this returns the
+    /// schema is intact; sync engines will repopulate from the user's
+    /// other devices on the next sync. Posts a localDataDidChange so
+    /// any active views reload.
+    func wipeAllLocalData() throws {
+        let tables = [
+            "budgetCategory", "transaction", "importedFile",
+            "categorizationRule", "monthlySnapshot", "bankProfile",
+            "plaidAccount"
+        ]
+        try dbQueue.write { db in
+            for table in tables {
+                try db.execute(sql: "DELETE FROM \"\(table)\"")
+            }
+        }
+        notifyDataChanged()
+    }
+
     /// Purge soft-deleted records older than a given date (after sync confirmation).
     func purgeDeletedRecords(olderThan date: Date) throws {
         let tables = [

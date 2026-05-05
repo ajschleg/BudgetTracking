@@ -107,6 +107,7 @@
 		998061B1237DAA40AD15C308 /* PlaidUpdateBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39458BD03D87744C0464548D /* PlaidUpdateBanner.swift */; };
 		99A5D6DCC2D05CCA973B201C /* DatabaseManager+Plaid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4798FC56D298C578396267F /* DatabaseManager+Plaid.swift */; };
 		9B88872EB416F58730BECA4A /* InsightCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 207075BF019B0C8B0CF062E9 /* InsightCardView.swift */; };
+		9BA2CFF61ADB98F47F496369 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C634E4373BC2589C13AAC42F /* SettingsView.swift */; };
 		9BD172E7DDAB17C444AA1A3F /* RecordConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D003AE1329BA1C9FCD924629 /* RecordConverter.swift */; };
 		9E5B026BFA80B5B95CBBEF1A /* TransactionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E057CC4BC6FDC268C283743D /* TransactionsListView.swift */; };
 		9F77EE778B823FD219A4063C /* CoreXLSX in Frameworks */ = {isa = PBXBuildFile; productRef = 779760DD9455D96F14310A93 /* CoreXLSX */; };
@@ -287,6 +288,7 @@
 		C441C5CCF6F0938AECC87B47 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		C468C167002A50AC89F87960 /* BudgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetView.swift; sourceTree = "<group>"; };
 		C51D6D65076A36BA3B83198F /* PlaidLinkNativeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaidLinkNativeView.swift; sourceTree = "<group>"; };
+		C634E4373BC2589C13AAC42F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		C99F768BB5913E3C6067E408 /* PlaidAccountSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaidAccountSyncTests.swift; sourceTree = "<group>"; };
 		CD0F57784E60C0D2712927E7 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
 		CDACD8F8DF659FDD26EF7120 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -415,6 +417,7 @@
 			children = (
 				09456377CCAE7C3C1789F459 /* Budget */,
 				B8AC22084C33FC456DB5FD69 /* Dashboard */,
+				8FB2423FC0B275DD4B5E4163 /* Settings */,
 				4AAD642C47923D9250CC0440 /* Transactions */,
 			);
 			path = Views;
@@ -568,6 +571,14 @@
 				75259CAB67C26E053906C004 /* XLSXParser.swift */,
 			);
 			path = Parsing;
+			sourceTree = "<group>";
+		};
+		8FB2423FC0B275DD4B5E4163 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				C634E4373BC2589C13AAC42F /* SettingsView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		9927C87F7FDF860D2031749B /* Plaid */ = {
@@ -879,6 +890,7 @@
 				78E7D7DA935ACBAEED1C469A /* QIFParser.swift in Sources */,
 				9BD172E7DDAB17C444AA1A3F /* RecordConverter.swift in Sources */,
 				029AE44AD93EBF75B62C8C35 /* RuleLearner.swift in Sources */,
+				9BA2CFF61ADB98F47F496369 /* SettingsView.swift in Sources */,
 				944FDAE37193D6B845B53EF8 /* ShareManager.swift in Sources */,
 				0537EF4F932DE86594C442EB /* SideHustleViewModel.swift in Sources */,
 				1DC63AF3475FAA7E26C0C627 /* SidebarItem.swift in Sources */,
