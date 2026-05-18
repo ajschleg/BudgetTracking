@@ -103,6 +103,147 @@ final class SyncWireProtocolTests: XCTestCase {
         XCTAssertNotNil(decoded)
     }
 
+    // MARK: - Plaid RPC
+
+    func testRoundTrip_plaidRPCRequest_createLinkToken() throws {
+        let requestId = UUID()
+        let original: SyncMessage = .plaidRPCRequest(
+            PlaidRPCRequest(requestId: requestId, method: .createLinkToken)
+        )
+        var buffer = try SyncWireProtocol.encode(original)
+        let decoded = try SyncWireProtocol.decode(from: &buffer)
+
+        guard case .plaidRPCRequest(let req) = decoded else {
+            return XCTFail("expected plaidRPCRequest, got \(String(describing: decoded))")
+        }
+        XCTAssertEqual(req.requestId, requestId)
+        guard case .createLinkToken = req.method else {
+            return XCTFail("expected createLinkToken method")
+        }
+    }
+
+    func testRoundTrip_plaidRPCRequest_exchangePublicToken() throws {
+        let requestId = UUID()
+        let original: SyncMessage = .plaidRPCRequest(
+            PlaidRPCRequest(
+                requestId: requestId,
+                method: .exchangePublicToken(PlaidExchangeParams(
+                    publicToken: "public-sandbox-abc",
+                    institutionId: "ins_109508",
+                    institutionName: "First Platypus Bank"
+                ))
+            )
+        )
+        var buffer = try SyncWireProtocol.encode(original)
+        let decoded = try SyncWireProtocol.decode(from: &buffer)
+
+        guard case .plaidRPCRequest(let req) = decoded else {
+            return XCTFail("expected plaidRPCRequest, got \(String(describing: decoded))")
+        }
+        XCTAssertEqual(req.requestId, requestId)
+        guard case .exchangePublicToken(let params) = req.method else {
+            return XCTFail("expected exchangePublicToken method")
+        }
+        XCTAssertEqual(params.publicToken, "public-sandbox-abc")
+        XCTAssertEqual(params.institutionId, "ins_109508")
+        XCTAssertEqual(params.institutionName, "First Platypus Bank")
+    }
+
+    func testRoundTrip_plaidRPCResponse_linkToken() throws {
+        let requestId = UUID()
+        let original: SyncMessage = .plaidRPCResponse(
+            PlaidRPCResponse(
+                requestId: requestId,
+                result: .linkToken("link-sandbox-12345")
+            )
+        )
+        var buffer = try SyncWireProtocol.encode(original)
+        let decoded = try SyncWireProtocol.decode(from: &buffer)
+
+        guard case .plaidRPCResponse(let resp) = decoded else {
+            return XCTFail("expected plaidRPCResponse")
+        }
+        XCTAssertEqual(resp.requestId, requestId)
+        guard case .linkToken(let token) = resp.result else {
+            return XCTFail("expected linkToken result, got \(resp.result)")
+        }
+        XCTAssertEqual(token, "link-sandbox-12345")
+    }
+
+    func testRoundTrip_plaidRPCResponse_linkExchanged() throws {
+        let requestId = UUID()
+        let original: SyncMessage = .plaidRPCResponse(
+            PlaidRPCResponse(
+                requestId: requestId,
+                result: .linkExchanged(
+                    itemId: "item-uuid-1",
+                    institution: "First Platypus Bank",
+                    accountCount: 3
+                )
+            )
+        )
+        var buffer = try SyncWireProtocol.encode(original)
+        let decoded = try SyncWireProtocol.decode(from: &buffer)
+
+        guard case .plaidRPCResponse(let resp) = decoded else {
+            return XCTFail("expected plaidRPCResponse")
+        }
+        guard case .linkExchanged(let itemId, let institution, let count) = resp.result else {
+            return XCTFail("expected linkExchanged result, got \(resp.result)")
+        }
+        XCTAssertEqual(itemId, "item-uuid-1")
+        XCTAssertEqual(institution, "First Platypus Bank")
+        XCTAssertEqual(count, 3)
+    }
+
+    func testRoundTrip_plaidRPCResponse_failure_withCode() throws {
+        // Failures must preserve both the user-facing message and the
+        // stable code; the iOS caller maps codes to retry behavior so
+        // dropping the code field would silently demote a recoverable
+        // error to an opaque one.
+        let requestId = UUID()
+        let original: SyncMessage = .plaidRPCResponse(
+            PlaidRPCResponse(
+                requestId: requestId,
+                result: .failure(
+                    message: "Couldn't connect bank.",
+                    code: "linkExchangeFailed"
+                )
+            )
+        )
+        var buffer = try SyncWireProtocol.encode(original)
+        let decoded = try SyncWireProtocol.decode(from: &buffer)
+
+        guard case .plaidRPCResponse(let resp) = decoded else {
+            return XCTFail("expected plaidRPCResponse")
+        }
+        guard case .failure(let message, let code) = resp.result else {
+            return XCTFail("expected failure result, got \(resp.result)")
+        }
+        XCTAssertEqual(message, "Couldn't connect bank.")
+        XCTAssertEqual(code, "linkExchangeFailed")
+    }
+
+    func testRoundTrip_plaidRPCResponse_failure_noCode() throws {
+        // `code` is optional so legacy/unrecognized failure paths
+        // still round-trip cleanly without nil-vs-missing-key issues
+        // on the JSON layer.
+        let original: SyncMessage = .plaidRPCResponse(
+            PlaidRPCResponse(
+                requestId: UUID(),
+                result: .failure(message: "Generic failure", code: nil)
+            )
+        )
+        var buffer = try SyncWireProtocol.encode(original)
+        let decoded = try SyncWireProtocol.decode(from: &buffer)
+
+        guard case .plaidRPCResponse(let resp) = decoded,
+              case .failure(_, let code) = resp.result else {
+            return XCTFail("expected plaidRPCResponse(failure)")
+        }
+        XCTAssertNil(code)
+    }
+
     // MARK: - Corruption guard
 
     func testDecode_rejects_implausibleLength() {

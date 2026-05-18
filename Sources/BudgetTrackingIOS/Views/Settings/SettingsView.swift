@@ -15,6 +15,10 @@ struct SettingsView: View {
     /// side has nothing to wait on synchronously - just enough feedback
     /// to confirm the request went out.
     @State private var plaidRefreshFeedback: String?
+    /// Drives presentation of the LinkKit-backed PlaidLinkSheet. Sheet
+    /// dismissal flips this back to false; the sheet itself handles
+    /// success/error UI internally.
+    @State private var showLinkSheet = false
 
     private var iCloudStatusText: String {
         switch syncEngine.status {
@@ -97,6 +101,13 @@ struct SettingsView: View {
 
                 Section {
                     Button {
+                        showLinkSheet = true
+                    } label: {
+                        Label("Link bank account…", systemImage: "building.columns")
+                    }
+                    .disabled(lanSyncEngine.connectedPeerName == nil)
+
+                    Button {
                         requestPlaidRefresh()
                     } label: {
                         Label("Refresh from Plaid", systemImage: "arrow.clockwise.icloud")
@@ -110,7 +121,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Plaid")
                 } footer: {
-                    Text("Asks your Mac to fetch the latest bank transactions from Plaid. The new transactions sync back to this iPhone over LAN once the Mac finishes — usually a few seconds. Requires the Mac app to be open and on the same Wi-Fi.")
+                    Text("Link a new bank from this iPhone, or pull the latest transactions for the banks you've already linked. Requires the Mac app to be open and on the same Wi-Fi — your Mac is the only device that holds the bank access tokens.")
                 }
 
                 Section {
@@ -130,6 +141,9 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .sheet(isPresented: $showLinkSheet) {
+                PlaidLinkSheet(lanPlaidClient: LANPlaidClient(engine: lanSyncEngine))
+            }
             .alert("Reset local data?", isPresented: $showResetConfirm) {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset", role: .destructive) { performReset() }

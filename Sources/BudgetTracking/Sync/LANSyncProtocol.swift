@@ -14,13 +14,21 @@ enum SyncMessage: Codable {
     /// access_token only lives on the Mac's /server/), so this is the
     /// remote-control flavor of "Refresh from Plaid".
     case requestPlaidRefresh(RequestPlaidRefresh)
+    /// Request/response pair for proxying small Plaid HTTP calls through
+    /// the LAN channel. iOS uses this for the link-token + public-token
+    /// exchange flow so the iPhone never needs the server URL or the
+    /// X-App-Token; the Mac is the only device that talks to /server/.
+    /// Correlated by requestId so the iOS caller can `await` a specific
+    /// response without blocking the rest of the channel.
+    case plaidRPCRequest(PlaidRPCRequest)
+    case plaidRPCResponse(PlaidRPCResponse)
 
     enum CodingKeys: String, CodingKey {
         case type, payload
     }
 
     enum MessageType: String, Codable {
-        case handshake, syncRequest, syncResponse, syncAck, requestPlaidRefresh
+        case handshake, syncRequest, syncResponse, syncAck, requestPlaidRefresh, plaidRPCRequest, plaidRPCResponse
     }
 
     func encode(to encoder: Encoder) throws {
@@ -41,6 +49,12 @@ enum SyncMessage: Codable {
         case .requestPlaidRefresh(let req):
             try container.encode(MessageType.requestPlaidRefresh, forKey: .type)
             try container.encode(req, forKey: .payload)
+        case .plaidRPCRequest(let req):
+            try container.encode(MessageType.plaidRPCRequest, forKey: .type)
+            try container.encode(req, forKey: .payload)
+        case .plaidRPCResponse(let resp):
+            try container.encode(MessageType.plaidRPCResponse, forKey: .type)
+            try container.encode(resp, forKey: .payload)
         }
     }
 
@@ -58,6 +72,10 @@ enum SyncMessage: Codable {
             self = .syncAck(try container.decode(SyncAck.self, forKey: .payload))
         case .requestPlaidRefresh:
             self = .requestPlaidRefresh(try container.decode(RequestPlaidRefresh.self, forKey: .payload))
+        case .plaidRPCRequest:
+            self = .plaidRPCRequest(try container.decode(PlaidRPCRequest.self, forKey: .payload))
+        case .plaidRPCResponse:
+            self = .plaidRPCResponse(try container.decode(PlaidRPCResponse.self, forKey: .payload))
         }
     }
 }
@@ -71,6 +89,8 @@ extension SyncMessage {
         case .syncResponse(let resp): return "syncResponse(\(resp.records.count) records)"
         case .syncAck(let ack): return "syncAck(\(ack.recordsApplied) applied)"
         case .requestPlaidRefresh: return "requestPlaidRefresh"
+        case .plaidRPCRequest(let req): return "plaidRPCRequest(\(req.method.methodName))"
+        case .plaidRPCResponse(let resp): return "plaidRPCResponse(\(resp.result.shortDescription))"
         }
     }
 }

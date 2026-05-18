@@ -83,6 +83,62 @@ struct BudgetTrackingApp: App {
                 await plaid.syncTransactions()
             }
         }
+
+        // Plaid RPC: iOS opens LinkKit locally but proxies the
+        // /api/link/create + /api/link/exchange calls through this Mac
+        // because the server URL + X-App-Token only live here. The new
+        // PlaidAccount + initial transactions land on iOS via the
+        // regular LAN record-sync push that fires after the Mac's
+        // upserts. See PlaidLinkSheet on the iOS side for the LinkKit
+        // half of this flow.
+        lanEngine.plaidRPCHandler = { method in
+            switch method {
+            case .createLinkToken:
+                do {
+                    let token = try await plaid.createLinkToken()
+                    return .linkToken(token)
+                } catch {
+                    return .failure(
+                        message: error.localizedDescription,
+                        code: "createLinkTokenFailed"
+                    )
+                }
+
+            case .exchangePublicToken(let params):
+                do {
+                    let service = PlaidService()
+                    let response = try await service.exchangeToken(
+                        publicToken: params.publicToken,
+                        institution: (name: params.institutionName, id: params.institutionId)
+                    )
+                    await MainActor.run {
+                        plaid.handleLinkSuccess(
+                            itemId: response.item_id,
+                            institution: response.institution,
+                            accounts: response.accounts
+                        )
+                    }
+                    // Kick off an initial transactions pull so the new
+                    // bank's history lands locally and gets pushed to
+                    // the iPhone via the existing record-sync channel.
+                    // Fire-and-forget: the iOS caller doesn't need to
+                    // wait on transactions to consider the link "done".
+                    Task { @MainActor in
+                        await plaid.syncTransactions()
+                    }
+                    return .linkExchanged(
+                        itemId: response.item_id,
+                        institution: response.institution,
+                        accountCount: response.accounts.count
+                    )
+                } catch {
+                    return .failure(
+                        message: error.localizedDescription,
+                        code: "linkExchangeFailed"
+                    )
+                }
+            }
+        }
     }
 
     var body: some Scene {

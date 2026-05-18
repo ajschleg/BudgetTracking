@@ -48,6 +48,31 @@ final class LANSyncEngine: @unchecked Sendable {
     private var pendingOrphanRecords: [SyncRecord] = []
     private static let maxPendingOrphans = 1000
 
+    /// Handler invoked when a Plaid RPC request arrives from a peer.
+    /// Only the Mac sets this (in BudgetTrackingApp.init); the iOS
+    /// side leaves it nil and only sends RPCs. Returning a
+    /// PlaidRPCResult.failure is the correct way to surface errors
+    /// to the iOS caller - the engine then ships that result back
+    /// over the same connection. Not marked @Sendable because the
+    /// Mac's handler captures @Observable PlaidSyncManager; the
+    /// engine itself is @unchecked Sendable so this matches the
+    /// existing concurrency posture.
+    var plaidRPCHandler: ((PlaidRPCMethod) async -> PlaidRPCResult)?
+
+    /// In-flight Plaid RPC continuations on the iOS side, keyed by
+    /// the requestId we put on the wire. handlePlaidRPCResponse
+    /// resumes the matching continuation; a timeout Task purges the
+    /// entry if the Mac never answers (caller sees LANPlaidRPCError
+    /// .timeout). NSLock-guarded because the receive callback fires
+    /// on syncQueue while sendPlaidRPC may be awaited from anywhere.
+    private var pendingPlaidRPCs: [UUID: CheckedContinuation<PlaidRPCResult, Never>] = [:]
+    private let pendingPlaidRPCsLock = NSLock()
+    /// Wall-clock budget for a Plaid RPC. Plaid /link/create rarely
+    /// takes more than ~2s; /link/exchange can run up to ~10s when
+    /// /identity/get is fetched. 60s gives plenty of headroom for a
+    /// slow Mac without leaking the continuation if the channel dies.
+    static let plaidRPCTimeout: Duration = .seconds(60)
+
     /// Tracks which connections we accepted from a listener (true) versus
     /// dialed outbound (false). Used by handleHandshake to deterministically
     /// tiebreak the dual-connection race - both peers simultaneously open
@@ -532,6 +557,12 @@ final class LANSyncEngine: @unchecked Sendable {
 
         case .requestPlaidRefresh(let req):
             handleRequestPlaidRefresh(req, from: peerId)
+
+        case .plaidRPCRequest(let req):
+            handlePlaidRPCRequest(req, from: peerId, connection: connection)
+
+        case .plaidRPCResponse(let resp):
+            handlePlaidRPCResponse(resp, from: peerId)
         }
     }
 
@@ -553,6 +584,118 @@ final class LANSyncEngine: @unchecked Sendable {
                 ]
             )
         }
+    }
+
+    // MARK: - Plaid RPC (request/response)
+
+    /// Called on the Mac when iOS sends SyncMessage.plaidRPCRequest.
+    /// Routes to plaidRPCHandler (set by BudgetTrackingApp.init) and
+    /// ships the result back over the same connection so the iOS
+    /// continuation can resume. If no handler is registered we still
+    /// answer - dropping the response would leave the iOS caller
+    /// waiting until its timeout, which is a much worse UX.
+    private func handlePlaidRPCRequest(_ req: PlaidRPCRequest, from peerId: String, connection: NWConnection) {
+        logger.info("Received Plaid RPC request from \(peerId): \(req.method.methodName)")
+        guard let handler = plaidRPCHandler else {
+            logger.warning("No plaidRPCHandler registered; returning failure for \(req.method.methodName)")
+            let resp = PlaidRPCResponse(
+                requestId: req.requestId,
+                result: .failure(
+                    message: "This device can't run Plaid calls. Run BudgetTracking on your Mac.",
+                    code: "noHandler"
+                )
+            )
+            sendMessage(.plaidRPCResponse(resp), on: connection)
+            return
+        }
+        Task { [weak self] in
+            let result = await handler(req.method)
+            guard let self else { return }
+            let resp = PlaidRPCResponse(requestId: req.requestId, result: result)
+            self.sendMessage(.plaidRPCResponse(resp), on: connection)
+            self.logger.info("Sent Plaid RPC response to \(peerId): \(result.shortDescription)")
+        }
+    }
+
+    /// Called on the iOS side (or any caller awaiting an RPC it sent)
+    /// when SyncMessage.plaidRPCResponse arrives. Resumes the matching
+    /// continuation and drops the entry from pendingPlaidRPCs. A
+    /// response with no matching requestId means the request already
+    /// timed out - log and ignore.
+    private func handlePlaidRPCResponse(_ resp: PlaidRPCResponse, from peerId: String) {
+        pendingPlaidRPCsLock.lock()
+        let continuation = pendingPlaidRPCs.removeValue(forKey: resp.requestId)
+        pendingPlaidRPCsLock.unlock()
+
+        if let continuation {
+            logger.info("Received Plaid RPC response from \(peerId): \(resp.result.shortDescription)")
+            continuation.resume(returning: resp.result)
+        } else {
+            logger.warning("Received Plaid RPC response from \(peerId) for unknown requestId \(resp.requestId) (likely timed out)")
+        }
+    }
+
+    /// iOS-side entry point: ship a PlaidRPCMethod to the Mac peer
+    /// and await its response. Throws LANPlaidRPCError.noPeerConnected
+    /// when nobody is connected, .timeout if the Mac never answers
+    /// within plaidRPCTimeout, or .peerFailure for explicit errors.
+    /// Pure helper; the engine has no knowledge of LinkKit or Plaid
+    /// types beyond the RPC payloads.
+    func sendPlaidRPC(_ method: PlaidRPCMethod) async throws -> PlaidRPCResult {
+        guard let connection = firstConnectedConnection() else {
+            throw LANPlaidRPCError.noPeerConnected
+        }
+        let requestId = UUID()
+
+        // Race the response continuation against a timeout Task so a
+        // dead peer can't leak the continuation indefinitely.
+        let result: PlaidRPCResult = await withCheckedContinuation { continuation in
+            pendingPlaidRPCsLock.lock()
+            pendingPlaidRPCs[requestId] = continuation
+            pendingPlaidRPCsLock.unlock()
+
+            let req = PlaidRPCRequest(requestId: requestId, method: method)
+            sendMessage(.plaidRPCRequest(req), on: connection)
+            logger.info("Sent Plaid RPC request \(requestId): \(method.methodName)")
+
+            Task { [weak self] in
+                try? await Task.sleep(for: Self.plaidRPCTimeout)
+                guard let self else { return }
+                self.pendingPlaidRPCsLock.lock()
+                let pending = self.pendingPlaidRPCs.removeValue(forKey: requestId)
+                self.pendingPlaidRPCsLock.unlock()
+                if let pending {
+                    self.logger.warning("Plaid RPC \(requestId) (\(method.methodName)) timed out after \(Self.plaidRPCTimeout)")
+                    pending.resume(returning: .failure(
+                        message: LANPlaidRPCError.timeout.errorDescription ?? "Timed out",
+                        code: "rpcTimeout"
+                    ))
+                }
+            }
+        }
+
+        switch result {
+        case .failure(let message, let code):
+            // Bubble up timeout failures as the dedicated error case so
+            // callers can branch on it; everything else surfaces as
+            // peerFailure with the peer's user-facing message.
+            if code == "rpcTimeout" {
+                throw LANPlaidRPCError.timeout
+            }
+            throw LANPlaidRPCError.peerFailure(message: message, code: code)
+        default:
+            return result
+        }
+    }
+
+    /// Pick any currently-handshook connection. Returns nil if every
+    /// peer is mid-handshake or disconnected. The Plaid RPC path
+    /// can't ride on a pre-handshake socket: the Mac side dispatches
+    /// on peerId and an unkeyed socket has none.
+    private func firstConnectedConnection() -> NWConnection? {
+        // connections[peerId] is only populated post-handshake, so any
+        // entry here is fair game.
+        connections.values.first
     }
 
     private func handleHandshake(_ peerInfo: PeerInfo, connection: NWConnection) {
