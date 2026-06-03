@@ -30,6 +30,39 @@ xcodebuild -project BudgetTracking.xcodeproj -scheme BudgetTracking -configurati
 cd server && npm start
 ```
 
+## Running persistently (Mac mini)
+
+In production the server runs as a **LaunchDaemon** (`com.schlegel.budgettracking.server`)
+so it starts at boot before login, survives logout, and auto-restarts on
+crash (`KeepAlive`). It runs as the `austinschlegel` user — not root — so
+`.env` / `.encryption-key` / `plaid.db` keep their `0600` user ownership.
+
+The plist and install/uninstall scripts are versioned in
+`scripts/launchd/`. Install (or re-install after editing the plist):
+
+```bash
+sudo scripts/launchd/install.sh      # copies plist → /Library/LaunchDaemons, bootstraps, starts
+sudo scripts/launchd/uninstall.sh    # stops + removes
+```
+
+Operate it:
+
+```bash
+# Status / pid
+sudo launchctl print system/com.schlegel.budgettracking.server | grep -E 'state|pid'
+# Restart after pulling new code or editing server/.env
+sudo launchctl kickstart -k system/com.schlegel.budgettracking.server
+# Logs
+tail -f ~/Library/Logs/BudgetTracking/server.{out,err}.log
+```
+
+Notes:
+- Requires **Node 22 LTS** (`brew install node@22`). Newer Node majors can
+  break the `better-sqlite3` native build. The plist pins the absolute
+  path `/opt/homebrew/opt/node@22/bin/node`.
+- `WorkingDirectory` must stay the `server/` dir so `dotenv` finds `.env`.
+- Editing `server/.env` does **not** hot-reload — `kickstart -k` to apply.
+
 ## Pre-commit test gate
 
 A versioned hook in `scripts/git-hooks/pre-commit` runs the macOS test
