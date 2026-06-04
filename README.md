@@ -116,6 +116,10 @@ When you import a statement, transactions are categorized in this order:
 3. Build and run
 4. Accept the share invitation from the owner
 
+## Plaid Server & Remote Access
+
+The app reaches the Plaid backend (`/server/`) via **Settings → Plaid Server** (Server URL + App Auth Token), with a **Test Connection** button to confirm. To run the server on another machine — and encrypt the link with Tailscale — see [SERVER_ACCESS.md](SERVER_ACCESS.md).
+
 ## Project Structure
 
 ```
