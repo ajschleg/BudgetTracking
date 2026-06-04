@@ -13,6 +13,8 @@ struct SettingsView: View {
     /// is synced on change rather than on every keystroke writing to
     /// the Keychain (which would spam SecItemAdd).
     @State private var plaidAppToken: String = PlaidService.appToken
+    @State private var isTestingConnection = false
+    @State private var connectionTestResult: PlaidService.ConnectionTestResult?
 
     var body: some View {
         ScrollView {
@@ -136,6 +138,33 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
 
+                        Divider()
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Button {
+                                Task { await runConnectionTest() }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    if isTestingConnection {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Image(systemName: "bolt.horizontal.circle")
+                                    }
+                                    Text(isTestingConnection ? "Testing…" : "Test Connection")
+                                }
+                            }
+                            .disabled(isTestingConnection)
+
+                            if let result = connectionTestResult {
+                                connectionResultView(result)
+                            } else {
+                                Text("Checks that the Server URL is reachable and the App Auth Token is accepted.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
                     }
                     .padding(8)
                 } label: {
@@ -208,5 +237,59 @@ struct SettingsView: View {
             ebayClientSecret = ebayAuthManager.clientSecret
             ebayRuName = ebayAuthManager.ruName
         }
+    }
+
+    // MARK: - Connection Test
+
+    @MainActor
+    private func runConnectionTest() async {
+        isTestingConnection = true
+        connectionTestResult = nil
+        connectionTestResult = await PlaidService().testConnection()
+        isTestingConnection = false
+    }
+
+    @ViewBuilder
+    private func connectionResultView(_ result: PlaidService.ConnectionTestResult) -> some View {
+        switch result {
+        case .success(let env):
+            connectionRow(
+                "checkmark.circle.fill", .green,
+                "Connected — \(env) server, token accepted."
+            )
+        case .unauthorized:
+            connectionRow(
+                "xmark.circle.fill", .orange,
+                "Reached the server, but the App Auth Token was rejected. Make sure it matches APP_AUTH_TOKEN on the server."
+            )
+        case .unreachable:
+            connectionRow(
+                "xmark.circle.fill", .red,
+                "Couldn't reach the server. Check the Server URL, that the server is running, and the network/firewall."
+            )
+        case .invalidURL:
+            connectionRow(
+                "exclamationmark.triangle.fill", .orange,
+                "That Server URL isn't valid. Use a full URL like http://192.168.1.147:8080."
+            )
+        case .serverError(let message):
+            connectionRow(
+                "exclamationmark.triangle.fill", .orange,
+                "Server error: \(message)"
+            )
+        }
+    }
+
+    private func connectionRow(_ systemImage: String, _ color: Color, _ message: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: systemImage)
+                .foregroundStyle(color)
+            Text(message)
+                .foregroundStyle(color)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .font(.caption)
     }
 }

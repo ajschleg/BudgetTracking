@@ -211,6 +211,76 @@ actor PlaidService {
         }
     }
 
+    // MARK: - Connection Test
+
+    /// Shape of the public `/health` payload. Per SECURITY_POLICY §3 the
+    /// server promises this endpoint returns nothing beyond status + env.
+    struct HealthResponse: Codable {
+        let status: String
+        let env: String
+    }
+
+    /// Outcome of the Settings → Plaid Server → Test Connection probe.
+    /// Carries only non-sensitive diagnostics (server env, HTTP status) —
+    /// never the token or any Plaid payload (SECURITY_POLICY §8).
+    enum ConnectionTestResult: Equatable, Sendable {
+        case success(env: String)   // reachable AND token accepted
+        case unauthorized           // reachable but token rejected (401)
+        case unreachable            // could not connect at all
+        case invalidURL             // Server URL is empty / malformed
+        case serverError(String)    // reached, non-2xx other than 401
+    }
+
+    /// Two-step health + auth probe for the Test Connection button.
+    /// Step 1 hits the public `/health` endpoint to prove the Server URL
+    /// is reachable and read the environment. Step 2 hits the
+    /// token-gated `/api/transactions/status` to prove the App Auth Token
+    /// is accepted. Never throws — every path maps to a result the UI can
+    /// explain. Reads the same persisted Server URL + Keychain token the
+    /// real API calls use, so a green result means real calls will work.
+    func testConnection() async -> ConnectionTestResult {
+        let urlString = (UserDefaults.standard.string(forKey: "plaidServerURL") ?? "http://localhost:8080")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let base = URL(string: urlString), base.scheme != nil, base.host != nil else {
+            return .invalidURL
+        }
+
+        // Step 1 — reachability + environment (no auth required).
+        let env: String
+        do {
+            var request = URLRequest(url: base.appendingPathComponent("/health"))
+            request.timeoutInterval = 10
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return .unreachable }
+            guard (200...299).contains(http.statusCode) else {
+                return .serverError("health check returned HTTP \(http.statusCode)")
+            }
+            env = (try? JSONDecoder().decode(HealthResponse.self, from: data))?.env ?? "unknown"
+        } catch {
+            return .unreachable
+        }
+
+        // Step 2 — auth check against a read-only, token-gated endpoint.
+        var request = URLRequest(url: base.appendingPathComponent("/api/transactions/status"))
+        request.timeoutInterval = 10
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let token = PlaidService.appToken
+        if !token.isEmpty {
+            request.setValue(token, forHTTPHeaderField: "X-App-Token")
+        }
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return .serverError("invalid response") }
+            switch http.statusCode {
+            case 200...299: return .success(env: env)
+            case 401:       return .unauthorized
+            default:        return .serverError("HTTP \(http.statusCode)")
+            }
+        } catch {
+            return .unreachable
+        }
+    }
+
     // MARK: - API Methods
 
     func createLinkToken() async throws -> String {
