@@ -76,6 +76,56 @@ curl https://<machine>.<tailnet>.ts.net/health    # valid cert ⇒ no -k needed
 So day-to-day syncing works immediately; only the link / re-auth web flow needs
 the allowlist widened for a non-localhost host.
 
+## Keeping the server running (sleep, logout, launchd)
+
+If the server Mac sleeps or auto-logs-out, the server stops: **sleep** suspends
+the whole machine, and **auto-logout** tears down the login session (killing
+anything started in a Terminal/SSH session). For an always-on mini, fix all
+layers:
+
+**1. Stop it sleeping.** System Settings → Energy → *Prevent automatic sleeping
+when the display is off* (display sleep itself is fine). Or:
+```bash
+sudo pmset -a sleep 0 disksleep 0
+sudo pmset -a womp 1 autorestart 1     # wake on network; reboot after power loss
+```
+
+**2. Stop auto-logout.** System Settings → Privacy & Security → Advanced →
+*Log out automatically after N minutes* → off. Or:
+```bash
+sudo defaults write /Library/Preferences/.GlobalPreferences com.apple.autologout.AutoLogOutDelay -int 0
+```
+
+**3. Keep Tailscale up when logged out.** Tailscale menu → enable *Run
+unattended*, so the tunnel and `tailscale serve` survive logout/reboot.
+
+**4. Run the server as a launchd service** so it starts at boot, restarts on
+crash, and doesn't depend on a login session or an open Terminal. The helper
+script generates and manages the LaunchDaemon — it auto-detects the node path,
+server dir, and run-as user, so there's nothing to hand-edit:
+```bash
+cd server/deploy
+./budgettracking-server.sh install     # set up + start (now and at every boot)
+./budgettracking-server.sh status      # installed? loaded? responding?
+./budgettracking-server.sh logs        # tail stdout/stderr
+```
+Run it from a terminal where `node -v` works (it calls `sudo` only for the
+privileged steps — don't prefix the whole command with sudo). After installing,
+stop any manual `npm start` so two instances don't fight over the port.
+
+**Stopping / removing is one command:**
+```bash
+./budgettracking-server.sh stop        # stop now; stays stopped across reboots
+./budgettracking-server.sh start       # start again
+./budgettracking-server.sh uninstall   # remove the service entirely
+```
+`uninstall` removes only the service; revert the power/login changes with
+`sudo pmset -a sleep 1` and re-enabling auto-logout in Settings.
+
+The service runs as your user (so it can read the `0600` `.env` /
+`.encryption-key`), writes logs to `~/Library/Logs/budgettracking-server*.log`,
+and `launchctl load` may print a deprecation notice on newer macOS — harmless.
+
 ## Optional hardening — close the plaintext LAN port
 
 The Node server still listens on `0.0.0.0:8080`, so the unencrypted LAN path
