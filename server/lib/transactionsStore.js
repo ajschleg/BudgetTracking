@@ -128,7 +128,7 @@ export function validatePatch(raw) {
         break;
       case 'category_id':
         if (v != null && !isUuid(v)) return { error: 'invalid category_id' };
-        patch.category_id = v ?? null;
+        patch.category_id = v ? v.toLowerCase() : null;
         break;
       case 'is_manually_categorized':
         if (!isBoolish(v)) return { error: 'invalid is_manually_categorized' };
@@ -136,7 +136,7 @@ export function validatePatch(raw) {
         break;
       case 'imported_file_id':
         if (v != null && !isUuid(v)) return { error: 'invalid imported_file_id' };
-        patch.imported_file_id = v ?? null;
+        patch.imported_file_id = v ? v.toLowerCase() : null;
         break;
       case 'is_deleted':
         if (!isBoolish(v)) return { error: 'invalid is_deleted' };
@@ -260,14 +260,30 @@ export function applyPatch(rawId, patch) {
   const id = rawId.toLowerCase();
   const row = getByIdStmt.get(id);
   if (!row) return null;
+  // Drop fields that already hold the patched value. A fully no-op patch
+  // MUST NOT bump change_seq: clients re-push rows they merely pulled
+  // (clock skew makes "is this mine or the server's?" ambiguous), and a
+  // seq bump per no-op would make devices ping-pong updates forever.
+  const effective = {};
+  for (const [key, value] of Object.entries(patch)) {
+    const current = row[key];
+    const same =
+      value === current ||
+      (value === null && current === null) ||
+      (typeof value === 'number' && typeof current === 'number' && Math.abs(value - current) < 1e-9);
+    if (!same) effective[key] = value;
+  }
+  if (Object.keys(effective).length === 0) {
+    return toWire(row);
+  }
   // patch keys are guaranteed column-safe: they only ever come from
   // validatePatch's whitelist. Values are bound as parameters.
-  const setClause = Object.keys(patch)
+  const setClause = Object.keys(effective)
     .map((c) => `${c} = @${c}`)
     .join(', ');
   db.prepare(
     `UPDATE transactions SET ${setClause}, updated_at = ${NOW_SQL}, change_seq = @change_seq WHERE id = @id`
-  ).run({ ...patch, change_seq: nextChangeSeq(), id });
+  ).run({ ...effective, change_seq: nextChangeSeq(), id });
   return toWire(getByIdStmt.get(id));
 }
 
