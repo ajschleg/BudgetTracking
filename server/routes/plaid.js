@@ -5,6 +5,7 @@ import db from '../db.js';
 import { markNeedsUpdate, clearNeedsUpdate } from './webhooks.js';
 import { encrypt, decrypt } from '../lib/crypto.js';
 import { logAndSanitize } from '../lib/errors.js';
+import { ingestPlaidResult } from '../lib/transactionsStore.js';
 
 /**
  * Extract the plaintext access_token from a plaid_items row. The value
@@ -470,36 +471,70 @@ async function fetchAndStoreIdentity(accessToken, localItemId) {
   );
 }
 
-// POST /api/transactions/sync — Sync transactions for all linked items
-router.post('/transactions/sync', async (req, res) => {
+/**
+ * Pull the Plaid stream for every linked item and fold it into the
+ * server's transactions table (the source of truth). Each item's result
+ * is ingested inside the loop so a failure on item N doesn't lose the
+ * rows already ingested for items 1..N-1; the per-item Plaid cursor only
+ * advances after that item's pagination completed, keeping ingest and
+ * cursor consistent.
+ *
+ * Also returns the legacy {added, modified, removed} arrays (Plaid sign
+ * convention) so the pre-server-hub app keeps working until the client
+ * switches to /api/transactions/changes. Remove the legacy payload once
+ * the app migration has shipped.
+ *
+ * The in-flight guard keeps the auto-ingest timer and the route from
+ * paginating Plaid concurrently (which could double-ingest one cursor
+ * window). Callers see { busy: true } instead of waiting.
+ */
+let ingestInFlight = false;
+
+export async function runFullIngest(trigger) {
+  if (ingestInFlight) return { busy: true };
+  ingestInFlight = true;
   try {
     const items = db.prepare('SELECT * FROM plaid_items').all();
-    if (items.length === 0) {
-      return res.json({ added: [], modified: [], removed: [] });
-    }
-
-    const allAdded = [];
-    const allModified = [];
-    const allRemoved = [];
+    const legacy = { added: [], modified: [], removed: [] };
+    const totals = { added: 0, modified: 0, removed: 0, skipped: 0 };
 
     for (const item of items) {
       const result = await syncTransactionsForItem(item);
-      allAdded.push(...result.added);
-      allModified.push(...result.modified);
-      allRemoved.push(...result.removed);
+      const counts = ingestPlaidResult(item, result);
+      totals.added += counts.added;
+      totals.modified += counts.modified;
+      totals.removed += counts.removed;
+      totals.skipped += counts.addedSkipped + counts.pendingSkipped;
+      legacy.added.push(...result.added);
+      legacy.modified.push(...result.modified);
+      legacy.removed.push(...result.removed);
     }
 
-    // Clear the webhook-set "new data pending" flag now that the app
+    // Clear the webhook-set "new data pending" flag now that the store
     // has the latest state. Keep initial/historical completion flags.
-    db.prepare(`
-      UPDATE sync_cursors SET pending_update_available = 0
-    `).run();
+    db.prepare('UPDATE sync_cursors SET pending_update_available = 0').run();
 
-    res.json({
-      added: allAdded,
-      modified: allModified,
-      removed: allRemoved,
-    });
+    if (items.length > 0) {
+      console.log(
+        `[ingest:${trigger}] ${items.length} item(s): +${totals.added} ~${totals.modified} -${totals.removed} (${totals.skipped} skipped)`
+      );
+    }
+    return { busy: false, legacy, totals, itemCount: items.length };
+  } finally {
+    ingestInFlight = false;
+  }
+}
+
+// POST /api/transactions/sync — Sync transactions for all linked items.
+// Now ingests into the server store first (source of truth) and still
+// returns the legacy arrays for app versions that apply them locally.
+router.post('/transactions/sync', async (req, res) => {
+  try {
+    const outcome = await runFullIngest('api');
+    if (outcome.busy) {
+      return res.status(409).json({ error: 'A sync is already in progress' });
+    }
+    res.json(outcome.legacy);
   } catch (error) {
     console.error('Error syncing transactions:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to sync transactions' });

@@ -5,10 +5,11 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import rateLimit from 'express-rate-limit';
-import plaidRoutes from './routes/plaid.js';
+import plaidRoutes, { runFullIngest } from './routes/plaid.js';
 import transactionsRoutes from './routes/transactions.js';
 import { createWebhookRouter } from './routes/webhooks.js';
 import { requireAppToken } from './middleware/auth.js';
+import { logAndSanitize } from './lib/errors.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -89,3 +90,23 @@ app.listen(PORT, () => {
   console.log(`Plaid environment: ${process.env.PLAID_ENV || 'sandbox'}`);
   console.log(`Webhook receiver: POST /webhook`);
 });
+
+// Auto-ingest. The production deployment is tailnet-only, so Plaid's
+// webhooks can never reach it — this timer is what actually drives
+// ingestion into the transactions store; transactions accumulate even
+// while every client device is asleep. Plaid bills /transactions/sync
+// per subscribed item, not per call, so a polling cadence costs nothing
+// extra. Set AUTO_SYNC_INTERVAL_MINUTES=0 to disable.
+const autoSyncRaw = process.env.AUTO_SYNC_INTERVAL_MINUTES;
+const autoSyncMinutes = autoSyncRaw == null ? 360 : Number.parseInt(autoSyncRaw, 10);
+if (Number.isInteger(autoSyncMinutes) && autoSyncMinutes > 0) {
+  const run = (trigger) =>
+    runFullIngest(trigger).catch((error) => {
+      logAndSanitize(`auto-ingest:${trigger}`, error);
+    });
+  setTimeout(() => run('boot'), 60 * 1000);
+  setInterval(() => run('timer'), autoSyncMinutes * 60 * 1000);
+  console.log(`Auto-ingest: every ${autoSyncMinutes} min (first run ~60s after boot)`);
+} else {
+  console.log('Auto-ingest: disabled');
+}
