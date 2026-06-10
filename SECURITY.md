@@ -10,6 +10,7 @@ The threats this design defends against, in priority order:
 2. **PII exposure** — someone reads the raw database file and obtains full mailing addresses / identity info from the Identity product response. Mitigated by encrypting `owners_json` at rest.
 3. **Unauthorized API access** — someone discovers the public ngrok URL and calls `/api/*` endpoints directly. Mitigated by `X-App-Token` shared-secret auth.
 4. **Spoofed webhooks** — someone forges a Plaid webhook to confuse the sync state. Mitigated by ES256 JWT signature verification against Plaid's public key.
+5. **Transaction-history exposure** — since the 2026-06 server-hub migration, `plaid.db` also holds the full transaction history (the server is the source of truth; devices sync against it). A stolen DB file therefore reveals spending history. Accepted posture for this single-user deployment: file ACL `0600`, FileVault disk encryption, tailnet-only network exposure, token-gated API — the same protections the app's own `budget.sqlite` already relies on. Column-level encryption was considered and deferred (no third party can reach the file without first defeating those layers).
 
 Out of scope: physical access to the user's unlocked Mac; compromise of the user's iCloud account; Plaid's own systems.
 
@@ -27,6 +28,8 @@ Out of scope: physical access to the user's unlocked Mac; compromise of the user
 | `plaid_accounts.owners_json` | Full identity (addresses etc.) | **AES-256-GCM** |
 | `sync_cursors.cursor` | Opaque Plaid pagination cursor | File ACL 0600 |
 | `webhook_events.payload` | Webhook JSON metadata | File ACL 0600, 30-day retention |
+| `transactions.*` | Full transaction history (source of truth: date, description, merchant, amount, category id, tombstones) | File ACL 0600 + FileVault |
+| `plaid_balance_history.*` | Balance snapshots over time | File ACL 0600 |
 
 The encryption key is 32 random bytes, loaded in this order:
 1. `ENCRYPTION_KEY` env var (32-byte hex, or any passphrase stretched with scrypt)
@@ -42,9 +45,13 @@ Losing the key makes encrypted values unrecoverable. Users would need to call `/
 | `/webhook` | Plaid JWT signature | ES256 + 5-minute max-age + SHA-256 body hash |
 | `/health` | None | Returns only environment + status string |
 
+### Server — backups
+
+`server/backups/plaid-YYYYMMDD.db` snapshots are taken nightly via better-sqlite3's online backup API (consistent under WAL while serving), `0600` inside a `0700` directory, newest 14 retained, gitignored. **Restore:** stop the service (`budgettracking-server.sh stop`), copy a snapshot over `plaid.db`, delete `plaid.db-wal`/`plaid.db-shm`, start the service. Then on each device run "Upload Local History to Server" once more: the idempotent insert API re-pushes anything the snapshot predates, and completing the seed fast-forwards the device's pull cursor to the restored `change_seq` counter. (Without that step a device's cursor can sit *ahead* of the restored counter and silently miss new changes until the counter passes it.)
+
 ### macOS app (`~/Library/Application Support/BudgetTracking/budget.sqlite`)
 
-Transactions, categories, budgets, and cached Plaid account metadata live in a GRDB-managed SQLite file. Protection is **macOS FileVault** (disk-level encryption). The app does not add a second encryption layer on top.
+Transactions (a local cache of the server store since the 2026-06 migration), categories, budgets, and cached Plaid account metadata live in a GRDB-managed SQLite file. Protection is **macOS FileVault** (disk-level encryption). The app does not add a second encryption layer on top.
 
 Bank credentials are **never** seen by the app — they go directly from the user's browser to Plaid.
 

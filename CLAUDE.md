@@ -14,7 +14,7 @@ Any code change that conflicts with `SECURITY_POLICY.md` needs to either update 
 ## Architecture shape
 
 - **macOS app** (SwiftUI + GRDB + CloudKit sync) is the primary UI. Built via `xcodegen generate && xcodebuild …`.
-- **Node.js server** in `/server/` proxies Plaid API calls so Plaid credentials never ship in the client. Keeps access tokens + PII server-side with AES-256-GCM at rest.
+- **Node.js server** in `/server/` proxies Plaid API calls so Plaid credentials never ship in the client. Keeps access tokens + PII server-side with AES-256-GCM at rest. Since 2026-06 it is also the **source of truth for transactions**: it ingests the Plaid stream into its own `transactions` table (auto-ingest timer; tailnet-only, so webhooks can't drive it) and devices pull `/api/transactions/changes` by `change_seq` cursor and push edits via `POST/PATCH /api/transactions*` — the app's GRDB copy is a local cache. Budgets/categories/rules still sync via CloudKit/LAN.
 - **GitHub Pages** in `/docs/` hosts the privacy policy, Apple App Site Association file for universal links, and the OAuth bounce page that redirects banks → `budgettracking://` → the macOS app.
 
 ## Build commands

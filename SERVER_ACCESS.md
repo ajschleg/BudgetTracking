@@ -78,6 +78,26 @@ stays a host whitelist: unknown hosts (bank OAuth pages) still open in the
 system browser, and a remote server configured over plain `http://` is still
 refused by the WebView.
 
+### Transaction store API (server-hub migration, 2026-06)
+
+The server owns the books: it ingests the Plaid stream into its own
+`transactions` table and devices sync against it (all under `/api`, so
+`X-App-Token` + the 60 req/min limit apply):
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/transactions/changes?since=<seq>&limit=<≤500>` | Pull deltas after the device's cursor; returns `next_seq` + `has_more` |
+| `POST /api/transactions` (≤250 rows) | Idempotent bulk create — manual entries, file imports, one-time history seed |
+| `POST /api/transactions/batch` (≤250 ops) | Bulk edits (categorize, tombstone, restore) |
+| `PATCH /api/transactions/:id` | Single edit |
+| `POST /api/transactions/sync` | Trigger a Plaid ingest now (also still returns the legacy arrays for pre-migration app builds) |
+
+Because the tailnet-only server can never receive Plaid webhooks, a
+server-side timer drives ingestion: `AUTO_SYNC_INTERVAL_MINUTES` in
+`server/.env` (default 360 = 6 h, `0` disables, first run ~60 s after
+boot). Nightly DB snapshots land in `server/backups/` (newest 14 kept);
+the restore procedure is documented in `SECURITY.md`.
+
 ## Keeping the server running (sleep, logout, launchd)
 
 If the server Mac sleeps or auto-logs-out, the server stops: **sleep** suspends
