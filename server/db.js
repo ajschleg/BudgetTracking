@@ -169,6 +169,48 @@ addColumnIfMissing('plaid_items', 'needs_update_detected_at', 'TEXT');
   }
 })();
 
+// Transactions — the server is the source of truth for these as of the
+// 2026-06 server-hub migration. Every device pulls deltas via change_seq
+// and pushes edits through /api/transactions/*. Amounts use the APP sign
+// convention (negative = expense); Plaid's opposite convention is negated
+// exactly once at ingestion. item_id/account_id intentionally have NO
+// foreign key: transaction history must survive a bank being unlinked.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS transactions (
+    id TEXT PRIMARY KEY,
+    external_id TEXT UNIQUE,
+    account_id TEXT,
+    item_id TEXT,
+    date TEXT NOT NULL,
+    month TEXT NOT NULL,
+    description TEXT NOT NULL,
+    merchant TEXT,
+    amount REAL NOT NULL,
+    category_id TEXT,
+    is_manually_categorized INTEGER NOT NULL DEFAULT 0,
+    plaid_category TEXT,
+    plaid_category_detailed TEXT,
+    imported_file_id TEXT,
+    source TEXT NOT NULL DEFAULT 'plaid' CHECK (source IN ('plaid','import','manual')),
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    change_seq INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_transactions_change_seq ON transactions(change_seq);
+  CREATE INDEX IF NOT EXISTS idx_transactions_month ON transactions(month);
+  CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+
+  CREATE TABLE IF NOT EXISTS transactions_sync_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    last_seq INTEGER NOT NULL DEFAULT 0
+  );
+`);
+db.prepare(
+  'INSERT OR IGNORE INTO transactions_sync_state (id, last_seq) VALUES (1, 0)'
+).run();
+
 // Retention policy: webhook_events are operational logs, not data the
 // app needs long-term. Keep 30 days for debugging then drop. Runs once
 // on startup and every hour after.
