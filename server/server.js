@@ -6,6 +6,7 @@ import { dirname, join } from 'path';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import rateLimit from 'express-rate-limit';
 import plaidRoutes from './routes/plaid.js';
+import transactionsRoutes from './routes/transactions.js';
 import { createWebhookRouter } from './routes/webhooks.js';
 import { requireAppToken } from './middleware/auth.js';
 
@@ -16,8 +17,11 @@ const PORT = process.env.PORT || 8080;
 app.use(cors());
 
 // Capture raw body for webhook signature verification
-// express.json with verify hook runs before body parsing, preserving the raw bytes
+// express.json with verify hook runs before body parsing, preserving the raw bytes.
+// 1mb limit (up from the 100kb default) so 250-row transaction batches —
+// the seed/import path — fit comfortably while still bounding abuse.
 app.use(express.json({
+  limit: '1mb',
   verify: (req, _res, buf) => {
     req.rawBody = buf.toString('utf8');
   },
@@ -63,6 +67,11 @@ const webhookLimiter = rateLimit({
 // Plaid API routes (app-facing) — protected by bearer token + rate limit.
 // The macOS app sends X-App-Token; other callers get 401.
 app.use('/api', apiLimiter, requireAppToken, plaidRoutes);
+
+// Transaction store routes (app-facing) — same auth + rate limit. Mounted
+// AFTER plaidRoutes so its /transactions/sync and /transactions/status
+// keep matching first; the store router's :id routes are UUID-guarded.
+app.use('/api', apiLimiter, requireAppToken, transactionsRoutes);
 
 // Webhook receiver (Plaid-facing) — unauthenticated at the HTTP layer,
 // but each request is verified via Plaid JWT signature inside the
