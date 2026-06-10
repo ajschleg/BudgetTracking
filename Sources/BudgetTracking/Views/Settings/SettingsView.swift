@@ -15,6 +15,22 @@ struct SettingsView: View {
     @State private var plaidAppToken: String = PlaidService.appToken
     @State private var isTestingConnection = false
     @State private var connectionTestResult: PlaidService.ConnectionTestResult?
+    private var serverSync = ServerTransactionSync.shared
+    @State private var showSeedConfirmation = false
+    @State private var seedRowCount = 0
+
+    init(aiViewModel: InsightsViewModel, ebayAuthManager: EbayAuthManager, plaidManager: PlaidSyncManager) {
+        self.aiViewModel = aiViewModel
+        self.ebayAuthManager = ebayAuthManager
+        self.plaidManager = plaidManager
+    }
+
+    /// Seed is gated on a green Test Connection so the upload can't be
+    /// pointed at a server that will reject every batch.
+    private var isConnectionVerified: Bool {
+        if case .success = connectionTestResult { return true }
+        return false
+    }
 
     var body: some View {
         ScrollView {
@@ -163,6 +179,72 @@ struct SettingsView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                        }
+
+                        Divider()
+
+                        // MARK: Server transaction sync (server-hub)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Server Transaction Sync")
+                                .font(.headline)
+
+                            if serverSync.isEnabled {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "checkmark.icloud")
+                                        .foregroundStyle(.green)
+                                        .font(.caption)
+                                    Text("Enabled — the server is the source of truth. Cursor at \(serverSync.cursor).")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Button("Disable server sync", role: .destructive) {
+                                    serverSync.isEnabled = false
+                                }
+                                .font(.caption)
+                            } else {
+                                Text("Upload this Mac's transaction history once; afterwards every device pulls the same books from the server and edits sync through it.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+
+                                if let progress = serverSync.seedProgress {
+                                    ProgressView(value: progress) {
+                                        Text(serverSync.progress)
+                                            .font(.caption)
+                                    }
+                                } else {
+                                    Button {
+                                        seedRowCount = (try? DatabaseManager.shared
+                                            .fetchAllTransactionsIncludingDeleted().count) ?? 0
+                                        showSeedConfirmation = true
+                                    } label: {
+                                        Label("Upload Local History to Server", systemImage: "icloud.and.arrow.up")
+                                    }
+                                    .disabled(!isConnectionVerified || serverSync.isSyncing)
+
+                                    if !isConnectionVerified {
+                                        Text("Run Test Connection successfully first.")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                if let error = serverSync.errorMessage {
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                        }
+                        .confirmationDialog(
+                            "Upload \(seedRowCount) transactions to the server?",
+                            isPresented: $showSeedConfirmation
+                        ) {
+                            Button("Upload") {
+                                Task { _ = await serverSync.seedAll() }
+                            }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text("One-time migration. The upload is safe to re-run — the server skips anything it already has.")
                         }
 
                     }

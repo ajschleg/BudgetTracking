@@ -61,13 +61,16 @@ final class PlaidSyncManager {
 
     private let plaidService: PlaidTransactionSyncing
     private let database: DatabaseManager
+    private let serverSync: ServerTransactionSync
 
     init(
         plaidService: PlaidTransactionSyncing = PlaidService(),
-        database: DatabaseManager = .shared
+        database: DatabaseManager = .shared,
+        serverSync: ServerTransactionSync = .shared
     ) {
         self.plaidService = plaidService
         self.database = database
+        self.serverSync = serverSync
     }
 
     // MARK: - Account Management
@@ -214,6 +217,11 @@ final class PlaidSyncManager {
                response.items.contains(where: { $0.pending_update_available }),
                !isSyncing {
                 await syncTransactions()
+            } else if serverSync.isEnabled, !isSyncing {
+                // Store mode: the mini's auto-ingest timer accumulates
+                // transactions while this Mac is closed — pull them (and
+                // categorize/push) on launch without requiring a manual sync.
+                try? await storeModeSync()
             }
         } catch {
             // Status is a best-effort signal; don't surface an error
@@ -327,6 +335,17 @@ final class PlaidSyncManager {
 
     // MARK: - Transaction Sync
 
+    /// Two modes, switched by whether the user has seeded the server store:
+    ///
+    /// - Store mode (post-seed): the server already ingested the Plaid
+    ///   stream into its transactions table; the response's legacy arrays
+    ///   are deliberately IGNORED (applying them locally would double-write).
+    ///   We pull deltas, auto-categorize brand-new rows using the Plaid
+    ///   hints that ride along, and push those categorizations back.
+    ///
+    /// - Legacy mode (pre-seed): apply the response locally exactly as
+    ///   before, so the app remains fully functional until the user runs
+    ///   "Upload Local History to Server" in Settings.
     func syncTransactions() async {
         isSyncing = true
         syncProgress = "Syncing transactions..."
@@ -339,8 +358,61 @@ final class PlaidSyncManager {
         }
 
         do {
+            // Either way the server ingests from Plaid during this call.
             let response = try await plaidService.syncTransactions()
 
+            if serverSync.isEnabled {
+                try await storeModeSync()
+            } else {
+                try legacyApply(response)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Store-mode follow-up to a server ingest: pull, categorize, push.
+    private func storeModeSync() async throws {
+        syncProgress = "Pulling changes from server..."
+        guard let pull = await serverSync.pull() else {
+            if let message = serverSync.errorMessage {
+                errorMessage = message
+            }
+            return
+        }
+
+        var categorizedCount = 0
+        if !pull.needsCategorization.isEmpty {
+            syncProgress = "Categorizing \(pull.needsCategorization.count) new transactions..."
+            var transactions = pull.needsCategorization.map(\.transaction)
+            let rules = try database.fetchRules()
+            let categories = try database.fetchCategories()
+            let engine = CategorizationEngine(rules: rules, categories: categories)
+            engine.categorizeAllWithPlaid(
+                transactions: &transactions,
+                plaidPrimaryCategories: pull.needsCategorization.map(\.plaidPrimary),
+                plaidDetailedCategories: pull.needsCategorization.map(\.plaidDetailed)
+            )
+
+            // saveTransactions restamps lastModifiedAt — exactly right
+            // here: the categorization is a local edit that must push.
+            let gained = transactions.filter { $0.categoryId != nil }
+            if !gained.isEmpty {
+                try database.saveTransactions(gained)
+                categorizedCount = gained.count
+                syncProgress = "Pushing categorizations..."
+                await serverSync.push()
+            }
+        }
+
+        lastSyncSummary = Self.formatStoreSyncSummary(
+            pulled: pull.applied,
+            categorized: categorizedCount
+        )
+    }
+
+    /// Pre-seed behavior: fold the legacy sync response into the local DB.
+    private func legacyApply(_ response: PlaidService.SyncResponse) throws {
             // Create a synthetic ImportedFile for this sync batch
             let importedFile = ImportedFile(
                 fileName: "Plaid Sync \(DateHelpers.monthString())",
@@ -449,9 +521,18 @@ final class PlaidSyncManager {
                 removed: removedCount,
                 pending: pendingSkippedCount
             )
-        } catch {
-            errorMessage = error.localizedDescription
+    }
+
+    /// One-line summary for store-mode syncs. Pure for unit testing.
+    static func formatStoreSyncSummary(pulled: Int, categorized: Int) -> String {
+        if pulled == 0 {
+            return "Up to date — no new transactions"
         }
+        var parts = ["\(pulled) pulled from server"]
+        if categorized > 0 {
+            parts.append("\(categorized) auto-categorized")
+        }
+        return parts.joined(separator: " · ")
     }
 
     /// Builds a human-readable one-line summary from sync counters. Pure

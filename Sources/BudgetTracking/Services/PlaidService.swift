@@ -109,6 +109,66 @@ actor PlaidService {
         let item_id: String
     }
 
+    // MARK: - Server Transaction Store (server-hub sync)
+
+    /// One row from the server's transactions table — the source of truth.
+    /// Amounts are already in the app's sign convention (negative = expense);
+    /// the server negated Plaid's convention once at ingestion.
+    struct ServerTransactionChange: Codable {
+        let id: String
+        let external_id: String?
+        let account_id: String?
+        let item_id: String?
+        let date: String          // "YYYY-MM-DD"
+        let month: String         // "YYYY-MM"
+        let description: String
+        let merchant: String?
+        let amount: Double        // app sign convention
+        let category_id: String?
+        let is_manually_categorized: Bool
+        let plaid_category: String?
+        let plaid_category_detailed: String?
+        let imported_file_id: String?
+        let source: String        // plaid | import | manual
+        let is_deleted: Bool
+        let updated_at: String    // server ISO-8601 ms timestamp — LWW authority
+        let change_seq: Int
+    }
+
+    struct ChangesResponse: Codable {
+        let changes: [ServerTransactionChange]
+        let next_seq: Int
+        let has_more: Bool
+    }
+
+    /// Row shape for POST /api/transactions (seed, manual entries, imports).
+    /// The server derives month from date and skips ids/external_ids it has
+    /// already seen, so retries and overlapping seeds are always safe.
+    struct ServerTransactionUpload: Codable {
+        let id: String
+        let date: String
+        let description: String
+        let merchant: String?
+        let amount: Double
+        let category_id: String?
+        let is_manually_categorized: Bool
+        let external_id: String?
+        let imported_file_id: String?
+        let source: String
+        let is_deleted: Bool
+    }
+
+    struct CreateTransactionsResponse: Codable {
+        let inserted: Int
+        let skipped: Int
+        let max_change_seq: Int
+    }
+
+    struct BatchPatchResponse: Codable {
+        let updated: Int
+        let not_found: [String]
+    }
+
     struct SuccessResponse: Codable {
         let success: Bool
     }
@@ -313,6 +373,31 @@ actor PlaidService {
         return try await post(path: "/api/transactions/sync")
     }
 
+    // MARK: - Server transaction store calls (server-hub sync)
+
+    /// Pull one page of changes after `since`. Callers loop while
+    /// `has_more`, persisting `next_seq` as their cursor after each page.
+    func fetchTransactionChanges(since: Int, limit: Int = 500) async throws -> ChangesResponse {
+        try await get(path: "/api/transactions/changes",
+                      query: [URLQueryItem(name: "since", value: String(since)),
+                              URLQueryItem(name: "limit", value: String(limit))])
+    }
+
+    /// Idempotent bulk create (max 250 per call — the server's cap).
+    func createTransactions(_ rows: [ServerTransactionUpload]) async throws -> CreateTransactionsResponse {
+        try await postEncodable(path: "/api/transactions", body: ["transactions": rows])
+    }
+
+    /// Bulk field edits: [{id, patch}]. Patches are dictionaries so that
+    /// JSON null (clear this field) is expressible — NSNull encodes as
+    /// null, which Codable optionals cannot distinguish from "absent".
+    func batchPatchTransactions(_ ops: [(id: String, patch: [String: Any])]) async throws -> BatchPatchResponse {
+        let body: [String: Any] = [
+            "ops": ops.map { ["id": $0.id, "patch": $0.patch] },
+        ]
+        return try await post(path: "/api/transactions/batch", body: body)
+    }
+
     func fetchAccounts() async throws -> [AccountListItem] {
         let response: AccountsResponse = try await get(path: "/api/accounts")
         return response.accounts
@@ -380,6 +465,35 @@ actor PlaidService {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         addAuth(&request)
+        return try await execute(request)
+    }
+
+    /// GET with query items. appendingPathComponent percent-encodes "?",
+    /// so query strings must go through URLComponents, never the path.
+    private func get<T: Codable>(path: String, query: [URLQueryItem]) async throws -> T {
+        guard var components = URLComponents(url: baseURL.appendingPathComponent(path),
+                                             resolvingAgainstBaseURL: false) else {
+            throw PlaidServiceError.invalidResponse
+        }
+        components.queryItems = query
+        guard let url = components.url else { throw PlaidServiceError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        addAuth(&request)
+        return try await execute(request)
+    }
+
+    /// POST with an Encodable body (arrays of typed rows), where the
+    /// dictionary-based post() helper would force lossy [String: Any].
+    private func postEncodable<Body: Encodable, T: Codable>(path: String, body: Body) async throws -> T {
+        let url = baseURL.appendingPathComponent(path)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        addAuth(&request)
+        request.httpBody = try JSONEncoder().encode(body)
         return try await execute(request)
     }
 

@@ -170,22 +170,10 @@ final class SyncEngine: @unchecked Sendable {
                 }
             }
 
-            // Transactions
-            let transactions = try DatabaseManager.shared.fetchPendingChanges(
-                type: Transaction.self, since: since
-            )
-            for txn in transactions {
-                let name = txn.cloudKitRecordName ?? txn.id.uuidString
-                if txn.isDeleted {
-                    recordZoneChanges.append(.deleteRecord(
-                        CKRecord.ID(recordName: name, zoneID: SyncConstants.zoneID)
-                    ))
-                } else {
-                    recordZoneChanges.append(.saveRecord(
-                        CKRecord.ID(recordName: name, zoneID: SyncConstants.zoneID)
-                    ))
-                }
-            }
+            // Transactions intentionally absent: server-authoritative since
+            // the 2026-06 server-hub migration (SECURITY_POLICY §10). They
+            // pull/push against /api/transactions/* via ServerTransactionSync
+            // — exactly one sync authority per record type.
 
             // Imported files
             let files = try DatabaseManager.shared.fetchPendingChanges(
@@ -486,19 +474,10 @@ extension SyncEngine: CKSyncEngineDelegate {
                 return RecordConverter.ckRecord(from: cat)
             }
 
-            if let txn = try DatabaseManager.shared.dbQueue.read({ db in
-                if let uuid {
-                    return try Transaction
-                        .filter(sql: "cloudKitRecordName = ? OR id = ?",
-                                arguments: [recordName, uuid])
-                        .fetchOne(db)
-                }
-                return try Transaction
-                    .filter(sql: "cloudKitRecordName = ?", arguments: [recordName])
-                    .fetchOne(db)
-            }) {
-                return RecordConverter.ckRecord(from: txn)
-            }
+            // Transactions are never materialized for CloudKit anymore
+            // (server-authoritative). A stale pending save from a
+            // pre-migration launch resolves to nil here and the engine
+            // drops it — exactly what we want.
 
             if let file = try DatabaseManager.shared.dbQueue.read({ db in
                 if let uuid {
@@ -572,9 +551,10 @@ extension SyncEngine: CKSyncEngineDelegate {
                     try DatabaseManager.shared.upsertFromCloud(category)
                 }
             case SyncConstants.RecordType.transaction:
-                if let transaction = RecordConverter.transaction(from: record) {
-                    try DatabaseManager.shared.upsertFromCloud(transaction)
-                }
+                // Server-authoritative: ignore incoming CloudKit transaction
+                // records (stale devices, legacy zone contents) so CloudKit
+                // can never fight the server store.
+                logger.debug("Ignoring CK transaction record \(record.recordID) — server-authoritative")
             case SyncConstants.RecordType.importedFile:
                 if let file = RecordConverter.importedFile(from: record) {
                     try DatabaseManager.shared.upsertFromCloud(file)
@@ -625,7 +605,10 @@ extension SyncEngine: CKSyncEngineDelegate {
         case SyncConstants.RecordType.budgetCategory:
             table = "budgetCategory"
         case SyncConstants.RecordType.transaction:
-            table = "transaction"
+            // Server-authoritative: a CloudKit deletion must not touch the
+            // local cache; tombstones arrive from the server instead.
+            logger.debug("Ignoring CK transaction deletion \(recordID) — server-authoritative")
+            return
         case SyncConstants.RecordType.importedFile:
             table = "importedFile"
         case SyncConstants.RecordType.categorizationRule:

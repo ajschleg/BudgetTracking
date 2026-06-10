@@ -807,14 +807,9 @@ final class LANSyncEngine: @unchecked Sendable {
             }
             logger.debug("Gathered \(categories.count) budgetCategory records since \(sinceDate)")
 
-            let transactions = try DatabaseManager.shared.fetchAllRecords(
-                type: Transaction.self, since: sinceDate
-            )
-            for txn in transactions {
-                append(txn, tableName: "transaction",
-                       isDeleted: txn.isDeleted, lastModifiedAt: txn.lastModifiedAt)
-            }
-            logger.debug("Gathered \(transactions.count) transaction records since \(sinceDate)")
+            // Transactions intentionally absent: server-authoritative since
+            // the 2026-06 server-hub migration — devices converge through
+            // /api/transactions/* (ServerTransactionSync), never over LAN.
 
             let files = try DatabaseManager.shared.fetchAllRecords(
                 type: ImportedFile.self, since: sinceDate
@@ -962,10 +957,10 @@ final class LANSyncEngine: @unchecked Sendable {
                     }
 
                 case "transaction":
-                    let model = try decoder.decode(Transaction.self, from: record.jsonData)
-                    if try DatabaseManager.shared.upsertFromPeer(model) {
-                        appliedCount += 1
-                    }
+                    // Server-authoritative: a pre-migration peer may still
+                    // send transactions; ignore them so LAN sync can never
+                    // fight the server store.
+                    logger.debug("Ignoring LAN transaction record \(record.recordId) — server-authoritative")
 
                 case "importedFile":
                     let model = try decoder.decode(ImportedFile.self, from: record.jsonData)
@@ -1071,7 +1066,7 @@ final class LANSyncEngine: @unchecked Sendable {
         do {
             let db = DatabaseManager.shared
             if !(try db.fetchAllRecords(type: BudgetCategory.self, since: sinceDate)).isEmpty { return true }
-            if !(try db.fetchAllRecords(type: Transaction.self, since: sinceDate)).isEmpty { return true }
+            // Transaction deliberately omitted — server-authoritative, not LAN-synced.
             if !(try db.fetchAllRecords(type: ImportedFile.self, since: sinceDate)).isEmpty { return true }
             if !(try db.fetchAllRecords(type: CategorizationRule.self, since: sinceDate)).isEmpty { return true }
             if !(try db.fetchAllRecords(type: MonthlySnapshot.self, since: sinceDate)).isEmpty { return true }
