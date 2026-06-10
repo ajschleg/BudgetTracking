@@ -10,6 +10,7 @@ import transactionsRoutes from './routes/transactions.js';
 import { createWebhookRouter } from './routes/webhooks.js';
 import { requireAppToken } from './middleware/auth.js';
 import { logAndSanitize } from './lib/errors.js';
+import { runBackupIfDue } from './lib/backup.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -110,3 +111,12 @@ if (Number.isInteger(autoSyncMinutes) && autoSyncMinutes > 0) {
 } else {
   console.log('Auto-ingest: disabled');
 }
+
+// Nightly DB backup — hourly check, fires once per UTC day. The store
+// is now the one copy of the books that matters; see lib/backup.js.
+const backup = () =>
+  runBackupIfDue().catch((error) => {
+    logAndSanitize('backup', error);
+  });
+backup();
+setInterval(backup, 60 * 60 * 1000);

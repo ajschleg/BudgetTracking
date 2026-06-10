@@ -15,6 +15,7 @@ server/plaid.db
 server/plaid.db-shm
 server/plaid.db-wal
 server/.encryption-key
+server/backups/
 
 # Duplicate Xcode project created manually (not used)
 BudgetTracking/BudgetTracking.xcodeproj/
