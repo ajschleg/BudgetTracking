@@ -70,7 +70,7 @@ Rules that future code changes must follow. Treat this as a gate: a change that 
 ## 7. WKWebView & URL schemes
 
 - WKWebView configuration MUST NOT enable `allowFileAccessFromFileURLs`, `allowUniversalAccessFromFileURLs`, or similar file-access privileges.
-- WKWebView navigation MUST whitelist hosts (`localhost`, `cdn.plaid.com`, any domain under `*.plaid.com`, configured ngrok/GitHub Pages). External URLs MUST open in the system browser via `NSWorkspace.shared.open`.
+- WKWebView navigation MUST whitelist hosts (`localhost`, `cdn.plaid.com`, any domain under `*.plaid.com`, plus the exact host of the user-configured Plaid Server URL — the latter **only when that URL uses `https`**, so a remote server never opens a plaintext WebView path; the URL is a non-sensitive preference that already controls where every `/api/*` call goes, so trusting its host grants nothing new). External URLs MUST open in the system browser via `NSWorkspace.shared.open`. The check lives in `PlaidLinkWebView.isHostAllowedInWebView` and is pinned by `SecurityPolicyTests`.
 - The `budgettracking://` URL scheme handler MUST validate the host before acting on the URL (`plaid-oauth`, `plaid-oauth-success`, `ebay`, etc.). Unknown hosts are ignored.
 
 ---
@@ -146,3 +146,4 @@ Plaid requirements we intentionally *don't* implement (and why):
 
 - 2026-04-17: Initial policy alongside server-side encryption, Keychain migration, webhook auth, rate limiting, XSS fixes, and bulk-delete confirmation rail.
 - 2026-04-17: Added Plaid compliance matrix (§12) and handlers for `USER_ACCOUNT_REVOKED` / `USER_PERMISSION_REVOKED`.
+- 2026-06-10: §7 — WKWebView allow-list extended to the host of the user-configured Plaid Server URL (https-only) so bank linking / OAuth re-auth work against a remote server (e.g. the Tailscale HTTPS name). Still a whitelist; unknown hosts still open in the system browser.

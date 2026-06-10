@@ -60,23 +60,24 @@ final class SecurityPolicyTests: XCTestCase {
     /// 127.0.0.1) plus Plaid's CDN (cdn.plaid.com plus any *.plaid.com
     /// subdomain). Everything else must be rejected by the in-WebView
     /// check (the navigation delegate then opens it in the system
-    /// browser).
+    /// browser). The tests pass `configuredServerURL:` explicitly so
+    /// they stay deterministic regardless of the machine's settings.
     func testWebViewAllowsLocalServerAndPlaidDomains() {
-        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("localhost"))
-        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("127.0.0.1"))
-        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("cdn.plaid.com"))
-        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("link.plaid.com"))
-        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("api.plaid.com"))
-        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("sandbox.plaid.com"))
+        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("localhost", configuredServerURL: nil))
+        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("127.0.0.1", configuredServerURL: nil))
+        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("cdn.plaid.com", configuredServerURL: nil))
+        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("link.plaid.com", configuredServerURL: nil))
+        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("api.plaid.com", configuredServerURL: nil))
+        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView("sandbox.plaid.com", configuredServerURL: nil))
     }
 
     func testWebViewRejectsUnrelatedHosts() {
         // Bank OAuth pages must NOT load inside the embedded WebView,
         // they must open in the system browser.
-        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("chase.com"))
-        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("oauth.chase.com"))
-        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("evil.com"))
-        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView(""))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("chase.com", configuredServerURL: nil))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("oauth.chase.com", configuredServerURL: nil))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("evil.com", configuredServerURL: nil))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("", configuredServerURL: nil))
     }
 
     /// A host that ends with ".plaid.com" but is actually a different
@@ -84,9 +85,71 @@ final class SecurityPolicyTests: XCTestCase {
     /// Suffix matching works here because hasSuffix(".plaid.com") only
     /// matches if the string actually ends there.
     func testWebViewSuffixMatchIsAnchoredToEndOfHost() {
-        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("evil.plaid.com.attacker.io"))
-        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("plaid.com.attacker.io"))
-        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("notplaid.com"))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("evil.plaid.com.attacker.io", configuredServerURL: nil))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("plaid.com.attacker.io", configuredServerURL: nil))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView("notplaid.com", configuredServerURL: nil))
+    }
+
+    /// SECURITY_POLICY §7: the host of the user-configured Plaid server
+    /// URL is allowed in the WebView so bank linking works against a
+    /// remote server (e.g. a Tailscale HTTPS name) — but only when that
+    /// URL uses https.
+    func testWebViewAllowsConfiguredHTTPSServerHost() {
+        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView(
+            "austins-mac-mini.tail1d8ec6.ts.net",
+            configuredServerURL: "https://austins-mac-mini.tail1d8ec6.ts.net"
+        ))
+        // An explicit port or trailing path on the configured URL does
+        // not change the host comparison.
+        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView(
+            "my-server.example.ts.net",
+            configuredServerURL: "https://my-server.example.ts.net:8443/"
+        ))
+        // Hostnames are case-insensitive on both sides.
+        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView(
+            "My-Server.Example.TS.NET",
+            configuredServerURL: "HTTPS://my-server.example.ts.net"
+        ))
+    }
+
+    /// https-only: a plaintext remote server URL earns no WebView
+    /// allowance (loopback is already covered by the exact list).
+    func testWebViewRejectsConfiguredPlaintextServerHost() {
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView(
+            "austins-mac-mini.tail1d8ec6.ts.net",
+            configuredServerURL: "http://austins-mac-mini.tail1d8ec6.ts.net"
+        ))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView(
+            "192.168.1.50",
+            configuredServerURL: "http://192.168.1.50:8080"
+        ))
+    }
+
+    /// The configured-server allowance covers exactly that host — no
+    /// subdomains, no other hosts, and a malformed configured URL
+    /// must fail closed.
+    func testWebViewConfiguredServerAllowanceIsExactHostOnly() {
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView(
+            "sub.my-server.ts.net",
+            configuredServerURL: "https://my-server.ts.net"
+        ))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView(
+            "evil.com",
+            configuredServerURL: "https://my-server.ts.net"
+        ))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView(
+            "evil.com",
+            configuredServerURL: "not a url"
+        ))
+        XCTAssertFalse(PlaidLinkWebView.isHostAllowedInWebView(
+            "evil.com",
+            configuredServerURL: ""
+        ))
+        // The base allow-list still applies whatever the configured value.
+        XCTAssertTrue(PlaidLinkWebView.isHostAllowedInWebView(
+            "localhost",
+            configuredServerURL: "not a url"
+        ))
     }
 
     // MARK: - §7 budgettracking:// URL scheme handler

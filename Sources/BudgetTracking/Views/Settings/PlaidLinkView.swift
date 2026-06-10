@@ -79,14 +79,40 @@ struct PlaidLinkWebView: NSViewRepresentable {
     let onSuccess: () -> Void
 
     /// Returns true if `host` is on the WKWebView navigation allow-list.
-    /// Allowed: our local server (localhost / 127.0.0.1) and Plaid's CDN
-    /// (cdn.plaid.com plus any subdomain of plaid.com). Everything else
-    /// must be opened in the system browser. Public + static so unit
-    /// tests can pin the policy down without spinning up a WebView.
-    static func isHostAllowedInWebView(_ host: String) -> Bool {
+    /// Allowed: our local server (localhost / 127.0.0.1), Plaid's CDN
+    /// (cdn.plaid.com plus any subdomain of plaid.com), and the exact
+    /// host of the user-configured Plaid server URL — the latter only
+    /// when that URL uses `https`, so pointing the app at a remote
+    /// server never opens a plaintext WebView path. Everything else
+    /// must be opened in the system browser (SECURITY_POLICY §7).
+    /// Public + static so unit tests can pin the policy down without
+    /// spinning up a WebView.
+    static func isHostAllowedInWebView(_ host: String, configuredServerURL: String?) -> Bool {
+        let candidate = host.lowercased()
         let exactAllowed: Set<String> = ["localhost", "127.0.0.1", "cdn.plaid.com"]
-        if exactAllowed.contains(host) { return true }
-        return host.hasSuffix(".plaid.com")
+        if exactAllowed.contains(candidate) { return true }
+        if candidate.hasSuffix(".plaid.com") { return true }
+        if let configured = configuredServerURL,
+           let configuredURL = URL(string: configured),
+           configuredURL.scheme?.lowercased() == "https",
+           let configuredHost = configuredURL.host?.lowercased(),
+           candidate == configuredHost {
+            return true
+        }
+        return false
+    }
+
+    /// Production entry point: checks `host` against the allow-list
+    /// using the Plaid server URL currently set in Settings. The URL
+    /// is a non-sensitive preference (SECURITY_POLICY §1) and already
+    /// controls where every /api/* call goes, so trusting its host
+    /// here grants nothing an attacker with UserDefaults access
+    /// wouldn't already have.
+    static func isHostAllowedInWebView(_ host: String) -> Bool {
+        isHostAllowedInWebView(
+            host,
+            configuredServerURL: UserDefaults.standard.string(forKey: "plaidServerURL")
+        )
     }
 
     func makeNSView(context: Context) -> WKWebView {

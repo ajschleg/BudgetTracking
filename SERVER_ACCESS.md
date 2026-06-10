@@ -71,10 +71,12 @@ curl https://<machine>.<tailnet>.ts.net/health    # valid cert ⇒ no -k needed
 | Action | Status | Notes |
 | --- | --- | --- |
 | Test Connection, Sync Transactions, Refresh Balances, accounts/items, disconnect | ✅ works | plain `URLSession` calls to the `https://` Server URL |
-| Linking a new bank, OAuth re-auth, Update mode | ⚠️ needs an allowlist change | these load pages in a `WKWebView` whose host allowlist is localhost-only (`PlaidLinkView.isHostAllowedInWebView`, `SECURITY_POLICY` §7). Add the configured server host to it to link banks over the tailnet name. |
+| Linking a new bank, OAuth re-auth, Update mode | ✅ works | these load pages in a `WKWebView` whose host allowlist (`PlaidLinkWebView.isHostAllowedInWebView`, `SECURITY_POLICY` §7) includes the configured Server URL's host **when that URL is `https://`** — true for the tailnet name. A plaintext remote URL gets no WebView allowance. |
 
-So day-to-day syncing works immediately; only the link / re-auth web flow needs
-the allowlist widened for a non-localhost host.
+Everything above works over the tailnet name. The link / re-auth web flow
+stays a host whitelist: unknown hosts (bank OAuth pages) still open in the
+system browser, and a remote server configured over plain `http://` is still
+refused by the WebView.
 
 ## Keeping the server running (sleep, logout, launchd)
 
