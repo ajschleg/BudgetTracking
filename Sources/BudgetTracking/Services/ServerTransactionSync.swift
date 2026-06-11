@@ -102,6 +102,16 @@ final class ServerTransactionSync {
         pushDebounceTask = nil
     }
 
+    /// Rewind for a full re-sync (Settings → Re-sync, and the restore
+    /// procedure in SECURITY.md): next pull re-walks the entire feed and
+    /// next push re-offers everything — both idempotent (insert-skip,
+    /// seq-silent no-op patches, LWW apply).
+    func resetForFullResync() {
+        cursor = 0
+        lastPushedAt = .distantPast
+        appliedStamps.removeAll()
+    }
+
     deinit {
         if let changeObserver {
             NotificationCenter.default.removeObserver(changeObserver)

@@ -98,6 +98,13 @@ final class ServerRecordSync {
         pushDebounceTask = nil
     }
 
+    /// Rewind for a full re-sync; see ServerTransactionSync.resetForFullResync.
+    func resetForFullResync() {
+        cursor = 0
+        lastPushedAt = .distantPast
+        appliedStamps.removeAll()
+    }
+
     func schedulePush(after seconds: Double = 3) {
         pushDebounceTask?.cancel()
         pushDebounceTask = Task { [weak self] in

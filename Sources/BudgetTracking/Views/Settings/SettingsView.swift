@@ -5,6 +5,7 @@ struct SettingsView: View {
     var ebayAuthManager: EbayAuthManager
     @Bindable var plaidManager: PlaidSyncManager
     @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
+    @AppStorage("isEditingLocked") private var isEditingLocked = true
     @State private var ebayClientId: String = ""
     @State private var ebayClientSecret: String = ""
     @State private var ebayRuName: String = ""
@@ -17,6 +18,7 @@ struct SettingsView: View {
     @State private var connectionTestResult: PlaidService.ConnectionTestResult?
     private var serverSync = ServerTransactionSync.shared
     @State private var showSeedConfirmation = false
+    @State private var showResyncConfirmation = false
     @State private var seedRowCount = 0
 
     init(aiViewModel: InsightsViewModel, ebayAuthManager: EbayAuthManager, plaidManager: PlaidSyncManager) {
@@ -35,7 +37,7 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // MARK: - Pages
+                // MARK: - Interface
                 GroupBox {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Income Page", isOn: $isIncomePageEnabled)
@@ -43,10 +45,18 @@ struct SettingsView: View {
                         Text("Show the Income page in the sidebar with Employment and Side Hustle tabs.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+
+                        Divider()
+
+                        Toggle("Lock Editing", isOn: $isEditingLocked)
+
+                        Text("Prevents accidental changes to budgets, categories, and transaction assignments. Also toggleable from the toolbar lock icon.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(8)
                 } label: {
-                    Label("Pages", systemImage: "sidebar.left")
+                    Label("Interface", systemImage: "sidebar.left")
                 }
 
                 // MARK: - AI Configuration
@@ -197,6 +207,13 @@ struct SettingsView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
+                                Button {
+                                    showResyncConfirmation = true
+                                } label: {
+                                    Label("Re-sync from server", systemImage: "arrow.counterclockwise.icloud")
+                                }
+                                .font(.caption)
+
                                 Button("Disable server sync", role: .destructive) {
                                     serverSync.isEnabled = false
                                 }
@@ -236,6 +253,24 @@ struct SettingsView: View {
                             }
                         }
                         .confirmationDialog(
+                            "Re-sync everything from the server?",
+                            isPresented: $showResyncConfirmation
+                        ) {
+                            Button("Re-sync") {
+                                ServerTransactionSync.shared.resetForFullResync()
+                                ServerRecordSync.shared.resetForFullResync()
+                                Task {
+                                    _ = await ServerRecordSync.shared.pull()
+                                    _ = await ServerTransactionSync.shared.pull()
+                                    await ServerRecordSync.shared.push()
+                                    await ServerTransactionSync.shared.push()
+                                }
+                            }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text("Re-walks the full server feed and re-offers local data. Idempotent and safe — use after restoring a server backup or if this Mac ever looks out of sync.")
+                        }
+                        .confirmationDialog(
                             "Upload \(seedRowCount) transactions to the server?",
                             isPresented: $showSeedConfirmation
                         ) {
@@ -250,7 +285,7 @@ struct SettingsView: View {
                     }
                     .padding(8)
                 } label: {
-                    Label("Plaid Server", systemImage: "server.rack")
+                    Label("Bank Connection", systemImage: "server.rack")
                 }
 
                 // MARK: - eBay Configuration
