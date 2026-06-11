@@ -98,9 +98,6 @@ struct DashboardView: View {
             viewModel.load(month: newMonth)
             aiViewModel.load(month: newMonth)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
-            viewModel.load(month: selectedMonth)
-        }
         .sheet(item: $editingCategory) { category in
             CategoryEditorView(
                 category: category,

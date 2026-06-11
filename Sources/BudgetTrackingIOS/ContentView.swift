@@ -1,12 +1,9 @@
 import SwiftUI
 
 struct ContentView: View {
-    let syncEngine: SyncEngine
-    let lanSyncEngine: LANSyncEngine
-
     var body: some View {
         TabView {
-            DashboardView(syncEngine: syncEngine, lanSyncEngine: lanSyncEngine)
+            DashboardView()
                 .tabItem { Label("Dashboard", systemImage: "chart.bar.fill") }
 
             TransactionsView()
@@ -15,7 +12,7 @@ struct ContentView: View {
             BudgetView()
                 .tabItem { Label("Budget", systemImage: "folder.fill") }
 
-            SettingsView(syncEngine: syncEngine, lanSyncEngine: lanSyncEngine)
+            SettingsView()
                 .tabItem { Label("Settings", systemImage: "gear") }
         }
     }

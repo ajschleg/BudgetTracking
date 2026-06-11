@@ -187,9 +187,6 @@ struct CategoriesSettingsView: View {
             viewModel.load()
             aiViewModel.loadIncomeEstimate()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
-            viewModel.load()
-        }
         .sheet(isPresented: $showAddCategory) {
             CategoryEditorView(
                 categories: viewModel.categories,

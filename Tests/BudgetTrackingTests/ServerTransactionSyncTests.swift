@@ -230,9 +230,12 @@ final class ServerTransactionSyncTests: XCTestCase {
     // MARK: - Push
 
     func testPushSkipsRoundTrippedRowsButSendsLocalEdits() async throws {
-        // Arrange: one row arrives via pull (round-trip candidate).
+        // Arrange: one row arrives via pull (round-trip candidate). The
+        // server stamp sits minutes in the past so the local edit below can
+        // never land within the 0.5ms round-trip tolerance (flaked once on
+        // a fast suite run when both derived from "now").
         let pulledId = UUID()
-        mock.pages = [page([Self.change(id: pulledId, seq: 10)], nextSeq: 10, hasMore: false)]
+        mock.pages = [page([Self.change(id: pulledId, updatedAt: Self.stamp(secondsAgo: 120), seq: 10)], nextSeq: 10, hasMore: false)]
         _ = await sync.pull()
 
         // Push right away: the only "dirty" row is the round-trip — no calls.
@@ -248,6 +251,7 @@ final class ServerTransactionSyncTests: XCTestCase {
 
         await sync.push()
 
+        XCTAssertNil(sync.errorMessage, "push error: \(sync.errorMessage ?? "")")
         XCTAssertEqual(mock.createdBatches.count, 1, "edited row inserts first (server skips known ids)")
         XCTAssertEqual(mock.patchedBatches.count, 1)
         let op = try XCTUnwrap(mock.patchedBatches.first?.first)

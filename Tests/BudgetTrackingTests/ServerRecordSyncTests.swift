@@ -42,6 +42,7 @@ final class ServerRecordSyncTests: XCTestCase {
 
     override func tearDown() {
         sync.cancelPendingPush()
+        XCTAssertNil(sync.errorMessage, "record sync error: \(sync.errorMessage ?? "")")
     }
 
     // MARK: - Helpers

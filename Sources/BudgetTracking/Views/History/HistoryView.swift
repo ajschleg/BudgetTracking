@@ -90,9 +90,6 @@ struct HistoryView: View {
             viewModel.load()
             aiViewModel.load(month: selectedMonth)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
-            viewModel.load()
-        }
     }
 }
 

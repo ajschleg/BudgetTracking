@@ -10,9 +10,6 @@ struct ContentView: View {
     @AppStorage("isIncomePageEnabled") private var isIncomePageEnabled = false
     @AppStorage("isEditingLocked") private var isEditingLocked = true
 
-    let syncEngine: SyncEngine
-    let shareManager: ShareManager
-    let lanSyncEngine: LANSyncEngine
     let ebayAuthManager: EbayAuthManager
     @Bindable var plaidManager: PlaidSyncManager
 
@@ -31,38 +28,6 @@ struct ContentView: View {
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 200)
             .listStyle(.sidebar)
-
-            // Sync status indicators at bottom of sidebar
-            Spacer()
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    cloudSyncStatusDot
-                    Text(cloudSyncStatusLabel)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Button {
-                    lanSyncEngine.syncNow()
-                } label: {
-                    HStack(spacing: 6) {
-                        lanSyncStatusDot
-                        Text(lanSyncStatusLabel)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        if lanSyncEngine.connectedPeerName != nil {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(lanSyncEngine.connectedPeerName == nil)
-                .help(lanSyncEngine.connectedPeerName != nil ? "Sync now" : "No peer connected")
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
         } detail: {
             VStack(spacing: 0) {
                 // Global banner for any Plaid item needing update mode.
@@ -90,8 +55,6 @@ struct ContentView: View {
                     HistoryView(selectedMonth: $selectedMonth, selectedItem: $selectedItem, aiViewModel: insightsViewModel)
                 case .insights:
                     InsightsView(selectedMonth: $selectedMonth, viewModel: insightsViewModel)
-                case .sync:
-                    SyncSettingsView(syncEngine: syncEngine, shareManager: shareManager, lanSyncEngine: lanSyncEngine)
                 case .settings:
                     SettingsView(aiViewModel: insightsViewModel, ebayAuthManager: ebayAuthManager, plaidManager: plaidManager)
                 case nil:
@@ -115,23 +78,6 @@ struct ContentView: View {
                 .help(isEditingLocked
                       ? "Editing is locked — click to unlock and allow changes to budgets, categories, and transaction assignments"
                       : "Editing is unlocked — click to lock and prevent accidental changes")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    lanSyncEngine.syncNow()
-                } label: {
-                    HStack(spacing: 4) {
-                        lanSyncToolbarIcon
-                        if case .syncing(let name) = lanSyncEngine.status {
-                            Text("Syncing with \(name)…")
-                                .font(.caption)
-                        } else {
-                            Text("Sync")
-                        }
-                    }
-                }
-                .disabled(lanSyncEngine.connectedPeerName == nil)
-                .help(lanSyncToolbarHelp)
             }
         }
         // Plaid OAuth completion sheet — presented when app receives OAuth redirect
@@ -171,113 +117,6 @@ struct ContentView: View {
                 try? await Task.sleep(for: .seconds(30))
                 await plaidManager.refreshUpdateModeStatus()
             }
-        }
-    }
-
-    // MARK: - Toolbar Sync Button
-
-    /// True while a LAN sync transfer is in flight — drives the spinning
-    /// animation on the toolbar icon.
-    private var isLANSyncActive: Bool {
-        if case .syncing = lanSyncEngine.status { return true }
-        return false
-    }
-
-    private var lanSyncIconColor: Color {
-        switch lanSyncEngine.status {
-        case .syncing: return .blue
-        case .connected: return .green
-        case .searching: return .orange
-        default: return .secondary
-        }
-    }
-
-    private var lanSyncToolbarIcon: some View {
-        Image(systemName: "arrow.triangle.2.circlepath")
-            .foregroundStyle(lanSyncIconColor)
-            .spinning(isLANSyncActive)
-    }
-
-    private var lanSyncToolbarHelp: String {
-        if let peer = lanSyncEngine.connectedPeerName {
-            return "Sync transactions, categories, and budgets now with \(peer)"
-        }
-        switch lanSyncEngine.status {
-        case .disabled:
-            return "LAN sync is disabled — enable it in Sync settings to share data with another Mac on this network"
-        case .searching:
-            return "Searching for another Mac on this network running BudgetTracking…"
-        default:
-            return "No peer connected — open this app on another Mac on the same network to enable LAN sync"
-        }
-    }
-
-    // MARK: - Cloud Sync Status
-
-    @ViewBuilder
-    private var cloudSyncStatusDot: some View {
-        switch syncEngine.status {
-        case .idle:
-            Image(systemName: "icloud.fill")
-                .font(.system(size: 10))
-                .foregroundStyle(.green)
-        case .syncing:
-            ProgressView()
-                .controlSize(.mini)
-        case .error:
-            Image(systemName: "icloud.slash")
-                .font(.system(size: 10))
-                .foregroundStyle(.red)
-        case .noAccount:
-            Image(systemName: "icloud.slash")
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var cloudSyncStatusLabel: String {
-        switch syncEngine.status {
-        case .idle: return "iCloud synced"
-        case .syncing: return "iCloud syncing..."
-        case .error: return "iCloud error"
-        case .noAccount: return "No iCloud"
-        }
-    }
-
-    // MARK: - LAN Sync Status
-
-    @ViewBuilder
-    private var lanSyncStatusDot: some View {
-        switch lanSyncEngine.status {
-        case .disabled:
-            Image(systemName: "wifi.slash")
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-        case .searching:
-            Image(systemName: "wifi")
-                .font(.system(size: 10))
-                .foregroundStyle(.orange)
-        case .connected:
-            Image(systemName: "wifi")
-                .font(.system(size: 10))
-                .foregroundStyle(.green)
-        case .syncing:
-            ProgressView()
-                .controlSize(.mini)
-        case .error:
-            Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 10))
-                .foregroundStyle(.red)
-        }
-    }
-
-    private var lanSyncStatusLabel: String {
-        switch lanSyncEngine.status {
-        case .disabled: return "LAN sync off"
-        case .searching: return "Searching..."
-        case .connected(let name): return "LAN: \(name)"
-        case .syncing(let name): return "LAN syncing with \(name)..."
-        case .error(let msg): return "LAN: \(msg)"
         }
     }
 }

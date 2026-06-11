@@ -215,11 +215,11 @@ final class SecurityPolicyTests: XCTestCase {
 
     // MARK: - §10 What stays local: model encodings don't leak secrets
 
-    /// SECURITY_POLICY §10: only transactions, budgets, categories, and
-    /// learned rules are sent to iCloud. Model fields that get serialized
-    /// must not include access tokens, API keys, or owner PII. This test
-    /// gives a fast trip-wire if someone accidentally adds such a field.
-    func testCloudKitSyncedModelsDoNotContainSecretFields() throws {
+    /// SECURITY_POLICY §10: synced models are JSON-encoded into the server
+    /// record store's payloads. Serialized fields must not include access
+    /// tokens, API keys, or owner PII. This test gives a fast trip-wire if
+    /// someone accidentally adds such a field.
+    func testServerSyncedModelsDoNotContainSecretFields() throws {
         let category = BudgetCategory(name: "Test", monthlyBudget: 100)
         let categoryEncoded = try JSONEncoder().encode(category)
         let categoryJSON = String(data: categoryEncoded, encoding: .utf8) ?? ""

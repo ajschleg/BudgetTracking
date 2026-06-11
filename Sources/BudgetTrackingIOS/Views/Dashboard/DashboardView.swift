@@ -1,16 +1,14 @@
 import SwiftUI
 
 /// iOS dashboard: month selector + overall budget card + per-category rows.
-/// Reads the same DashboardViewModel as macOS so totals stay in sync once
-/// CloudKit propagates data from the Mac.
+/// Reads the same DashboardViewModel as macOS; data arrives via the server
+/// sync services and .localDataDidChange re-fires the loader.
 struct DashboardView: View {
-    let syncEngine: SyncEngine
-    let lanSyncEngine: LANSyncEngine
     @State private var viewModel = DashboardViewModel()
     @State private var selectedMonth: String = DateHelpers.monthString()
 
     /// Bumped each time we observe .localDataDidChange so the dashboard
-    /// reloads after CloudKit applies a remote record. The notification
+    /// reloads after server sync applies a remote record. The notification
     /// itself is fire-and-forget; `id:` on .task is the simplest way to
     /// rerun the loader against a Notification stream without retaining a
     /// subscription token here.
@@ -44,20 +42,12 @@ struct DashboardView: View {
                 .padding(.bottom, 16)
             }
             .navigationTitle("Dashboard")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 14) {
-                        LANSyncStatusButton(lanSyncEngine: lanSyncEngine)
-                        SyncStatusIndicator(syncEngine: syncEngine)
-                    }
-                }
-            }
             .refreshable { viewModel.load(month: selectedMonth) }
             .task(id: "\(selectedMonth)-\(dataChangeCounter)") {
                 viewModel.load(month: selectedMonth)
             }
             .task {
-                // Listen for CloudKit-applied changes; bumping the counter
+                // Listen for server-sync-applied changes; bumping the counter
                 // re-fires the load .task above on the main actor.
                 let center = NotificationCenter.default
                 for await _ in center.notifications(named: .localDataDidChange) {
@@ -69,123 +59,6 @@ struct DashboardView: View {
 }
 
 // MARK: - Sync Status Indicators
-
-private struct SyncStatusIndicator: View {
-    let syncEngine: SyncEngine
-
-    var body: some View {
-        switch syncEngine.status {
-        case .idle:
-            Image(systemName: "icloud.fill")
-                .foregroundStyle(.green)
-        case .syncing:
-            ProgressView()
-                .controlSize(.small)
-        case .error:
-            Image(systemName: "icloud.slash")
-                .foregroundStyle(.red)
-        case .noAccount:
-            Image(systemName: "icloud.slash")
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-/// Tappable status pill for LAN sync. Shows a Wi-Fi-style icon colored by
-/// state, and on tap either kicks off a manual `syncNow()` (when a peer
-/// is connected) or surfaces a small popover explaining why nothing is
-/// happening (no peer, sync disabled, error).
-private struct LANSyncStatusButton: View {
-    let lanSyncEngine: LANSyncEngine
-    @State private var showStatusPopover = false
-
-    private var icon: String {
-        switch lanSyncEngine.status {
-        case .disabled: return "wifi.slash"
-        case .searching: return "wifi"
-        case .connected: return "wifi"
-        case .syncing: return "wifi"
-        case .error: return "wifi.exclamationmark"
-        }
-    }
-
-    private var iconColor: Color {
-        switch lanSyncEngine.status {
-        case .disabled: return .secondary
-        case .searching: return .orange
-        case .connected: return .green
-        case .syncing: return .blue
-        case .error: return .red
-        }
-    }
-
-    private var isSyncing: Bool {
-        if case .syncing = lanSyncEngine.status { return true }
-        return false
-    }
-
-    var body: some View {
-        Button {
-            if lanSyncEngine.connectedPeerName != nil {
-                lanSyncEngine.syncNow()
-            } else {
-                showStatusPopover = true
-            }
-        } label: {
-            ZStack {
-                Image(systemName: icon)
-                    .foregroundStyle(iconColor)
-                    .opacity(isSyncing ? 0.4 : 1)
-                if isSyncing {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-            }
-        }
-        .popover(isPresented: $showStatusPopover, arrowEdge: .top) {
-            LANStatusPopover(lanSyncEngine: lanSyncEngine)
-                .presentationCompactAdaptation(.popover)
-        }
-    }
-}
-
-private struct LANStatusPopover: View {
-    let lanSyncEngine: LANSyncEngine
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("LAN sync")
-                .font(.headline)
-            Text(detailMessage)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Toggle("Enable LAN sync", isOn: Binding(
-                get: { lanSyncEngine.isEnabled },
-                set: { lanSyncEngine.isEnabled = $0 }
-            ))
-        }
-        .padding(16)
-        .frame(width: 280)
-    }
-
-    private var detailMessage: String {
-        switch lanSyncEngine.status {
-        case .disabled:
-            return "Discover your Mac on the same Wi-Fi and pull categories and transactions over the local network. No iCloud required."
-        case .searching:
-            return "Looking for your Mac on this Wi-Fi… Make sure BudgetTracking is open on the Mac with LAN sync enabled."
-        case .connected(let name):
-            return "Connected to \(name). Tap the Wi-Fi icon to sync now."
-        case .syncing(let name):
-            return "Syncing with \(name)…"
-        case .error(let msg):
-            return "LAN sync error: \(msg)"
-        }
-    }
-}
-
-// MARK: - Month Selector
 
 private struct MonthSelector: View {
     @Binding var selectedMonth: String
@@ -393,5 +266,5 @@ private struct ErrorCard: View {
     }
 }
 
-// No #Preview here: DashboardView needs a SyncEngine, and instantiating
-// one in a preview kicks off real CloudKit traffic. Run the app instead.
+// No #Preview here: the view reads DatabaseManager.shared, and previews
+// against the real on-disk DB are misleading. Run the app instead.

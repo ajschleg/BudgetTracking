@@ -23,9 +23,6 @@ struct ImportView: View {
         // AccountsView which sets the title for the whole page.
         baseLayout
             .onAppear { handleAppear() }
-            .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
-                viewModel.loadImportedFiles(month: selectedMonth)
-            }
             .onChange(of: selectedMonth) { _, newMonth in handleMonthChanged(newMonth) }
             .onChange(of: viewModel.detectedMonth) { _, detected in handleDetectedMonthChanged(detected) }
             .alert("Duplicate File Detected", isPresented: $viewModel.showDuplicateAlert) {

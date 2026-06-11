@@ -68,9 +68,6 @@ struct IncomeView: View {
         .onChange(of: selectedMonth) { _, newMonth in
             viewModel.load(month: newMonth)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
-            viewModel.load(month: selectedMonth)
-        }
     }
 
     // MARK: - Total Income Banner

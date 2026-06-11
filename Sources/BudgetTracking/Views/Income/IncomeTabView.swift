@@ -115,9 +115,6 @@ struct IncomeTabView: View {
         .onChange(of: selectedTab) { _, _ in
             loadAll()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .lanSyncDidComplete)) { _ in
-            loadAll()
-        }
     }
 
     private func loadAll() {

@@ -3,12 +3,10 @@ import UIKit
 import LinkKit
 
 /// iOS Plaid Link presenter. Drives the LinkKit SDK against a
-/// link_token that the Mac peer issued via the LAN RPC channel, then
-/// hands the resulting public_token back to the Mac for exchange.
-/// The actual PlaidAccount + initial transaction rows arrive on this
-/// iPhone via the regular LAN record-sync push that fires after the
-/// Mac's /api/link/exchange call completes, so there is nothing to
-/// poll for on this side.
+/// link_token issued by the user's Plaid server (same /api/link/* the
+/// Mac uses; iOS holds the same server URL + token), then hands the
+/// resulting public_token back to the server for exchange. New rows
+/// arrive via the server sync pull kicked after a successful link.
 ///
 /// OAuth banks (Chase, Capital One, etc.) currently fall back to the
 /// server-side redirect_uri + custom-scheme bounce. The page at
@@ -16,7 +14,7 @@ import LinkKit
 /// "Return to BudgetTracking" link that invokes budgettracking://;
 /// universal-link handling is a follow-up.
 struct PlaidLinkSheet: View {
-    let lanPlaidClient: LANPlaidClient
+    private let plaidService = PlaidService()
     // Fully qualified to avoid LinkKit's own `Environment` enum
     // (sandbox/production) shadowing SwiftUI's property wrapper.
     @SwiftUI.Environment(\.dismiss) private var dismiss
@@ -37,7 +35,7 @@ struct PlaidLinkSheet: View {
             VStack(spacing: 16) {
                 switch phase {
                 case .preparing:
-                    ProgressView("Connecting to your Mac…")
+                    ProgressView("Contacting your server…")
                         .padding(.top, 40)
                     Text("Asking BudgetTracking on your Mac for a Plaid link token.")
                         .font(.footnote)
@@ -107,10 +105,8 @@ struct PlaidLinkSheet: View {
     @MainActor
     private func start() async {
         do {
-            let token = try await lanPlaidClient.createLinkToken()
+            let token = try await plaidService.createLinkToken()
             presentLinkKit(with: token)
-        } catch let error as LANPlaidRPCError {
-            phase = .failed(error.localizedDescription)
         } catch {
             phase = .failed(error.localizedDescription)
         }
@@ -175,14 +171,16 @@ struct PlaidLinkSheet: View {
         phase = .exchanging(institution.name)
         Task { @MainActor in
             do {
-                _ = try await lanPlaidClient.exchangePublicToken(
+                _ = try await plaidService.exchangeToken(
                     publicToken: success.publicToken,
-                    institutionId: institution.id,
-                    institutionName: institution.name
+                    institution: (name: institution.name, id: institution.id)
                 )
                 phase = .succeeded(institution.name)
-            } catch let error as LANPlaidRPCError {
-                phase = .failed(error.localizedDescription)
+                // Pull the new bank's accounts + initial transactions.
+                Task {
+                    _ = try? await plaidService.syncTransactions()
+                    _ = await ServerTransactionSync.shared.pull()
+                }
             } catch {
                 phase = .failed(error.localizedDescription)
             }
