@@ -29,6 +29,7 @@ Out of scope: physical access to the user's unlocked Mac; compromise of the user
 | `sync_cursors.cursor` | Opaque Plaid pagination cursor | File ACL 0600 |
 | `webhook_events.payload` | Webhook JSON metadata | File ACL 0600, 30-day retention |
 | `transactions.*` | Full transaction history (source of truth: date, description, merchant, amount, category id, tombstones) | File ACL 0600 + FileVault |
+| `server_records.*` | Categories/rules/snapshots/profiles/file metadata as opaque JSON payloads (source of truth) | File ACL 0600 + FileVault |
 | `plaid_balance_history.*` | Balance snapshots over time | File ACL 0600 |
 
 The encryption key is 32 random bytes, loaded in this order:
@@ -47,23 +48,17 @@ Losing the key makes encrypted values unrecoverable. Users would need to call `/
 
 ### Server — backups
 
-`server/backups/plaid-YYYYMMDD.db` snapshots are taken nightly via better-sqlite3's online backup API (consistent under WAL while serving), `0600` inside a `0700` directory, newest 14 retained, gitignored. **Restore:** stop the service (`budgettracking-server.sh stop`), copy a snapshot over `plaid.db`, delete `plaid.db-wal`/`plaid.db-shm`, start the service. Then on each device: run "Upload Local History to Server" once more (the idempotent insert API re-pushes anything the snapshot predates) **and reset the device's pull cursor** — quit the app, `defaults write com.schlegel.BudgetTracking serverTxnSyncCursor 0`, relaunch, sync. A restored counter is lower than the devices' cursors, so without the reset a device silently misses every new change until the counter passes its stale cursor. The full re-pull is idempotent (id-matched, last-write-wins).
+`server/backups/plaid-YYYYMMDD.db` snapshots are taken nightly via better-sqlite3's online backup API (consistent under WAL while serving), `0600` inside a `0700` directory, newest 14 retained, gitignored. **Restore:** stop the service (`budgettracking-server.sh stop`), copy a snapshot over `plaid.db`, delete `plaid.db-wal`/`plaid.db-shm`, start the service. Then on each device click **Settings → Bank Connection → "Re-sync from server"** — it rewinds both feeds' cursors, watermarks, and round-trip stamps, then re-pulls and re-offers local data (all idempotent: insert-skip, seq-silent no-op upserts, last-write-wins apply). A restored counter is lower than the devices' cursors, so without the reset a device silently misses every new change until the counter passes its stale cursor.
 
 ### macOS app (`~/Library/Application Support/BudgetTracking/budget.sqlite`)
 
-Transactions (a local cache of the server store since the 2026-06 migration), categories, budgets, and cached Plaid account metadata live in a GRDB-managed SQLite file. Protection is **macOS FileVault** (disk-level encryption). The app does not add a second encryption layer on top.
+All app data in the GRDB-managed SQLite file is a local cache of the server store (transactions since the 2026-06 hub migration; categories, rules, snapshots, profiles, and file metadata since Phase 3). Protection is **macOS FileVault** (disk-level encryption). The app does not add a second encryption layer on top — losing this file costs nothing; the app re-pulls from the server.
 
 Bank credentials are **never** seen by the app — they go directly from the user's browser to Plaid.
 
-### iCloud (optional)
+### Server — generic record store
 
-If the user enables sync, the app replicates records via CloudKit into their private iCloud container. CloudKit encrypts records in transit and at rest in Apple's infrastructure; only devices signed into the user's Apple ID can decrypt.
-
-### Paired-device LAN sync (optional)
-
-When LAN sync is enabled (Sync settings → "Sync over local network"), the app discovers another Mac running BudgetTracking via Bonjour and exchanges records over a length-prefixed JSON-over-TCP channel on the LAN. The same record types CloudKit syncs flow over LAN sync — including read-only `PlaidAccount` metadata so a peer Mac can show the account list and balances.
-
-Plaid Identity PII (`ownerName`, `ownerEmail`, `ownerPhone`, `identityFetchedAt`) is stripped at both ends by `PlaidAccount.sanitizedForSync()` before encoding and by `DatabaseManager.upsertFromPeer(_:PlaidAccount)` after decoding. Plaid access tokens never appear on the macOS app (they live only in `server/plaid.db`), so they are never candidates for any sync path.
+Budget categories, categorization rules, monthly snapshots, bank profiles, and imported-file metadata replicate through the `server_records` table as opaque JSON payloads (the server never parses them; merge logic is client-side). Same protections as the rest of plaid.db: token-gated API, `0600` + FileVault, nightly backups. CloudKit and LAN sync were removed in June 2026 — the server is the single sync authority for every record type.
 
 ## Key practices
 

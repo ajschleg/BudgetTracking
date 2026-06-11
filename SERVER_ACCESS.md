@@ -90,7 +90,9 @@ The server owns the books: it ingests the Plaid stream into its own
 | `POST /api/transactions` (≤250 rows) | Idempotent bulk create — manual entries, file imports, one-time history seed |
 | `POST /api/transactions/batch` (≤250 ops) | Bulk edits (categorize, tombstone, restore) |
 | `PATCH /api/transactions/:id` | Single edit |
-| `POST /api/transactions/sync` | Trigger a Plaid ingest now (also still returns the legacy arrays for pre-migration app builds) |
+| `POST /api/transactions/sync` | Trigger a Plaid ingest now; returns `{ingested: counts}` |
+| `GET /api/records/changes?since=<seq>&limit=<≤500>` | Pull deltas of the metadata record types (categories, rules, snapshots, profiles, files — opaque JSON payloads) |
+| `POST /api/records/bulk` (≤250) | Idempotent record upsert; byte-identical payloads are seq-silent |
 
 Because the tailnet-only server can never receive Plaid webhooks, a
 server-side timer drives ingestion: `AUTO_SYNC_INTERVAL_MINUTES` in

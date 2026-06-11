@@ -13,8 +13,8 @@ Any code change that conflicts with `SECURITY_POLICY.md` needs to either update 
 
 ## Architecture shape
 
-- **macOS app** (SwiftUI + GRDB + CloudKit sync) is the primary UI. Built via `xcodegen generate && xcodebuild …`.
-- **Node.js server** in `/server/` proxies Plaid API calls so Plaid credentials never ship in the client. Keeps access tokens + PII server-side with AES-256-GCM at rest. Since 2026-06 it is also the **source of truth for transactions**: it ingests the Plaid stream into its own `transactions` table (auto-ingest timer; tailnet-only, so webhooks can't drive it) and devices pull `/api/transactions/changes` by `change_seq` cursor and push edits via `POST/PATCH /api/transactions*` — the app's GRDB copy is a local cache. Budgets/categories/rules still sync via CloudKit/LAN.
+- **macOS app** (SwiftUI + GRDB) is the primary UI. Built via `xcodegen generate && xcodebuild …`. The local GRDB file is a cache of the server store; there is no CloudKit or LAN sync.
+- **Node.js server** in `/server/` proxies Plaid API calls so Plaid credentials never ship in the client. Keeps access tokens + PII server-side with AES-256-GCM at rest. Since 2026-06 it is also the **source of truth for transactions**: it ingests the Plaid stream into its own `transactions` table (auto-ingest timer; tailnet-only, so webhooks can't drive it) and devices pull `/api/transactions/changes` by `change_seq` cursor and push edits via `POST/PATCH /api/transactions*` — the app's GRDB copy is a local cache. Since Phase 3 (2026-06) budgets/categories/rules/snapshots/profiles/file-metadata also live on the server (`server_records`, opaque JSON payloads, `/api/records/*`); CloudKit/LAN are gone. The iOS app is a pure client of the same API.
 - **GitHub Pages** in `/docs/` hosts the privacy policy, Apple App Site Association file for universal links, and the OAuth bounce page that redirects banks → `budgettracking://` → the macOS app.
 
 ## Build commands

@@ -65,6 +65,9 @@ struct BudgetTrackingApp: App {
                     // Converge the metadata record types (categories, rules,
                     // snapshots, profiles, files) with the server store on
                     // launch. First run after the migration seeds pull-first.
+                    // Never under XCTest: the test HOST app must not push the
+                    // real DB at the real server mid-suite (it did, once).
+                    guard NSClassFromString("XCTestCase") == nil else { return }
                     await ServerRecordSync.shared.syncIfNeeded()
                 }
                 .onOpenURL { url in

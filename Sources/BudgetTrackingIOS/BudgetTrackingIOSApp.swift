@@ -17,7 +17,8 @@ struct BudgetTrackingIOSApp: App {
             ContentView()
                 .task {
                     // Converge with the server store on launch (no-ops until
-                    // server sync is enabled via Settings).
+                    // server sync is enabled via Settings). Never under XCTest.
+                    guard NSClassFromString("XCTestCase") == nil else { return }
                     await ServerRecordSync.shared.syncIfNeeded()
                     _ = await ServerTransactionSync.shared.pull()
                 }

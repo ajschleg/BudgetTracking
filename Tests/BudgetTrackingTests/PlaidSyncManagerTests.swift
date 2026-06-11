@@ -14,7 +14,7 @@ final class PlaidSyncManagerTests: XCTestCase {
     // MARK: - Mocks
 
     private final class MockPlaidService: PlaidTransactionSyncing {
-        var response = PlaidService.SyncResponse(added: nil, modified: nil, removed: nil, ingested: nil)
+        var response = PlaidService.SyncResponse(ingested: nil)
         var error: Error?
         private(set) var syncCallCount = 0
 
@@ -174,15 +174,13 @@ final class PlaidSyncManagerTests: XCTestCase {
 
     // MARK: - Wire-shape tolerance
 
-    func testSyncResponseDecodesBothWireShapes() throws {
-        let legacy = #"{"added":[],"modified":[],"removed":[]}"#
+    func testSyncResponseDecodesCountsShape() throws {
         let modern = #"{"ingested":{"added":3,"modified":1,"removed":0,"skipped":2}}"#
-        let l = try JSONDecoder().decode(PlaidService.SyncResponse.self, from: Data(legacy.utf8))
-        XCTAssertNotNil(l.added)
-        XCTAssertNil(l.ingested)
         let m = try JSONDecoder().decode(PlaidService.SyncResponse.self, from: Data(modern.utf8))
-        XCTAssertNil(m.added)
         XCTAssertEqual(m.ingested?.added, 3)
+        // Unknown/extra keys must stay tolerated for forward compatibility.
+        let extra = #"{"ingested":{"added":0,"modified":0,"removed":0,"skipped":0},"future":[1]}"#
+        XCTAssertNoThrow(try JSONDecoder().decode(PlaidService.SyncResponse.self, from: Data(extra.utf8)))
     }
 
     // MARK: - Summary formatting (pure)
