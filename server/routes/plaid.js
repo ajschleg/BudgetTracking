@@ -495,7 +495,6 @@ export async function runFullIngest(trigger) {
   ingestInFlight = true;
   try {
     const items = db.prepare('SELECT * FROM plaid_items').all();
-    const legacy = { added: [], modified: [], removed: [] };
     const totals = { added: 0, modified: 0, removed: 0, skipped: 0 };
 
     for (const item of items) {
@@ -505,9 +504,6 @@ export async function runFullIngest(trigger) {
       totals.modified += counts.modified;
       totals.removed += counts.removed;
       totals.skipped += counts.addedSkipped + counts.pendingSkipped;
-      legacy.added.push(...result.added);
-      legacy.modified.push(...result.modified);
-      legacy.removed.push(...result.removed);
     }
 
     // Clear the webhook-set "new data pending" flag now that the store
@@ -519,22 +515,24 @@ export async function runFullIngest(trigger) {
         `[ingest:${trigger}] ${items.length} item(s): +${totals.added} ~${totals.modified} -${totals.removed} (${totals.skipped} skipped)`
       );
     }
-    return { busy: false, legacy, totals, itemCount: items.length };
+    return { busy: false, totals, itemCount: items.length };
   } finally {
     ingestInFlight = false;
   }
 }
 
-// POST /api/transactions/sync — Sync transactions for all linked items.
-// Now ingests into the server store first (source of truth) and still
-// returns the legacy arrays for app versions that apply them locally.
+// POST /api/transactions/sync — trigger a Plaid ingest into the server
+// store and return counts only. Clients fetch the actual rows from
+// /api/transactions/changes; shipping full transaction payloads here
+// stopped making sense (and stopped being decoded) once every device
+// moved to store mode.
 router.post('/transactions/sync', async (req, res) => {
   try {
     const outcome = await runFullIngest('api');
     if (outcome.busy) {
       return res.status(409).json({ error: 'A sync is already in progress' });
     }
-    res.json(outcome.legacy);
+    res.json({ ingested: outcome.totals });
   } catch (error) {
     console.error('Error syncing transactions:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to sync transactions' });
