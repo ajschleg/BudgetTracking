@@ -178,6 +178,7 @@ private struct CategoryRow: View {
     private var remaining: Double { category.monthlyBudget - spent }
     private var fillColor: Color { ColorThresholds.color(forPercentage: rawPct) }
     private var dotColor: Color { ColorThresholds.colorFromHex(category.colorHex) }
+    private var isExpanded: Bool { viewModel.expandedCategoryId == category.id }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -192,6 +193,10 @@ private struct CategoryRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
             }
 
             ProgressBar(progress: pct, color: fillColor)
@@ -201,10 +206,59 @@ private struct CategoryRow: View {
                  : "\(CurrencyFormatter.format(abs(remaining))) over")
                 .font(.caption2)
                 .foregroundStyle(remaining >= 0 ? Color.secondary : Color.red)
+
+            if isExpanded {
+                ExpandedTransactionsList(viewModel: viewModel)
+            }
         }
         .padding(12)
         .background(Color(uiColor: .secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.snappy) {
+                viewModel.toggleCategory(category.id)
+            }
+        }
+    }
+}
+
+/// The month's transactions for the expanded category, newest first —
+/// the same drill-in the macOS dashboard offers, view-only on iOS
+/// (recategorizing lives in the Transactions tab's picker).
+private struct ExpandedTransactionsList: View {
+    let viewModel: DashboardViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Divider()
+                .padding(.vertical, 4)
+            if viewModel.expandedTransactions.isEmpty {
+                Text("No transactions in this category this month.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 6)
+            } else {
+                ForEach(viewModel.expandedTransactions) { txn in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(txn.date, format: .dateTime.month(.abbreviated).day())
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 48, alignment: .leading)
+                            .monospacedDigit()
+                        Text(txn.merchant ?? txn.description)
+                            .font(.caption)
+                            .lineLimit(1)
+                        Spacer()
+                        Text(CurrencyFormatter.format(abs(txn.amount)))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(txn.amount > 0 ? Color.green : Color.primary)
+                            .monospacedDigit()
+                    }
+                    .padding(.vertical, 5)
+                }
+            }
+        }
     }
 }
 
@@ -238,7 +292,7 @@ private struct EmptyStateCard: View {
                 .foregroundStyle(.secondary)
             Text("No data yet")
                 .font(.headline)
-            Text("Open BudgetTracking on your Mac so iCloud can sync your categories and transactions to this device.")
+            Text("Connect to your server in the Settings tab (URL + token, then Test Connection) and your categories and transactions will appear here.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
