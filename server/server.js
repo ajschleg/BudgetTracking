@@ -51,9 +51,14 @@ const plaidClient = new PlaidApi(
 //   /webhook:  300 req / min / IP — Plaid can burst on reconnects
 // Auth failures still count toward the limit so a bad actor can't
 // spam guesses cheaply.
+// 240/min (was 60): the transaction-store flows are legitimately bursty —
+// a 7.8k-row seed is ~32 POSTs back-to-back, a fresh device's first pull
+// is ~16 pages, and tailscale serve makes every client share one bucket
+// (proxied req.ip is 127.0.0.1). Still a hard ceiling per §6, just sized
+// for the store's real call patterns; these are cheap local SQLite ops.
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 240,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests' },
@@ -66,14 +71,16 @@ const webhookLimiter = rateLimit({
   message: { error: 'Too many requests' },
 });
 
-// Plaid API routes (app-facing) — protected by bearer token + rate limit.
-// The macOS app sends X-App-Token; other callers get 401.
-app.use('/api', apiLimiter, requireAppToken, plaidRoutes);
-
-// Transaction store routes (app-facing) — same auth + rate limit. Mounted
-// AFTER plaidRoutes so its /transactions/sync and /transactions/status
-// keep matching first; the store router's :id routes are UUID-guarded.
-app.use('/api', apiLimiter, requireAppToken, transactionsRoutes);
+// App-facing /api routes — bearer token + rate limit applied ONCE for the
+// whole prefix. (Repeating the middlewares per-router double-counts every
+// request that falls through the first router — the limiter then halves
+// its real budget, which broke the 32-batch seed upload.)
+app.use('/api', apiLimiter, requireAppToken);
+app.use('/api', plaidRoutes);
+// Mounted AFTER plaidRoutes so its /transactions/sync and
+// /transactions/status keep matching first; the store router's :id
+// routes are UUID-guarded.
+app.use('/api', transactionsRoutes);
 
 // Webhook receiver (Plaid-facing) — unauthenticated at the HTTP layer,
 // but each request is verified via Plaid JWT signature inside the

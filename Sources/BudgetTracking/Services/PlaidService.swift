@@ -261,12 +261,17 @@ actor PlaidService {
         case serverUnreachable
         case invalidResponse
         case serverError(String)
+        /// HTTP 429 from the server's rate limiter. Carries the parsed
+        /// Retry-After (seconds) when the server sent one, so bulk flows
+        /// (seed, push, pull) can back off and resume instead of failing.
+        case rateLimited(retryAfter: TimeInterval?)
 
         var errorDescription: String? {
             switch self {
             case .serverUnreachable: return "Cannot connect to the Plaid server. Make sure it's running."
             case .invalidResponse: return "Invalid response from server."
             case .serverError(let message): return "Server error: \(message)"
+            case .rateLimited: return "The server is rate-limiting requests — retrying shortly."
             }
         }
     }
@@ -541,6 +546,14 @@ actor PlaidService {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 429 {
+                // express-rate-limit sends RateLimit-Reset (seconds until
+                // the window resets) with standardHeaders: true.
+                let retryAfter = (httpResponse.value(forHTTPHeaderField: "Retry-After")
+                                  ?? httpResponse.value(forHTTPHeaderField: "RateLimit-Reset"))
+                    .flatMap(TimeInterval.init)
+                throw PlaidServiceError.rateLimited(retryAfter: retryAfter)
+            }
             if let errorBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let message = errorBody["error"] as? String {
                 throw PlaidServiceError.serverError(message)

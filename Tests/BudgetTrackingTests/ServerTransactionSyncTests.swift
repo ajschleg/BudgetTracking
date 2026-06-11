@@ -13,6 +13,8 @@ final class ServerTransactionSyncTests: XCTestCase {
     private final class MockStoreService: ServerTransactionStoring {
         var pages: [PlaidService.ChangesResponse] = []
         var createResponses: [PlaidService.CreateTransactionsResponse] = []
+        /// Number of leading createTransactions calls that fail with 429.
+        var rateLimitCreatesRemaining = 0
         private(set) var fetchCalls: [(since: Int, limit: Int)] = []
         private(set) var createdBatches: [[PlaidService.ServerTransactionUpload]] = []
         private(set) var patchedBatches: [[(id: String, patch: [String: Any])]] = []
@@ -26,6 +28,10 @@ final class ServerTransactionSyncTests: XCTestCase {
         }
 
         func createTransactions(_ rows: [PlaidService.ServerTransactionUpload]) async throws -> PlaidService.CreateTransactionsResponse {
+            if rateLimitCreatesRemaining > 0 {
+                rateLimitCreatesRemaining -= 1
+                throw PlaidService.PlaidServiceError.rateLimited(retryAfter: 0.05)
+            }
             createdBatches.append(rows)
             guard !createResponses.isEmpty else {
                 return PlaidService.CreateTransactionsResponse(inserted: rows.count, skipped: 0, max_change_seq: 0)
@@ -274,6 +280,21 @@ final class ServerTransactionSyncTests: XCTestCase {
         XCTAssertEqual(mock.createdBatches.first?.count, 2, "tombstones seed too — deletions must propagate")
         let uploadedDeleted = mock.createdBatches.first?.first { $0.is_deleted }
         XCTAssertNotNil(uploadedDeleted)
+    }
+
+    func testSeedRetriesThroughRateLimiting() async throws {
+        sync.isEnabled = false
+        try ensureSingletonFile()
+        let row = Transaction(date: Date(), description: "Rate Limited", amount: -3, month: "2026-05", importedFileId: DatabaseManager.serverSyncFileId)
+        try database.saveTransactions([row])
+        mock.rateLimitCreatesRemaining = 2  // first two attempts get 429
+        mock.createResponses = [PlaidService.CreateTransactionsResponse(inserted: 1, skipped: 0, max_change_seq: 11)]
+
+        let ok = await sync.seedAll()
+
+        XCTAssertTrue(ok, "seed must wait out 429s, not fail")
+        XCTAssertEqual(sync.cursor, 11)
+        XCTAssertEqual(mock.createdBatches.count, 1, "the batch lands exactly once after retries")
     }
 
     // MARK: - Summary formatting

@@ -119,6 +119,29 @@ final class ServerTransactionSync {
         }
     }
 
+    /// Run a store call, waiting out 429s instead of failing. The bulk
+    /// flows are bursty by nature (seed ≈ 32 POSTs, first pull ≈ 16 pages);
+    /// the server's RateLimit-Reset header tells us when the window opens.
+    private func withRateLimitRetry<T>(
+        maxAttempts: Int = 5,
+        _ operation: () async throws -> T
+    ) async throws -> T {
+        var attempt = 0
+        while true {
+            do {
+                return try await operation()
+            } catch PlaidService.PlaidServiceError.rateLimited(let retryAfter) {
+                attempt += 1
+                guard attempt < maxAttempts else {
+                    throw PlaidService.PlaidServiceError.rateLimited(retryAfter: retryAfter)
+                }
+                let delay = retryAfter.map { min(max($0, 0.05), 70) } ?? 15
+                progress = "Server is busy — retrying in \(max(1, Int(delay)))s…"
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            }
+        }
+    }
+
     // MARK: - Pull
 
     struct PullResult {
@@ -135,7 +158,9 @@ final class ServerTransactionSync {
         var result = PullResult()
         do {
             while true {
-                let response = try await service.fetchTransactionChanges(since: cursor, limit: 500)
+                let response = try await withRateLimitRetry {
+                    try await service.fetchTransactionChanges(since: cursor, limit: 500)
+                }
                 if !response.changes.isEmpty {
                     isApplyingPull = true
                     let outcome = try database.applyServerChanges(response.changes)
@@ -187,10 +212,14 @@ final class ServerTransactionSync {
             }
 
             for chunk in dirty.chunked(into: 250) {
-                _ = try await service.createTransactions(chunk.map(Self.uploadRow))
+                _ = try await withRateLimitRetry {
+                    try await service.createTransactions(chunk.map(Self.uploadRow))
+                }
             }
             for chunk in dirty.chunked(into: 250) {
-                _ = try await service.batchPatchTransactions(chunk.map { ($0.id.uuidString.lowercased(), Self.patchFields($0)) })
+                _ = try await withRateLimitRetry {
+                    try await service.batchPatchTransactions(chunk.map { ($0.id.uuidString.lowercased(), Self.patchFields($0)) })
+                }
             }
             // Watermark = gather start: an edit made mid-push lands in the
             // next cycle instead of being silently skipped.
@@ -226,7 +255,9 @@ final class ServerTransactionSync {
             var lastSeq = 0
             let chunks = all.chunked(into: 250)
             for (index, chunk) in chunks.enumerated() {
-                let response = try await service.createTransactions(chunk.map(Self.uploadRow))
+                let response = try await withRateLimitRetry {
+                    try await service.createTransactions(chunk.map(Self.uploadRow))
+                }
                 lastSeq = response.max_change_seq
                 seedProgress = Double(index + 1) / Double(chunks.count)
                 progress = "Uploaded \(min((index + 1) * 250, all.count)) of \(all.count)"

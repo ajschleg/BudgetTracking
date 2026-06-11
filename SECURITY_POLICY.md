@@ -60,7 +60,7 @@ Rules that future code changes must follow. Treat this as a gate: a change that 
 
 ## 6. Rate limits & abuse
 
-- **`/api/*`**: limited to 60 req/min/IP.
+- **`/api/*`**: limited to 240 req/min/IP (raised from 60 for the server-hub store: a full-history seed is ~32 back-to-back POSTs, a fresh device's first pull ~16 pages, and the tailscale-serve proxy folds every client into one IP bucket).
 - **`/webhook`**: limited to 300 req/min/IP.
 - New public endpoints MUST register a rate limit. Default to `apiLimiter` for app-facing and `webhookLimiter` for Plaid-facing.
 - If a feature legitimately needs more than the limit, bump the limit for that specific route — do not remove it.
