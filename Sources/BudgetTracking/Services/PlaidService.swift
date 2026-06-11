@@ -84,10 +84,22 @@ actor PlaidService {
         let identity_fetched_at: String?
     }
 
+    /// Tolerant decode for POST /api/transactions/sync across the wire
+    /// transition: pre-Phase-3 servers return the legacy arrays, newer
+    /// servers return only ingest counts. The app ignores the arrays
+    /// either way (the store is the authority); counts feed the summary.
     struct SyncResponse: Codable {
-        let added: [PlaidTransaction]
-        let modified: [PlaidTransaction]
-        let removed: [RemovedTransaction]
+        let added: [PlaidTransaction]?
+        let modified: [PlaidTransaction]?
+        let removed: [RemovedTransaction]?
+        let ingested: IngestedCounts?
+    }
+
+    struct IngestedCounts: Codable {
+        let added: Int
+        let modified: Int
+        let removed: Int
+        let skipped: Int
     }
 
     struct PlaidTransaction: Codable {

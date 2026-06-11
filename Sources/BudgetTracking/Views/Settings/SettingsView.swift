@@ -214,10 +214,6 @@ struct SettingsView: View {
                                 }
                                 .font(.caption)
 
-                                Button("Disable server sync", role: .destructive) {
-                                    serverSync.isEnabled = false
-                                }
-                                .font(.caption)
                             } else {
                                 Text("Upload this Mac's transaction history once; afterwards every device pulls the same books from the server and edits sync through it.")
                                     .font(.caption)

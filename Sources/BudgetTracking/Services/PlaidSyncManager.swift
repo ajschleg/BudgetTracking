@@ -335,17 +335,10 @@ final class PlaidSyncManager {
 
     // MARK: - Transaction Sync
 
-    /// Two modes, switched by whether the user has seeded the server store:
-    ///
-    /// - Store mode (post-seed): the server already ingested the Plaid
-    ///   stream into its transactions table; the response's legacy arrays
-    ///   are deliberately IGNORED (applying them locally would double-write).
-    ///   We pull deltas, auto-categorize brand-new rows using the Plaid
-    ///   hints that ride along, and push those categorizations back.
-    ///
-    /// - Legacy mode (pre-seed): apply the response locally exactly as
-    ///   before, so the app remains fully functional until the user runs
-    ///   "Upload Local History to Server" in Settings.
+    /// The server ingests from Plaid during the call (its store is the
+    /// authority); we then pull the deltas, auto-categorize brand-new rows
+    /// using the Plaid hints that ride along, and push the assignments
+    /// back. Legacy local-apply died with the CK/LAN engines.
     func syncTransactions() async {
         isSyncing = true
         syncProgress = "Syncing transactions..."
@@ -358,21 +351,15 @@ final class PlaidSyncManager {
         }
 
         do {
-            // Either way the server ingests from Plaid during this call.
             let response = try await plaidService.syncTransactions()
-
-            if serverSync.isEnabled {
-                try await storeModeSync()
-            } else {
-                try legacyApply(response)
-            }
+            try await storeModeSync(ingested: response.ingested)
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     /// Store-mode follow-up to a server ingest: pull, categorize, push.
-    private func storeModeSync() async throws {
+    private func storeModeSync(ingested: PlaidService.IngestedCounts? = nil) async throws {
         syncProgress = "Pulling changes from server..."
         guard let pull = await serverSync.pull() else {
             if let message = serverSync.errorMessage {
@@ -409,118 +396,6 @@ final class PlaidSyncManager {
             pulled: pull.applied,
             categorized: categorizedCount
         )
-    }
-
-    /// Pre-seed behavior: fold the legacy sync response into the local DB.
-    private func legacyApply(_ response: PlaidService.SyncResponse) throws {
-            // Create a synthetic ImportedFile for this sync batch
-            let importedFile = ImportedFile(
-                fileName: "Plaid Sync \(DateHelpers.monthString())",
-                fileSize: 0,
-                month: nil,
-                transactionCount: response.added.count + response.modified.count
-            )
-            try self.database.saveImportedFile(importedFile)
-
-            var addedCount = 0
-            var duplicateCount = 0
-            var pendingSkippedCount = 0
-
-            // Process added transactions
-            if !response.added.isEmpty {
-                syncProgress = "Saving \(response.added.count) new transactions..."
-                var transactions: [Transaction] = []
-                // Parallel arrays so the engine can consult Plaid's
-                // personal_finance_category for each row.
-                var plaidPrimaries: [String?] = []
-                var plaidDetails: [String?] = []
-
-                for plaidTxn in response.added {
-                    // Skip pending transactions
-                    if plaidTxn.pending {
-                        pendingSkippedCount += 1
-                        continue
-                    }
-
-                    // Check for duplicates by externalId
-                    if try self.database.transactionExists(externalId: plaidTxn.transaction_id) {
-                        duplicateCount += 1
-                        continue
-                    }
-
-                    let date = parseDate(plaidTxn.date) ?? Date()
-                    let month = DateHelpers.monthString(from: date)
-
-                    let transaction = Transaction(
-                        date: date,
-                        description: plaidTxn.merchant_name ?? plaidTxn.name,
-                        merchant: plaidTxn.merchant_name,
-                        amount: -plaidTxn.amount, // Flip sign: Plaid positive = expense, app negative = expense
-                        month: month,
-                        importedFileId: importedFile.id,
-                        externalId: plaidTxn.transaction_id
-                    )
-                    transactions.append(transaction)
-                    plaidPrimaries.append(plaidTxn.category)
-                    plaidDetails.append(plaidTxn.category_detailed)
-                }
-
-                if !transactions.isEmpty {
-                    // Auto-categorize before saving. Plaid category hints
-                    // take priority; keyword/learned rules fill the gaps.
-                    syncProgress = "Categorizing transactions..."
-                    let rules = try self.database.fetchRules()
-                    let categories = try self.database.fetchCategories()
-                    let engine = CategorizationEngine(rules: rules, categories: categories)
-                    engine.categorizeAllWithPlaid(
-                        transactions: &transactions,
-                        plaidPrimaryCategories: plaidPrimaries,
-                        plaidDetailedCategories: plaidDetails
-                    )
-
-                    try self.database.saveTransactions(transactions)
-                    addedCount = transactions.count
-                }
-            }
-
-            // Process modified transactions
-            var modifiedCount = 0
-            if !response.modified.isEmpty {
-                syncProgress = "Updating \(response.modified.count) transactions..."
-                for plaidTxn in response.modified {
-                    guard !plaidTxn.pending else { continue }
-                    try self.database.updateTransactionByExternalId(
-                        externalId: plaidTxn.transaction_id,
-                        description: plaidTxn.merchant_name ?? plaidTxn.name,
-                        merchant: plaidTxn.merchant_name,
-                        amount: -plaidTxn.amount,
-                        date: parseDate(plaidTxn.date) ?? Date()
-                    )
-                    modifiedCount += 1
-                }
-            }
-
-            // Process removed transactions
-            if !response.removed.isEmpty {
-                syncProgress = "Removing \(response.removed.count) transactions..."
-                for removed in response.removed {
-                    try self.database.softDeleteTransactionByExternalId(removed.transaction_id)
-                }
-            }
-            let removedCount = response.removed.count
-
-            let total = response.added.count + response.modified.count + response.removed.count
-            if total > 0 {
-                self.database.notifyDataChanged()
-            }
-
-            lastSyncSummary = Self.formatSyncSummary(
-                added: addedCount,
-                duplicates: duplicateCount,
-                modified: modifiedCount,
-                removed: removedCount,
-                pending: pendingSkippedCount
-            )
     }
 
     /// One-line summary for store-mode syncs. Pure for unit testing.
