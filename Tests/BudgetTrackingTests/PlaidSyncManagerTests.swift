@@ -81,7 +81,16 @@ final class PlaidSyncManagerTests: XCTestCase {
     ) throws -> (PlaidSyncManager, DatabaseManager, MockPlaidService) {
         let db = try DatabaseManager.makeInMemoryForTesting()
         let mock = MockPlaidService(added: added, modified: modified, removed: removed, error: serviceError)
-        let manager = PlaidSyncManager(plaidService: mock, database: db)
+        // These tests pin the LEGACY sync path, so the server-sync mode
+        // switch must be deterministically off. Never default to .shared
+        // here: the test host shares the app's UserDefaults domain, and a
+        // machine where the user has seeded the server store would flip
+        // every one of these tests into store mode.
+        let isolatedSync = ServerTransactionSync(
+            database: db,
+            defaults: UserDefaults(suiteName: "PlaidSyncManagerTests-\(UUID().uuidString)")!
+        )
+        let manager = PlaidSyncManager(plaidService: mock, database: db, serverSync: isolatedSync)
         return (manager, db, mock)
     }
 

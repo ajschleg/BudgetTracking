@@ -262,7 +262,7 @@ final class ServerTransactionSyncTests: XCTestCase {
 
     // MARK: - Seed
 
-    func testSeedUploadsEverythingFastForwardsCursorAndEnables() async throws {
+    func testSeedUploadsEverythingEnablesAndLeavesCursorForFullPull() async throws {
         sync.isEnabled = false
         try ensureSingletonFile()
         let live = Transaction(date: Date(), description: "Live", amount: -1, month: "2026-05", importedFileId: DatabaseManager.serverSyncFileId)
@@ -275,7 +275,7 @@ final class ServerTransactionSyncTests: XCTestCase {
 
         XCTAssertTrue(ok)
         XCTAssertTrue(sync.isEnabled, "completing the seed flips the mode switch")
-        XCTAssertEqual(sync.cursor, 777, "cursor fast-forwards past our own upload")
+        XCTAssertEqual(sync.cursor, 0, "cursor must NOT fast-forward — rows the server ingested before/during the seed sit at lower seqs and would be skipped forever (regression: 10 mid-seed Plaid rows lost)")
         XCTAssertEqual(mock.createdBatches.count, 1)
         XCTAssertEqual(mock.createdBatches.first?.count, 2, "tombstones seed too — deletions must propagate")
         let uploadedDeleted = mock.createdBatches.first?.first { $0.is_deleted }
@@ -293,7 +293,6 @@ final class ServerTransactionSyncTests: XCTestCase {
         let ok = await sync.seedAll()
 
         XCTAssertTrue(ok, "seed must wait out 429s, not fail")
-        XCTAssertEqual(sync.cursor, 11)
         XCTAssertEqual(mock.createdBatches.count, 1, "the batch lands exactly once after retries")
     }
 

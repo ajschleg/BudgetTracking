@@ -252,19 +252,21 @@ final class ServerTransactionSync {
                 lastPushedAt = gatherStart
                 return true
             }
-            var lastSeq = 0
             let chunks = all.chunked(into: 250)
             for (index, chunk) in chunks.enumerated() {
-                let response = try await withRateLimitRetry {
+                _ = try await withRateLimitRetry {
                     try await service.createTransactions(chunk.map(Self.uploadRow))
                 }
-                lastSeq = response.max_change_seq
                 seedProgress = Double(index + 1) / Double(chunks.count)
                 progress = "Uploaded \(min((index + 1) * 250, all.count)) of \(all.count)"
             }
-            // Our upload IS the server's current state — start pulling
-            // after it rather than re-downloading 7k of our own rows.
-            cursor = lastSeq
+            // The cursor deliberately does NOT fast-forward to the server's
+            // counter: rows the server ingested from Plaid BEFORE/DURING the
+            // seed sit at lower seqs than our upload, and jumping past them
+            // loses them on this device forever (it happened: 10 real
+            // transactions ingested mid-seed). The next pull re-walks
+            // everything instead — idempotent, and rows we just uploaded
+            // apply as cheap id-matched updates.
             lastPushedAt = gatherStart
             isEnabled = true
             progress = ""
