@@ -169,6 +169,39 @@ actor PlaidService {
         let not_found: [String]
     }
 
+    // MARK: - Generic Record Store (Phase 3: categories/rules/snapshots/profiles/files)
+
+    /// One row from the server's generic record feed. The payload is an
+    /// opaque content-only JSON encoding of the Swift model (sync fields
+    /// normalized out — see DatabaseManager+ServerRecords); updated_at is
+    /// the LWW authority, exactly like transactions.
+    struct RecordChange: Codable {
+        let record_type: String
+        let id: String
+        let payload: String
+        let is_deleted: Bool
+        let updated_at: String
+        let change_seq: Int
+    }
+
+    struct RecordChangesResponse: Codable {
+        let changes: [RecordChange]
+        let next_seq: Int
+        let has_more: Bool
+    }
+
+    struct RecordUpload: Codable {
+        let record_type: String
+        let id: String
+        let payload: String
+        let is_deleted: Bool
+    }
+
+    struct RecordBulkResponse: Codable {
+        let upserted: Int
+        let skipped: Int
+    }
+
     struct SuccessResponse: Codable {
         let success: Bool
     }
@@ -401,6 +434,20 @@ actor PlaidService {
             "ops": ops.map { ["id": $0.id, "patch": $0.patch] },
         ]
         return try await post(path: "/api/transactions/batch", body: body)
+    }
+
+    // MARK: - Generic record store calls
+
+    func fetchRecordChanges(since: Int, limit: Int = 500) async throws -> RecordChangesResponse {
+        try await get(path: "/api/records/changes",
+                      query: [URLQueryItem(name: "since", value: String(since)),
+                              URLQueryItem(name: "limit", value: String(limit))])
+    }
+
+    /// Idempotent bulk upsert (max 250 per call — the server's cap).
+    /// Byte-identical payloads are seq-silent server-side.
+    func pushRecords(_ rows: [RecordUpload]) async throws -> RecordBulkResponse {
+        try await postEncodable(path: "/api/records/bulk", body: ["records": rows])
     }
 
     func fetchAccounts() async throws -> [AccountListItem] {

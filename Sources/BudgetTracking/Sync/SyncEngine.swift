@@ -2,11 +2,6 @@ import CloudKit
 import Foundation
 import os.log
 
-extension Notification.Name {
-    /// Posted whenever local data changes and should be pushed to CloudKit.
-    static let localDataDidChange = Notification.Name("localDataDidChange")
-}
-
 /// Coordinates bidirectional sync between the local GRDB database and CloudKit
 /// using CKSyncEngine (macOS 14+).
 @Observable

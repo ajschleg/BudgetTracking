@@ -1568,7 +1568,9 @@ final class DatabaseManager {
     }
 
     /// Remap all references from one categoryId to another (used when merging duplicate categories).
-    private static func remapCategoryId(from oldId: UUID, to newId: UUID, in db: Database) throws {
+    /// Internal (not private): the server-record apply path in
+    /// DatabaseManager+ServerRecords.swift reuses it for name-dedup merges.
+    static func remapCategoryId(from oldId: UUID, to newId: UUID, in db: Database) throws {
         // Update transactions
         try db.execute(
             sql: "UPDATE \"transaction\" SET categoryId = ? WHERE categoryId = ?",
