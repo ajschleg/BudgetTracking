@@ -211,6 +211,35 @@ db.prepare(
   'INSERT OR IGNORE INTO transactions_sync_state (id, last_seq) VALUES (1, 0)'
 ).run();
 
+// Generic record store — Phase 3 of the server-hub migration. Holds the
+// remaining synced types (budget categories, categorization rules, monthly
+// snapshots, bank profiles, imported-file metadata) as OPAQUE JSON payloads:
+// the server never introspects them, it only orders them on a change_seq
+// feed. Merge semantics (name dedup, LWW) live client-side where the
+// models are understood. Same counter-table cursor design as transactions.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS server_records (
+    record_type TEXT NOT NULL,
+    id TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    change_seq INTEGER NOT NULL,
+    PRIMARY KEY (record_type, id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_server_records_seq ON server_records(change_seq);
+
+  CREATE TABLE IF NOT EXISTS records_sync_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    last_seq INTEGER NOT NULL DEFAULT 0
+  );
+`);
+db.prepare(
+  'INSERT OR IGNORE INTO records_sync_state (id, last_seq) VALUES (1, 0)'
+).run();
+
 // Retention policy: webhook_events are operational logs, not data the
 // app needs long-term. Keep 30 days for debugging then drop. Runs once
 // on startup and every hour after.

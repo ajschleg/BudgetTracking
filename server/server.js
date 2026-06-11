@@ -7,6 +7,7 @@ import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import rateLimit from 'express-rate-limit';
 import plaidRoutes, { runFullIngest } from './routes/plaid.js';
 import transactionsRoutes from './routes/transactions.js';
+import recordsRoutes from './routes/records.js';
 import { createWebhookRouter } from './routes/webhooks.js';
 import { requireAppToken } from './middleware/auth.js';
 import { logAndSanitize } from './lib/errors.js';
@@ -81,6 +82,8 @@ app.use('/api', plaidRoutes);
 // /transactions/status keep matching first; the store router's :id
 // routes are UUID-guarded.
 app.use('/api', transactionsRoutes);
+// Generic record store (Phase 3): categories/rules/snapshots/profiles/files.
+app.use('/api', recordsRoutes);
 
 // Webhook receiver (Plaid-facing) — unauthenticated at the HTTP layer,
 // but each request is verified via Plaid JWT signature inside the
