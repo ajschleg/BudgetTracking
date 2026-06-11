@@ -10,8 +10,12 @@ iOS is now a pure client of the mini's API.
 - [ ] Update-mode (reconnect) flow on iOS: surface needs_update items
       (`GET /api/items`) and drive `/api/link/create-update`.
 - [ ] Unlink UI on iOS (`DELETE /api/items/:id`).
-- [ ] Editing parity: category assignment + budget edits exist on macOS
-      only; iOS views are read-mostly. Edits made on iOS push through the
-      same ServerTransactionSync/ServerRecordSync — only the UI is missing.
+- [x] Editing: SHIPPED, contrary to an earlier version of this note —
+      TransactionsView tap-to-recategorize runs the full pipeline
+      (updateCategory → RuleLearner → bulk apply → server push) and
+      BudgetView has complete category CRUD. Genuinely still missing,
+      none currently requested: rules-management UI, Dashboard drill-in
+      recategorization (DashboardViewModel.changeTransactionCategory is
+      ready and unused on iOS), optional per-device editing lock.
 - [ ] Device verification pass on real hardware: seed-from-empty pull,
       link a sandbox bank, background/foreground cursor behavior.
