@@ -177,6 +177,7 @@
 		F6E8F45BE6EA541B8BD6792C /* EbayEarningsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D794553C3B7A2870527C9C /* EbayEarningsViewModel.swift */; };
 		F968FE301D4F86E6CC980674 /* InsightsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99563DFA1DEEC8CD84301DD2 /* InsightsViewModel.swift */; };
 		FA5F402E1B4B2021A6D74689 /* PlaidConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927D8DC7F8205C22399386AD /* PlaidConsentView.swift */; };
+		FABD9471AE87BA16AFD3EFFE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 55FEBBDD1D6A1885611D1632 /* Assets.xcassets */; };
 		FB3DBC0CE257574DD434A391 /* MonthDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2296F730746DD13BF04875B5 /* MonthDetector.swift */; };
 		FD787C22CE93709BE828C402 /* SpinningModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B833FD321C4CFAC87764C9 /* SpinningModifier.swift */; };
 /* End PBXBuildFile section */
@@ -230,6 +231,7 @@
 		4C9F057F7944FB5FCD82A062 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		500C712221C092D00861F3F1 /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
 		526F8721F1A64F0D88D2C518 /* BankProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankProfile.swift; sourceTree = "<group>"; };
+		55FEBBDD1D6A1885611D1632 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		59EF97C6FF89940BA0975677 /* ChaseCSVParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaseCSVParsingTests.swift; sourceTree = "<group>"; };
 		5E19B00A36ECFC921500E343 /* ServerTransactionSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerTransactionSyncTests.swift; sourceTree = "<group>"; };
 		5FEE41143CE4140161D4EE80 /* StatementParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatementParser.swift; sourceTree = "<group>"; };
@@ -472,6 +474,7 @@
 		6517CBD47D97DB5B7BAC3603 /* BudgetTrackingIOS */ = {
 			isa = PBXGroup;
 			children = (
+				55FEBBDD1D6A1885611D1632 /* Assets.xcassets */,
 				BE37BEC885575C9A09129184 /* BudgetTrackingIOSApp.swift */,
 				8201F488036F636FD687B913 /* ContentView.swift */,
 				4293695686E2E307FFE18D7F /* Views */,
@@ -712,6 +715,7 @@
 			buildConfigurationList = 03AD375517E0FEA51F2C2C3D /* Build configuration list for PBXNativeTarget "BudgetTracking-iOS" */;
 			buildPhases = (
 				2135B7D155568684B5ECFAE3 /* Sources */,
+				D4337962B9EA4D58AD5430B4 /* Resources */,
 				E4B522EC86AD7BE8725C34EB /* Frameworks */,
 			);
 			buildRules = (
@@ -802,6 +806,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		D4337962B9EA4D58AD5430B4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FABD9471AE87BA16AFD3EFFE /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E4677EDB0F569B41FB184BB0 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
