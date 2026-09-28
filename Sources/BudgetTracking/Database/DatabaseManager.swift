@@ -990,29 +990,40 @@ final class DatabaseManager {
 
     /// Build a SQL clause that identifies likely return transactions (positive, categorized,
     /// has return keyword in description, doesn't look like income, not dismissed).
-    private static func returnFilterSQL(excludeReturnIds: Set<UUID>) -> String {
+    ///
+    /// The dismissed IDs come back as bound `arguments` that the caller must
+    /// splice into its statement *before* any later placeholders. They are
+    /// bound rather than inlined because GRDB stores `UUID` as a 16-byte
+    /// blob; an inlined `uuidString` literal never matches a stored id, which
+    /// is why dismissing a return used to have no effect on spending totals.
+    private static func returnFilterSQL(excludeReturnIds: Set<UUID>) -> (sql: String, arguments: [DatabaseValueConvertible]) {
         let keywordConditions = returnKeywordPatterns
             .map { "UPPER(description) LIKE '\($0)'" }
             .joined(separator: " OR ")
         let incomeExclusions = incomeExcludePatterns
             .map { "UPPER(description) NOT LIKE '\($0)'" }
             .joined(separator: " AND ")
-        let excludeIds = excludeReturnIds.isEmpty
-            ? "''"
-            : excludeReturnIds.map { "'\($0.uuidString)'" }.joined(separator: ",")
+        let excludeIds = Array(excludeReturnIds)
+        let excludeClause = excludeIds.isEmpty
+            ? "1"
+            : "id NOT IN (\(excludeIds.map { _ in "?" }.joined(separator: ", ")))"
 
-        return """
+        let sql = """
             amount > 0
             AND categoryId IS NOT NULL
             AND (\(keywordConditions))
             AND (\(incomeExclusions))
-            AND id NOT IN (\(excludeIds))
+            AND \(excludeClause)
             """
+        return (sql, excludeIds.map { $0 as DatabaseValueConvertible })
     }
 
     /// Fetch net spending per category (purchases minus detected returns).
     /// Only positive transactions with return/refund keywords offset spending.
     /// Dismissed returns and income-like transactions are excluded from netting.
+    /// A category whose returns exceed its purchases (e.g. a refund for
+    /// last month's purchase) is clamped to 0 rather than omitted, so it
+    /// still renders as a bar and never goes negative.
     func fetchSpendingByCategory(forMonth month: String, excludeReturnIds: Set<UUID> = []) throws -> [UUID: Double] {
         try dbQueue.read { db in
             let returnFilter = Self.returnFilterSQL(excludeReturnIds: excludeReturnIds)
@@ -1020,22 +1031,20 @@ final class DatabaseManager {
                 SELECT categoryId, SUM(
                     CASE
                         WHEN amount < 0 THEN amount
-                        WHEN \(returnFilter) THEN amount
+                        WHEN \(returnFilter.sql) THEN amount
                         ELSE 0
                     END
                 ) as total
                 FROM "transaction"
                 WHERE month = ? AND isDeleted = 0 AND categoryId IS NOT NULL
                 GROUP BY categoryId
-                """, arguments: [month])
+                """, arguments: StatementArguments(returnFilter.arguments + [month]))
 
             var result: [UUID: Double] = [:]
             for row in rows {
                 if let id: UUID = row["categoryId"] {
                     let total: Double = row["total"] ?? 0.0
-                    if total < 0 {
-                        result[id] = abs(total)
-                    }
+                    result[id] = max(0, -total)
                 }
             }
             return result
@@ -1052,30 +1061,38 @@ final class DatabaseManager {
     ///   which is the invariant the dashboard's "Overall Budget" relies
     ///   on so the bars add up to the headline number. Pass an empty set
     ///   to get 0.
+    /// Netting is done per category and each category is clamped at 0
+    /// before summing, matching `fetchSpendingByCategory`, so a refund
+    /// larger than one category's purchases can't bleed into the others.
     func fetchTotalSpending(forMonth month: String, excludeReturnIds: Set<UUID> = [], inCategoryIds: Set<UUID>? = nil) throws -> Double {
         try dbQueue.read { db in
             if let ids = inCategoryIds, ids.isEmpty {
                 return 0
             }
             let returnFilter = Self.returnFilterSQL(excludeReturnIds: excludeReturnIds)
-            var sql = """
-                SELECT SUM(
-                    CASE
-                        WHEN amount < 0 THEN amount
-                        WHEN \(returnFilter) THEN amount
-                        ELSE 0
-                    END
-                ) FROM "transaction"
-                WHERE month = ? AND isDeleted = 0
-                """
-            var args: [DatabaseValueConvertible] = [month]
+            var whereSQL = "month = ? AND isDeleted = 0"
+            var args: [DatabaseValueConvertible] = returnFilter.arguments + [month]
             if let ids = inCategoryIds {
                 let placeholders = ids.map { _ in "?" }.joined(separator: ", ")
-                sql += " AND categoryId IN (\(placeholders))"
+                whereSQL += " AND categoryId IN (\(placeholders))"
                 args.append(contentsOf: ids.map { $0 as DatabaseValueConvertible })
             }
+            let sql = """
+                SELECT SUM(MAX(0, -net)) FROM (
+                    SELECT SUM(
+                        CASE
+                            WHEN amount < 0 THEN amount
+                            WHEN \(returnFilter.sql) THEN amount
+                            ELSE 0
+                        END
+                    ) AS net
+                    FROM "transaction"
+                    WHERE \(whereSQL)
+                    GROUP BY categoryId
+                )
+                """
             let total = try Double.fetchOne(db, sql: sql, arguments: StatementArguments(args))
-            return abs(total ?? 0.0)
+            return total ?? 0.0
         }
     }
 
@@ -1183,7 +1200,7 @@ final class DatabaseManager {
         guard !months.isEmpty else { return [:] }
         return try dbQueue.read { db in
             let placeholders = months.map { _ in "?" }.joined(separator: ", ")
-            let returnFilter = Self.returnFilterSQL(excludeReturnIds: [])
+            let returnFilter = Self.returnFilterSQL(excludeReturnIds: []).sql
             let sql = """
                 SELECT month, categoryId, SUM(
                     CASE

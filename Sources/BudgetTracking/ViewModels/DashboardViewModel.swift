@@ -83,12 +83,20 @@ final class DashboardViewModel {
             let split = Self.splitForDashboard(try DatabaseManager.shared.fetchCategories())
             categories = split.visible
             totalBudget = split.totalBudget
-            spendingByCategory = try DatabaseManager.shared.fetchSpendingByCategory(forMonth: month)
+            // Returns the user dismissed on the Insights page must not
+            // offset spending here either, or the bars disagree with
+            // what Insights says was netted.
+            let dismissedReturns = DismissedReturns.load()
+            spendingByCategory = try DatabaseManager.shared.fetchSpendingByCategory(
+                forMonth: month, excludeReturnIds: dismissedReturns
+            )
             // Total spent is restricted to visible categories so the
             // headline equals the sum of the bars. Spending in hidden
             // categories (Money Transfers, Credit Card Payments) and
             // uncategorized rows do not pollute the number.
-            totalSpent = try DatabaseManager.shared.fetchTotalSpending(forMonth: month, inCategoryIds: split.visibleIds)
+            totalSpent = try DatabaseManager.shared.fetchTotalSpending(
+                forMonth: month, excludeReturnIds: dismissedReturns, inCategoryIds: split.visibleIds
+            )
             // Income is scoped to the categories the user has explicitly
             // marked as income sources (the $ toggle in Categories
             // settings). Refunds, transfers, and Zelle reimbursements

@@ -16,10 +16,7 @@ final class InsightsViewModel {
     var insights: [BudgetInsight] = []
     var isLoadingInsights = false
     var errorMessage: String?
-    var dismissedReturnIds: Set<UUID> = {
-        let data = UserDefaults.standard.data(forKey: "dismissedReturnIds") ?? Data()
-        return (try? JSONDecoder().decode(Set<UUID>.self, from: data)) ?? []
-    }()
+    var dismissedReturnIds: Set<UUID> = DismissedReturns.load()
 
     // Per-page chat history
     var pageChatStates: [SidebarItem: PageChatState] = [:]
@@ -163,9 +160,7 @@ final class InsightsViewModel {
 
     func dismissReturn(_ transactionId: UUID) {
         dismissedReturnIds.insert(transactionId)
-        if let data = try? JSONEncoder().encode(dismissedReturnIds) {
-            UserDefaults.standard.set(data, forKey: "dismissedReturnIds")
-        }
+        DismissedReturns.save(dismissedReturnIds)
         // Remove the insight card
         insights.removeAll { $0.relatedTransactionId == transactionId }
     }

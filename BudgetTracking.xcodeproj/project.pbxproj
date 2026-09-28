@@ -50,6 +50,7 @@
 		38739B83B49AF5EB8539BBD9 /* BudgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C468C167002A50AC89F87960 /* BudgetView.swift */; };
 		38868D3284FBE8E7AD1936C2 /* CodableCSV in Frameworks */ = {isa = PBXBuildFile; productRef = 3CD1F44A4AAFAC831F122B28 /* CodableCSV */; };
 		3AEC6D3F44B7DDA635B77A79 /* OFXParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A01F52CACF433AE1C260BB /* OFXParser.swift */; };
+		3DEDEDCAD2FD6456D907BEC9 /* DismissedReturns.swift in Sources */ = {isa = PBXBuildFile; fileRef = 636A4B37822B5535389A1F78 /* DismissedReturns.swift */; };
 		44E0D1D3EAA3B8D5328112DA /* PlaidSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690D8EABCC7787A3941782DA /* PlaidSyncManager.swift */; };
 		46E3A8202B015E739DFF6FA3 /* DuplicateDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0F41D1898A33513CB58060 /* DuplicateDetectorTests.swift */; };
 		46F17ABC8FD4E2F82BC93EEC /* SpinningModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B833FD321C4CFAC87764C9 /* SpinningModifier.swift */; };
@@ -164,6 +165,7 @@
 		E3CEA321E9F561D0C6D68CA7 /* SecurityPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0DB8E8D72B629DE8C9B71B /* SecurityPolicyTests.swift */; };
 		E53470827328467C88573F4C /* CategorizationRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371D0746A64876D4E554C092 /* CategorizationRule.swift */; };
 		E6D708D14B960CFB3793275A /* PDFParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11DFF79231E859813B37A16 /* PDFParser.swift */; };
+		E8210FFE3E6965EFADE9CD5C /* ReturnNettingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC42547B385CC28E9A6F8E0 /* ReturnNettingTests.swift */; };
 		E8A3702B42005E8CE7A068AB /* InsightsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ABB74337E8DADE534BC987F /* InsightsEngine.swift */; };
 		E9D527003A69E368F9FEE4EB /* DatabaseManager+Plaid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4798FC56D298C578396267F /* DatabaseManager+Plaid.swift */; };
 		EBABA1F1CDEED5F64A632E83 /* EmploymentIncomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7360488F2F2069D1F7F77921 /* EmploymentIncomeView.swift */; };
@@ -180,6 +182,7 @@
 		FABD9471AE87BA16AFD3EFFE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 55FEBBDD1D6A1885611D1632 /* Assets.xcassets */; };
 		FB3DBC0CE257574DD434A391 /* MonthDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2296F730746DD13BF04875B5 /* MonthDetector.swift */; };
 		FD787C22CE93709BE828C402 /* SpinningModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B833FD321C4CFAC87764C9 /* SpinningModifier.swift */; };
+		FDB4BF6582435D557F752861 /* DismissedReturns.swift in Sources */ = {isa = PBXBuildFile; fileRef = 636A4B37822B5535389A1F78 /* DismissedReturns.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -235,6 +238,7 @@
 		59EF97C6FF89940BA0975677 /* ChaseCSVParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaseCSVParsingTests.swift; sourceTree = "<group>"; };
 		5E19B00A36ECFC921500E343 /* ServerTransactionSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerTransactionSyncTests.swift; sourceTree = "<group>"; };
 		5FEE41143CE4140161D4EE80 /* StatementParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatementParser.swift; sourceTree = "<group>"; };
+		636A4B37822B5535389A1F78 /* DismissedReturns.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DismissedReturns.swift; sourceTree = "<group>"; };
 		655A15FC4D8506017DB0D393 /* AddSourcingTransactionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSourcingTransactionSheet.swift; sourceTree = "<group>"; };
 		65A3B7896DEB2A0E6AEC65D1 /* RuleLearner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleLearner.swift; sourceTree = "<group>"; };
 		671D29FBB688425439694C7F /* SideHustleListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideHustleListView.swift; sourceTree = "<group>"; };
@@ -249,6 +253,7 @@
 		7619A21E784D3733842F06AB /* MonthlySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlySnapshot.swift; sourceTree = "<group>"; };
 		7E95B4A446E484C32A02CE61 /* EbayEarningsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayEarningsView.swift; sourceTree = "<group>"; };
 		7F0A4D4CF27E36301EC7A040 /* EbayFee.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EbayFee.swift; sourceTree = "<group>"; };
+		7FC42547B385CC28E9A6F8E0 /* ReturnNettingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReturnNettingTests.swift; sourceTree = "<group>"; };
 		814237725B108CA6C713DE5B /* ImportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportViewModel.swift; sourceTree = "<group>"; };
 		8201F488036F636FD687B913 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		850E4467CF4D66BED7921C21 /* HistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewModel.swift; sourceTree = "<group>"; };
@@ -615,6 +620,7 @@
 				E66F8CABD461F5F5CC6BC191 /* DashboardBudgetInvariantTests.swift */,
 				AC0F41D1898A33513CB58060 /* DuplicateDetectorTests.swift */,
 				9947AE67CD53562BAE93D903 /* PlaidSyncManagerTests.swift */,
+				7FC42547B385CC28E9A6F8E0 /* ReturnNettingTests.swift */,
 				EE0DB8E8D72B629DE8C9B71B /* SecurityPolicyTests.swift */,
 				854D7302944E919DDAD92322 /* ServerRecordSyncTests.swift */,
 				5E19B00A36ECFC921500E343 /* ServerTransactionSyncTests.swift */,
@@ -681,6 +687,7 @@
 				483034A4379587D3D92B9DE4 /* ColorThresholds.swift */,
 				13ADAAEEDA6767ED5825AFB5 /* CurrencyFormatter.swift */,
 				D9C7E858423BCB8EA18EE19F /* DateHelpers.swift */,
+				636A4B37822B5535389A1F78 /* DismissedReturns.swift */,
 				97374E69A19F0E9E413B36EB /* KeychainStore.swift */,
 				2296F730746DD13BF04875B5 /* MonthDetector.swift */,
 				E8DAAB42884DD798FC3A549A /* NotificationNames.swift */,
@@ -852,6 +859,7 @@
 				A2D6FFC72C899E7BBCE7A502 /* DatabaseManager+ServerSync.swift in Sources */,
 				8CA06AC4E72AE5EC76BB23B8 /* DatabaseManager.swift in Sources */,
 				0E3939ACEE27A6819193EB45 /* DateHelpers.swift in Sources */,
+				3DEDEDCAD2FD6456D907BEC9 /* DismissedReturns.swift in Sources */,
 				780A00BBAE7E9FC3303FE445 /* DuplicateDetector.swift in Sources */,
 				D271214CBA02242D39C1858A /* EbayAPIService.swift in Sources */,
 				8FA6F796425C232692814152 /* EbayAuthManager.swift in Sources */,
@@ -932,6 +940,7 @@
 				A4F3FA6A94DADF1C5FAB2F69 /* DatabaseManager+ServerSync.swift in Sources */,
 				1C536B9A9FBAC5B6EEDB408C /* DatabaseManager.swift in Sources */,
 				CA548684785642DD4902FEA3 /* DateHelpers.swift in Sources */,
+				FDB4BF6582435D557F752861 /* DismissedReturns.swift in Sources */,
 				B8FCE0FACC0C79783EA070D8 /* DuplicateDetector.swift in Sources */,
 				F621943A2D39E963AEF8286E /* DuplicateScannerView.swift in Sources */,
 				B9C411FEC25252B94B5D6463 /* EbayAPIService.swift in Sources */,
@@ -1004,6 +1013,7 @@
 				CAAA8883C83BFC817B8AB082 /* DashboardBudgetInvariantTests.swift in Sources */,
 				46E3A8202B015E739DFF6FA3 /* DuplicateDetectorTests.swift in Sources */,
 				89D042E85A6ADF78A577A424 /* PlaidSyncManagerTests.swift in Sources */,
+				E8210FFE3E6965EFADE9CD5C /* ReturnNettingTests.swift in Sources */,
 				E3CEA321E9F561D0C6D68CA7 /* SecurityPolicyTests.swift in Sources */,
 				BC4B5C0C0B5DF01521BCFD9F /* ServerRecordSyncTests.swift in Sources */,
 				DBA90306FCAD66C4D5ED07D2 /* ServerTransactionSyncTests.swift in Sources */,
