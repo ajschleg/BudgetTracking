@@ -9,6 +9,7 @@ protocol PlaidTransactionSyncing {
     func syncTransactions() async throws -> PlaidService.SyncResponse
     func fetchAccounts() async throws -> [PlaidService.AccountListItem]
     func removeItem(_ itemId: String) async throws
+    func removeAccount(_ plaidAccountId: String) async throws
     func removeAllItems() async throws -> PlaidService.BulkRemoveResponse
     func refreshBalances(itemId: String?, minAgeSeconds: Int?) async throws -> PlaidService.BalancesRefreshResponse
     func refreshIdentity(itemId: String?) async throws -> PlaidService.IdentityRefreshResponse
@@ -128,10 +129,28 @@ final class PlaidSyncManager {
         return formatter.date(from: string)
     }
 
-    func removeAccount(_ account: PlaidAccount) async {
+    /// Disconnect the whole institution that `account` belongs to:
+    /// revokes the Plaid access token server-side and drops every
+    /// account row for that item. Transactions stay.
+    func disconnectBank(_ account: PlaidAccount) async {
         do {
             try await plaidService.removeItem(account.plaidItemId)
             try self.database.deletePlaidAccounts(forItemId: account.plaidItemId)
+            loadAccounts()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Remove one account while leaving its institution linked. The
+    /// server stops ingesting the account's transactions and hides it;
+    /// sibling accounts keep syncing and existing transactions stay.
+    /// Callers should route the last account on an institution to
+    /// `disconnectBank` instead — the server refuses that case.
+    func removeAccount(_ account: PlaidAccount) async {
+        do {
+            try await plaidService.removeAccount(account.plaidAccountId)
+            try self.database.deletePlaidAccount(plaidAccountId: account.plaidAccountId)
             loadAccounts()
         } catch {
             errorMessage = error.localizedDescription

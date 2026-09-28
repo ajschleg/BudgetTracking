@@ -28,6 +28,14 @@ extension DatabaseManager {
         }
     }
 
+    func deletePlaidAccount(plaidAccountId: String) throws {
+        try dbQueue.write { db in
+            try PlaidAccount
+                .filter(PlaidAccount.Columns.plaidAccountId == plaidAccountId)
+                .deleteAll(db)
+        }
+    }
+
     func deletePlaidAccounts(forItemId itemId: String) throws {
         try dbQueue.write { db in
             try PlaidAccount

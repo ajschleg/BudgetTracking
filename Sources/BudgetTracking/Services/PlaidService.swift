@@ -449,6 +449,16 @@ actor PlaidService {
         let _: SuccessResponse = try await delete(path: "/api/items/\(itemId)")
     }
 
+    /// Remove a single account without disconnecting its institution.
+    /// Server-side exclusion only (Plaid has no per-account remove): the
+    /// server hides the account, stops ingesting its transactions and
+    /// skips it on balance refreshes. Existing transactions stay. The
+    /// server rejects removing the last account on an item (409); use
+    /// `removeItem` for that.
+    func removeAccount(_ plaidAccountId: String) async throws {
+        let _: SuccessResponse = try await delete(path: "/api/accounts/\(plaidAccountId)")
+    }
+
     struct BulkRemoveResponse: Codable {
         let removed: [RefreshedIdentityItem]  // {item_id, institution_name}
         let errors: [BalanceError]

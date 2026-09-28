@@ -317,13 +317,22 @@ const tombstoneByExternalStmt = db.prepare(`
  *   updateTransactionByExternalId protection). Rows we never stored
  *   (e.g. modified-while-pending) insert if no longer pending.
  * - removed: tombstone, never hard-delete.
+ * - excludedAccountIds (Set of Plaid account_ids, optional): rows for
+ *   accounts the user removed individually are neither inserted nor
+ *   updated. Tombstones still apply so a Plaid-side deletion of an
+ *   already-stored row is honored regardless.
  *
  * Returns counts only — callers must not log transaction contents.
  */
-export const ingestPlaidResult = db.transaction((item, result) => {
-  const counts = { added: 0, addedSkipped: 0, pendingSkipped: 0, modified: 0, removed: 0 };
+export const ingestPlaidResult = db.transaction((item, result, options = {}) => {
+  const excluded = options.excludedAccountIds ?? new Set();
+  const counts = { added: 0, addedSkipped: 0, pendingSkipped: 0, accountSkipped: 0, modified: 0, removed: 0 };
 
   for (const txn of result.added) {
+    if (excluded.has(txn.account_id)) {
+      counts.accountSkipped++;
+      continue;
+    }
     if (txn.pending) {
       counts.pendingSkipped++;
       continue;
@@ -337,6 +346,10 @@ export const ingestPlaidResult = db.transaction((item, result) => {
   }
 
   for (const txn of result.modified) {
+    if (excluded.has(txn.account_id)) {
+      counts.accountSkipped++;
+      continue;
+    }
     if (txn.pending) {
       counts.pendingSkipped++;
       continue;

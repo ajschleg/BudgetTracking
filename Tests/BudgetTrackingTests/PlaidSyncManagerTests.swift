@@ -26,6 +26,13 @@ final class PlaidSyncManagerTests: XCTestCase {
 
         func fetchAccounts() async throws -> [PlaidService.AccountListItem] { fatalError("not stubbed") }
         func removeItem(_ itemId: String) async throws { fatalError("not stubbed") }
+
+        private(set) var removedAccountIds: [String] = []
+        var removeAccountError: Error?
+        func removeAccount(_ plaidAccountId: String) async throws {
+            if let removeAccountError { throw removeAccountError }
+            removedAccountIds.append(plaidAccountId)
+        }
         func removeAllItems() async throws -> PlaidService.BulkRemoveResponse { fatalError("not stubbed") }
         func refreshBalances(itemId: String?, minAgeSeconds: Int?) async throws -> PlaidService.BalancesRefreshResponse { fatalError("not stubbed") }
         func refreshIdentity(itemId: String?) async throws -> PlaidService.IdentityRefreshResponse { fatalError("not stubbed") }
@@ -110,6 +117,41 @@ final class PlaidSyncManagerTests: XCTestCase {
             updated_at: Self.stamp(secondsAgo: 60),
             change_seq: seq
         )
+    }
+
+    // MARK: - Per-account removal
+
+    private func linkedAccount(_ plaidAccountId: String, item: String = "item-1", name: String) -> PlaidAccount {
+        PlaidAccount(plaidAccountId: plaidAccountId, plaidItemId: item, institutionName: "Test Bank", name: name)
+    }
+
+    func testRemoveAccountTellsServerAndDropsOnlyThatLocalRow() async throws {
+        try database.savePlaidAccount(linkedAccount("acct-checking", name: "Checking"))
+        try database.savePlaidAccount(linkedAccount("acct-savings", name: "Savings"))
+        manager.loadAccounts()
+        XCTAssertEqual(manager.linkedAccounts.count, 2)
+
+        let savings = try XCTUnwrap(manager.linkedAccounts.first { $0.plaidAccountId == "acct-savings" })
+        await manager.removeAccount(savings)
+
+        XCTAssertEqual(mockPlaid.removedAccountIds, ["acct-savings"])
+        XCTAssertEqual(manager.linkedAccounts.map(\.plaidAccountId), ["acct-checking"])
+        XCTAssertEqual(try database.fetchPlaidAccounts().map(\.plaidAccountId), ["acct-checking"])
+        XCTAssertNil(manager.errorMessage)
+    }
+
+    func testRemoveAccountServerFailureKeepsLocalRowAndSurfacesError() async throws {
+        try database.savePlaidAccount(linkedAccount("acct-checking", name: "Checking"))
+        try database.savePlaidAccount(linkedAccount("acct-savings", name: "Savings"))
+        manager.loadAccounts()
+        mockPlaid.removeAccountError = PlaidService.PlaidServiceError.serverError("This is the last account on its institution; disconnect the institution instead")
+
+        let savings = try XCTUnwrap(manager.linkedAccounts.first { $0.plaidAccountId == "acct-savings" })
+        await manager.removeAccount(savings)
+
+        XCTAssertTrue(mockPlaid.removedAccountIds.isEmpty)
+        XCTAssertEqual(manager.linkedAccounts.count, 2, "a failed server call must not delete the local row")
+        XCTAssertNotNil(manager.errorMessage)
     }
 
     // MARK: - Orchestration

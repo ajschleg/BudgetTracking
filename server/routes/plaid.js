@@ -20,6 +20,20 @@ function tokenOf(item) {
 
 const router = Router();
 
+/**
+ * Plaid account_ids the user removed individually on this item. Ingest,
+ * balance refresh and the account list all skip these. See the
+ * removed_at comment in db.js for why the rows are kept.
+ */
+function removedAccountIdsFor(localItemId) {
+  return new Set(
+    db
+      .prepare('SELECT plaid_account_id FROM plaid_accounts WHERE plaid_item_id = ? AND removed_at IS NOT NULL')
+      .all(localItemId)
+      .map((r) => r.plaid_account_id)
+  );
+}
+
 // Initialize Plaid client
 const plaidConfig = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -215,14 +229,22 @@ router.post('/items/:id/clear-update', async (req, res) => {
         }
       }
 
-      // Upsert current shared accounts.
+      // Upsert current shared accounts. A conflict updates the
+      // descriptive columns only, so an existing row keeps its id,
+      // cached balances/identity, and — importantly — its removed_at:
+      // an account the user removed in-app must not come back just
+      // because they re-authed the bank.
       const insertStmt = db.prepare(`
-        INSERT OR REPLACE INTO plaid_accounts
+        INSERT INTO plaid_accounts
           (id, plaid_item_id, plaid_account_id, name, official_name, type, subtype, mask)
-        VALUES (
-          COALESCE((SELECT id FROM plaid_accounts WHERE plaid_account_id = ?), ?),
-          ?, ?, ?, ?, ?, ?, ?
-        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(plaid_account_id) DO UPDATE SET
+          plaid_item_id = excluded.plaid_item_id,
+          name = excluded.name,
+          official_name = excluded.official_name,
+          type = excluded.type,
+          subtype = excluded.subtype,
+          mask = excluded.mask
       `);
       let addedCount = 0;
       for (const acct of response.data.accounts) {
@@ -230,7 +252,6 @@ router.post('/items/:id/clear-update', async (req, res) => {
           .prepare('SELECT 1 FROM plaid_accounts WHERE plaid_account_id = ?')
           .get(acct.account_id);
         insertStmt.run(
-          acct.account_id,
           uuidv4(),
           id,
           acct.account_id,
@@ -441,7 +462,7 @@ async function fetchAndStoreIdentity(accessToken, localItemId) {
       owner_phone = ?,
       owners_json = ?,
       identity_fetched_at = datetime('now')
-    WHERE plaid_account_id = ?
+    WHERE plaid_account_id = ? AND removed_at IS NULL
   `);
 
   for (const acct of response.data.accounts) {
@@ -499,11 +520,13 @@ export async function runFullIngest(trigger) {
 
     for (const item of items) {
       const result = await syncTransactionsForItem(item);
-      const counts = ingestPlaidResult(item, result);
+      const counts = ingestPlaidResult(item, result, {
+        excludedAccountIds: removedAccountIdsFor(item.id),
+      });
       totals.added += counts.added;
       totals.modified += counts.modified;
       totals.removed += counts.removed;
-      totals.skipped += counts.addedSkipped + counts.pendingSkipped;
+      totals.skipped += counts.addedSkipped + counts.pendingSkipped + counts.accountSkipped;
     }
 
     // Clear the webhook-set "new data pending" flag now that the store
@@ -587,6 +610,9 @@ router.get('/balances/history', (req, res) => {
            balance_limit, balance_iso_currency_code, fetched_at
     FROM plaid_balance_history
     WHERE fetched_at >= datetime('now', ?)
+      AND plaid_account_id NOT IN (
+        SELECT plaid_account_id FROM plaid_accounts WHERE removed_at IS NOT NULL
+      )
     ORDER BY fetched_at ASC
   `).all(`-${days} days`);
   res.json({ snapshots: rows });
@@ -612,9 +638,51 @@ router.get('/accounts', (_req, res) => {
     FROM plaid_accounts a
     JOIN plaid_items i ON a.plaid_item_id = i.id
     LEFT JOIN sync_cursors sc ON sc.plaid_item_id = i.id
+    WHERE a.removed_at IS NULL
     ORDER BY i.institution_name, a.name
   `).all();
   res.json({ accounts });
+});
+
+// DELETE /api/accounts/:id — Remove ONE account without disconnecting
+// its institution.
+//
+// :id is either our local account UUID or the Plaid account_id (the app
+// only stores the latter). Plaid has no per-account /remove — the Item
+// keeps sharing the account until the user deselects it in Link update
+// mode — so this is a server-side exclusion: the row is stamped
+// removed_at and from then on the account list hides it, ingest drops
+// its transactions, and balance/identity refreshes skip it. Existing
+// transactions are left alone, matching DELETE /api/items.
+//
+// Refuses to remove the last remaining account on an Item: that would
+// leave a linked, billed Item with nothing visible. Disconnect the
+// Item instead (DELETE /api/items/:id).
+router.delete('/accounts/:id', (req, res) => {
+  const { id } = req.params;
+  const account = db
+    .prepare('SELECT * FROM plaid_accounts WHERE id = ? OR plaid_account_id = ?')
+    .get(id, id);
+  if (!account) {
+    return res.status(404).json({ error: 'Account not found' });
+  }
+  if (account.removed_at) {
+    return res.json({ success: true, already_removed: true });
+  }
+
+  const remaining = db
+    .prepare('SELECT COUNT(*) AS n FROM plaid_accounts WHERE plaid_item_id = ? AND removed_at IS NULL')
+    .get(account.plaid_item_id).n;
+  if (remaining <= 1) {
+    return res.status(409).json({
+      error: 'This is the last account on its institution; disconnect the institution instead',
+      code: 'LAST_ACCOUNT_ON_ITEM',
+    });
+  }
+
+  db.prepare(`UPDATE plaid_accounts SET removed_at = datetime('now') WHERE id = ?`).run(account.id);
+  console.log(`[accounts] Removed account ${account.id} from item ${account.plaid_item_id}`);
+  res.json({ success: true });
 });
 
 // POST /api/balances/refresh — Fetch live balances from Plaid for all items.
@@ -682,8 +750,10 @@ router.post('/balances/refresh', async (req, res) => {
         access_token: tokenOf(item),
       });
 
+      const removedIds = removedAccountIdsFor(item.id);
       const updatedAccounts = [];
       for (const acct of response.data.accounts) {
+        if (removedIds.has(acct.account_id)) continue;
         const bal = acct.balances || {};
         updateAccount.run(
           bal.current ?? null,

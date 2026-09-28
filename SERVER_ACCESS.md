@@ -94,6 +94,19 @@ The server owns the books: it ingests the Plaid stream into its own
 | `GET /api/records/changes?since=<seq>&limit=<≤500>` | Pull deltas of the metadata record types (categories, rules, snapshots, profiles, files — opaque JSON payloads) |
 | `POST /api/records/bulk` (≤250) | Idempotent record upsert; byte-identical payloads are seq-silent |
 
+**Removing one account without disconnecting the bank.** `DELETE
+/api/accounts/:id` (local UUID or Plaid `account_id`) stamps the row
+`removed_at`. From then on `GET /api/accounts` hides it, ingest drops its
+transactions, and balance/identity refreshes skip it; existing
+transactions are kept, same as an item disconnect. Plaid itself has no
+per-account remove, so the Item keeps sharing the account until the user
+deselects it in Link update mode — the `removed_at` row is what keeps a
+later `NEW_ACCOUNTS_AVAILABLE` webhook or update-mode reconcile from
+re-adding it. The server refuses (409 `LAST_ACCOUNT_ON_ITEM`) to remove
+the only account left on an Item; the app routes that case to the
+bank-level Disconnect. In the macOS app this is the ⊖ button on each
+account row of the Accounts page.
+
 Because the tailnet-only server can never receive Plaid webhooks, a
 server-side timer drives ingestion: `AUTO_SYNC_INTERVAL_MINUTES` in
 `server/.env` (default 360 = 6 h, `0` disables, first run ~60 s after

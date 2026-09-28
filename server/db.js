@@ -104,6 +104,14 @@ addColumnIfMissing('plaid_accounts', 'owner_phone', 'TEXT');
 addColumnIfMissing('plaid_accounts', 'owners_json', 'TEXT');
 addColumnIfMissing('plaid_accounts', 'identity_fetched_at', 'TEXT');
 
+// Per-account removal. Plaid has no API to drop a single account from an
+// Item (that takes Link update mode with the account picker), so
+// "remove this account" is a server-side exclusion: the row stays, with
+// removed_at set, and every reader/ingester skips it. Keeping the row
+// (instead of deleting it) is what stops NEW_ACCOUNTS_AVAILABLE
+// webhooks and update-mode reconciles from silently re-adding it.
+addColumnIfMissing('plaid_accounts', 'removed_at', 'TEXT');
+
 // Transactions lifecycle flags (per item). Plaid fetches history in two
 // phases — a fast "last 30 days" pass (initial_update_complete) and a
 // slower full backfill (historical_update_complete). We surface both to

@@ -11,6 +11,7 @@ struct AccountsView: View {
     @State private var isShowingConsent = false
     @State private var isLinkingAccount = false
     @State private var pendingDisconnect: (institution: String, account: PlaidAccount)?
+    @State private var pendingAccountRemoval: PlaidAccount?
     @State private var showDisconnectAllConfirmation = false
 
     /// True when this Mac has no Plaid app token in the Keychain — i.e.
@@ -55,7 +56,7 @@ struct AccountsView: View {
             presenting: pendingDisconnect
         ) { pending in
             Button("Disconnect", role: .destructive) {
-                Task { await plaidManager.removeAccount(pending.account) }
+                Task { await plaidManager.disconnectBank(pending.account) }
                 pendingDisconnect = nil
             }
             Button("Cancel", role: .cancel) {
@@ -63,6 +64,26 @@ struct AccountsView: View {
             }
         } message: { pending in
             Text("This will revoke Plaid's access to \(pending.institution) and stop syncing new transactions. Your existing transaction history will not be deleted. You can reconnect later.")
+        }
+        // Single-account removal confirmation
+        .confirmationDialog(
+            "Remove \(pendingAccountRemoval?.displayName ?? "account")?",
+            isPresented: Binding(
+                get: { pendingAccountRemoval != nil },
+                set: { if !$0 { pendingAccountRemoval = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingAccountRemoval
+        ) { account in
+            Button("Remove Account", role: .destructive) {
+                Task { await plaidManager.removeAccount(account) }
+                pendingAccountRemoval = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingAccountRemoval = nil
+            }
+        } message: { account in
+            Text("This hides the account and stops syncing new transactions for it. Other accounts at \(account.institutionName ?? "this bank") keep syncing, and existing transactions are not deleted. To stop sharing it with Plaid entirely, use Reconnect and deselect it in the account picker.")
         }
         // Disconnect-all confirmation
         .confirmationDialog(
@@ -239,6 +260,26 @@ struct AccountsView: View {
                         Text(CurrencyFormatter.format(current, code: account.balanceCurrencyCode))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.primary)
+                    }
+                    if !isPlaidViewerOnly {
+                        Button {
+                            // The server refuses to strand an item with no
+                            // accounts; the last one goes through the
+                            // institution-level disconnect instead.
+                            if accounts.count <= 1 {
+                                pendingDisconnect = (institution: institution, account: account)
+                            } else {
+                                pendingAccountRemoval = account
+                            }
+                        } label: {
+                            Image(systemName: "minus.circle")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help(accounts.count <= 1
+                              ? "Only account at this bank — disconnects the bank"
+                              : "Remove this account and stop syncing it")
                     }
                 }
                 .padding(.leading, 20)
