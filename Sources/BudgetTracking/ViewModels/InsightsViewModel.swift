@@ -734,8 +734,8 @@ final class InsightsViewModel {
     }
 
     private func recordUsage(inputTokens: Int, outputTokens: Int) {
-        // Sonnet pricing: $3/M input, $15/M output
-        let cost = Double(inputTokens) * 3.0 / 1_000_000 + Double(outputTokens) * 15.0 / 1_000_000
+        // Sonnet 5 pricing: $2/M input, $10/M output
+        let cost = Double(inputTokens) * 2.0 / 1_000_000 + Double(outputTokens) * 10.0 / 1_000_000
         let current = currentCalendarMonth()
         let (savedMonth, savedSpend) = loadUsage()
         let newSpend = (savedMonth == current ? savedSpend : 0) + cost

@@ -4,7 +4,7 @@ import Foundation
 actor ClaudeAPIService {
 
     private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
-    private let model = "claude-sonnet-4-20250514"
+    private let model = "claude-sonnet-5"
     private let apiVersion = "2023-06-01"
 
     /// An action the AI can suggest: budget change, transaction update, or rule creation.
